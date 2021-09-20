@@ -6928,6 +6928,22 @@ img.contact-section-desc.is-active {
   display: none;
 }
 
+.instagram-link {
+  background:#fff;
+  color:#083F72;
+  font-size:1rem;
+  width:19px;
+  height:19px;
+  display:flex;
+  border-radius:100%;
+  justify-content: center;
+  align-items: center;
+}
+
+.instagram-link:hover {
+  background:#66afe9
+}
+
 @media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
   .price-list_box-content img {
     width: 100%;

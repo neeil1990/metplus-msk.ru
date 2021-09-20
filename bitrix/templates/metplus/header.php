@@ -11,6 +11,7 @@
     <? $APPLICATION->ShowHead(); ?>
     <style>body{opacity: 0;}</style>
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+	<script src="https://kit.fontawesome.com/9973168a9e.js" crossorigin="anonymous"></script>
 
 <? if(isDebug()): ?>
 

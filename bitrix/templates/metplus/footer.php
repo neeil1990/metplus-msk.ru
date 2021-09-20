@@ -49,6 +49,7 @@
                     <li><a href=""><span class="glipf-facebook"></span></a></li>
                     <li><a href=""><span class="glipf-odnoklassniki"></span></a></li>
                     <li><a href=""><span class="glipf-twitter"></span></a></li>
+					<li><a href="https://www.instagram.com/metplus.vrn/"><span class="instagram-link"><i  class="fab fa-instagram"></i></span></a></li>
                 </ul>
  </div>
 		</div>
