@@ -147,6 +147,8 @@
 <script src="<?=SITE_TEMPLATE_PATH?>/js/min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/fancyTable.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/parallax.js"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
+<script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/js/main.js"></script>
 
 

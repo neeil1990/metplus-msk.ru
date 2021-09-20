@@ -255,7 +255,7 @@ jQuery(document).ready(function($) {
   });
   $(".wrapper_select-office .js-select").on("change", function() {
     var number = $(this).find('option:selected').index();
-    
+
     $(this).closest('.tab-item').find('.contact-section-desc').removeClass('is-active').eq(number).addClass('is-active');
     $(this).closest('.container').find('.contact_right-column .contact-img.is-visible img.contact-section-desc').removeClass('is-active').eq(number).addClass('is-active');
   });
@@ -556,7 +556,24 @@ jQuery(document).ready(function($) {
     inputPlaceholder: "Введите название или марку стали",
   });
 
-  $('#success_msg').modal('show')
+  $('#success_msg').modal('show');
+
+  $(".to_order-main").stick_in_parent({
+    offset_top: 150
+  });
+
+  $('#inStockCat').click(function(e){
+    e.preventDefault();
+
+    let self = $(this);
+    $.cookie(`in_stock_${self.data('cat_id')}`, true, { expires: 30, path: '/' });
+    window.location.reload();
+  });
+
+  $('[data-text]').each(function(i, el){
+    let self = $(el);
+    self.html(self.data('text'));
+  });
 
 });
 if ($('.map-container').length) {

@@ -50,6 +50,7 @@ if($this->StartResultCache())
 			"SECTION_PAGE_URL",
 			"UF_ICON",
 			"UF_ICON_MENU",
+			"UF_IN_STOCK",
 		));
 		if($arParams["IS_SEF"] !== "Y")
 			$rsSections->SetUrlTemplates("", $arParams["SECTION_URL"]);
@@ -62,6 +63,7 @@ if($this->StartResultCache())
 				"DEPTH_LEVEL" => $arSection["DEPTH_LEVEL"],
 				"ICON" => $arSection["UF_ICON"],
 				"ICON_MENU" => $arSection["UF_ICON_MENU"],
+				"IN_STOCK" => $arSection["UF_IN_STOCK"],
 				"~NAME" => $arSection["~NAME"],
 				"PICTURE" => CFile::GetPath($arSection["PICTURE"]),
 				"~SECTION_PAGE_URL" => $arSection["~SECTION_PAGE_URL"],
@@ -141,7 +143,7 @@ foreach($arResult["SECTIONS"] as $arSection)
 			"DEPTH_LEVEL" => $arSection["DEPTH_LEVEL"],
 			"ICON" => $arSection["ICON"],
 			"ICON_MENU" => $arSection["ICON_MENU"],
-			"ICON_MENU" => $arSection["ICON_MENU"],
+			"IN_STOCK" => $arSection["IN_STOCK"],
 			"PICTURE" => $arSection["PICTURE"],
 		),
 	);

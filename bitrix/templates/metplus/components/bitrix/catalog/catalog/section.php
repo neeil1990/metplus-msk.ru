@@ -39,7 +39,16 @@ if ($isFilter)
         $arCurSection = array();
         if (Loader::includeModule("iblock"))
         {
-            $dbRes = CIBlockSection::GetList(array(), $arFilter, true, array("ID", "NAME", "DEPTH_LEVEL", "UF_DESCRIPTION_TOP", "DESCRIPTION", "UF_INCLUDE_SUBSECTIONS"));
+            $dbRes = CIBlockSection::GetList(array(), $arFilter, true, array(
+                "ID",
+                "NAME",
+                "IBLOCK_SECTION_ID",
+                "DEPTH_LEVEL",
+                "UF_DESCRIPTION_TOP",
+                "DESCRIPTION",
+                "UF_INCLUDE_SUBSECTIONS",
+                "UF_IN_STOCK"
+            ));
 
             if(defined("BX_COMP_MANAGED_CACHE"))
             {
@@ -62,6 +71,19 @@ if ($isFilter)
     if (!isset($arCurSection))
         $arCurSection = array();
 }
+
+if($arCurSection['IBLOCK_SECTION_ID']){
+    $dbResStock = CIBlockSection::GetList(array(), ["IBLOCK_ID" => $arParams["IBLOCK_ID"], "ID" => $arCurSection['IBLOCK_SECTION_ID']], true, array(
+        "ID",
+        "NAME",
+        "UF_IN_STOCK"
+    ));
+    if ($arStockSection = $dbResStock->Fetch())
+        $arCurSection['UF_IN_STOCK'] = $arStockSection['UF_IN_STOCK'];
+}
+
+if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
+    $arCurSection['UF_IN_STOCK'] = "1";
 ?>
 
     <section class="subcategory-section">
@@ -101,7 +123,17 @@ if ($isFilter)
                     </aside>
                 </div>
 
-                <div class="catalog_right-column">
+                <div class="catalog_right-column <?=(!$arCurSection['UF_IN_STOCK']) ? 'to-order' : null?>">
+
+                        <?
+                        if(!$arCurSection['UF_IN_STOCK']){
+                            $APPLICATION->IncludeFile($templateFolder . "/include/to_order.php", [
+                                "ID" => $arCurSection['ID']
+                            ], Array(
+                                "SHOW_BORDER" => false,
+                            ));
+                        }
+                        ?>
 
                         <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array(
                                 "SITE_ID" => SITE_ID
@@ -115,7 +147,7 @@ if ($isFilter)
                                 <?=$arCurSection['UF_DESCRIPTION_TOP'];?>
                             </div>
                         <? endif; ?>
-                       
+
 
                         <?$APPLICATION->IncludeComponent(
                             "bitrix:catalog.section.list",
@@ -312,7 +344,7 @@ if ($isFilter)
 					<? endif; ?>
                 </div>
             </div>
-           
+
 
 
         </div>
