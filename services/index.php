@@ -4,17 +4,19 @@ $APPLICATION->SetPageProperty("title", "Услуги компании МЕТАЛ
 $APPLICATION->SetPageProperty("keywords", "Услуги компании МЕТАЛЛИНВЕСТ");
 $APPLICATION->SetPageProperty("description", "Услуги компании МЕТАЛЛИНВЕСТ");
 $APPLICATION->SetTitle("Услуги");
-?><main class="main-content">
+?>
+<main class="main-content">
 <div class="inner-page_title-section">
 	<div class="container">
 		 <?$APPLICATION->IncludeComponent(
 	"bitrix:breadcrumb",
 	"breadcrumb",
-	Array(
-		"SITE_ID" => SITE_ID
-	)
-);?>
-		<h1>УСЛУГИ</h1>
+                Array(
+                    "SITE_ID" => SITE_ID
+                )
+            );
+            ?>
+		<h1><?$APPLICATION->ShowTitle('pageTitle')?></h1>
 	</div>
 </div>
  <!-- end inner-page_title-section --> <?$APPLICATION->IncludeComponent(
