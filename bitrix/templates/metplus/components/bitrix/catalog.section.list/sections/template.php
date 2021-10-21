@@ -23,6 +23,11 @@ $arSectionDeleteParams = array("CONFIRM" => GetMessage('CT_BCSL_ELEMENT_DELETE_C
     ?>
     <div class="category-column">
         <div class="category-item_other">
+            <? if($arSection['UF_IN_STOCK']): ?>
+                <div class="badge">
+                    <span class="in-stock" data-text="В наличии"></span>
+                </div>
+            <? endif; ?>
             <span class="category-icon <?=$arSection['UF_ICON_CATALOG']?>"></span>
             <a href="<?=$arSection['SECTION_PAGE_URL']?>" class="category-item_other-title"><?=$arSection['NAME']?></a>
             <ul class="category-item_other-list">

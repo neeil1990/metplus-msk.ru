@@ -255,6 +255,23 @@ foreach ($arMenuItemsIDs as $itemIdLevel_1=>$arLevels2)
 	}
 }
 
+$in_stock = [];
+$to_order = [];
+foreach ($arMenuStructure as $index => $m){
+    if($arAllItems[$index]['PARAMS']['IN_STOCK']){
+        $in_stock[$index] = $m;
+    }else{
+        $to_order[$index] = $m;
+    }
+}
+
+$arMenuStructure = [
+    'in_stock' => $in_stock,
+    'to_order' => $to_order,
+];
+
+//var_dump($arMenuStructure);
+
 $arResult = array();
 $arResult["ALL_ITEMS"] = $arAllItems;
 $arResult["ITEMS_IMG_DESC"] = $arImgDesc;

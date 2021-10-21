@@ -46,7 +46,8 @@ $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ»
 		"SECTION_USER_FIELDS" => array(0=>"UF_ICON",1=>"",),
 		"SHOW_PARENT_NAME" => "Y",
 		"TOP_DEPTH" => "1",
-		"VIEW_MODE" => "LINE"
+		"VIEW_MODE" => "LINE",
+        "SECTION_USER_FIELDS" => array("UF_*")
 	)
 );?>
         <!-- end category-section -->
