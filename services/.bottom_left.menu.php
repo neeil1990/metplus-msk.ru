@@ -1,5 +1,6 @@
 <?
 $aMenuLinks = Array(
+	/*
 	Array(
 		"Резка газом и вулканитом", 
 		"/services/rezka-gazom/", 
@@ -21,6 +22,7 @@ $aMenuLinks = Array(
 		Array(), 
 		"" 
 	),
+	*/
 	Array(
 		"Подготовка", 
 		"/services/podgotovka/", 

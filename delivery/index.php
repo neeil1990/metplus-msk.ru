@@ -1,8 +1,7 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
-$APPLICATION->SetPageProperty("title", "Доставка металла по всей России");
-$APPLICATION->SetPageProperty("keywords", "доставка");
-$APPLICATION->SetPageProperty("description", "доставка");
+$APPLICATION->SetPageProperty("description", "Доставляем собственным автотранспортом приобретенные товары в нашей компании. Ознакомиться с условиями и ценами можно на этой странице");
+$APPLICATION->SetPageProperty("title", "Доставка продукции клиентам от компании «Корпорация Металлинвест»");
 $APPLICATION->SetTitle("delivery");
 ?>
 

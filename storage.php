@@ -9,6 +9,7 @@ use Bitrix\Main\ErrorCollection;
 
 try
 {
+
 	require($_SERVER["DOCUMENT_ROOT"]."/desktop_app/headers.php");
 	require_once($_SERVER["DOCUMENT_ROOT"] . "/bitrix/modules/main/include/prolog_before.php");
 

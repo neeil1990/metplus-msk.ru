@@ -34,7 +34,7 @@ Disallow: /*?view_result=
 Disallow: /*&view_result=
 Disallow: */filter/*
 Disallow: /*?
-#################vylezli думну stranicy#################
+#################vylezli dubli stranicy#################
 Disallow: /catalog/truba-profilnaya-nerzhaveyushchaya/*/*
 Disallow: /catalog/ano-21/*/*
 Disallow: /catalog/armatura-a240-gladkaya/*/*
@@ -90,12 +90,11 @@ Allow: /bitrix/cache/
 Allow: /bitrix/js/
 Allow: /bitrix/templates/
 Allow: /bitrix/panel/
-
 #################zakryli gosty beя kontenta#################
 Disallow: /gost/
+Disallow: /articles/
 #################info bez kom poleznosti#################
 Disallow: /upload/politics.pdf
 Disallow: /upload/compliance.pdf
-
 Sitemap: https://metplus-msk.ru/sitemap.xml
 Host: https://metplus-msk.ru

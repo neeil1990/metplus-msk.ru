@@ -2,7 +2,7 @@
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("title", "Вакансии компании Металлинвест");
 $APPLICATION->SetPageProperty("keywords", "вакансии");
-$APPLICATION->SetPageProperty("description", "вакансии");
+$APPLICATION->SetPageProperty("description", "На этой странице мы публикуем вакансии в компании «КОРПОРАЦИЯ Металлинвест», приходите к нам на работу. Дружный коллектив, честное руководство.");
 $APPLICATION->SetTitle("Вакансии");
 ?>
 

@@ -2,36 +2,36 @@
     <div class="container">
         <div class="row">
             <?$APPLICATION->IncludeComponent("bitrix:menu", "bottom.menu", Array(
-                "ROOT_MENU_TYPE" => "bottom",	// Тип меню для первого уровня
-                "MENU_CACHE_TYPE" => "A",	// Тип кеширования
-                "MENU_CACHE_TIME" => "36000000",	// Время кеширования (сек.)
-                "MENU_CACHE_USE_GROUPS" => "Y",	// Учитывать права доступа
-                "MENU_THEME" => "site",	// Тема меню
+                "ROOT_MENU_TYPE" => "bottom",   // Тип меню для первого уровня
+                "MENU_CACHE_TYPE" => "A",   // Тип кеширования
+                "MENU_CACHE_TIME" => "36000000",    // Время кеширования (сек.)
+                "MENU_CACHE_USE_GROUPS" => "Y", // Учитывать права доступа
+                "MENU_THEME" => "site", // Тема меню
                 "CACHE_SELECTED_ITEMS" => "N",
-                "MENU_CACHE_GET_VARS" => "",	// Значимые переменные запроса
-                "MAX_LEVEL" => "2",	// Уровень вложенности меню
-                "CHILD_MENU_TYPE" => "bottom_left",	// Тип меню для остальных уровней
-                "USE_EXT" => "Y",	// Подключать файлы с именами вида .тип_меню.menu_ext.php
-                "DELAY" => "N",	// Откладывать выполнение шаблона меню
-                "ALLOW_MULTI_SELECT" => "N",	// Разрешить несколько активных пунктов одновременно
+                "MENU_CACHE_GET_VARS" => "",    // Значимые переменные запроса
+                "MAX_LEVEL" => "2", // Уровень вложенности меню
+                "CHILD_MENU_TYPE" => "bottom_left", // Тип меню для остальных уровней
+                "USE_EXT" => "Y",   // Подключать файлы с именами вида .тип_меню.menu_ext.php
+                "DELAY" => "N", // Откладывать выполнение шаблона меню
+                "ALLOW_MULTI_SELECT" => "N",    // Разрешить несколько активных пунктов одновременно
                 "COMPONENT_TEMPLATE" => "catalog_horizontal"
             ),
                 false
             );?>
 
             <?$APPLICATION->IncludeComponent("bitrix:menu", "bottom_useful.menu", Array(
-                "ROOT_MENU_TYPE" => "bottom_useful",	// Тип меню для первого уровня
-                "MENU_CACHE_TYPE" => "A",	// Тип кеширования
-                "MENU_CACHE_TIME" => "36000000",	// Время кеширования (сек.)
-                "MENU_CACHE_USE_GROUPS" => "Y",	// Учитывать права доступа
-                "MENU_THEME" => "site",	// Тема меню
+                "ROOT_MENU_TYPE" => "bottom_useful",    // Тип меню для первого уровня
+                "MENU_CACHE_TYPE" => "A",   // Тип кеширования
+                "MENU_CACHE_TIME" => "36000000",    // Время кеширования (сек.)
+                "MENU_CACHE_USE_GROUPS" => "Y", // Учитывать права доступа
+                "MENU_THEME" => "site", // Тема меню
                 "CACHE_SELECTED_ITEMS" => "N",
-                "MENU_CACHE_GET_VARS" => "",	// Значимые переменные запроса
-                "MAX_LEVEL" => "1",	// Уровень вложенности меню
-                "CHILD_MENU_TYPE" => "bottom_useful",	// Тип меню для остальных уровней
-                "USE_EXT" => "Y",	// Подключать файлы с именами вида .тип_меню.menu_ext.php
-                "DELAY" => "N",	// Откладывать выполнение шаблона меню
-                "ALLOW_MULTI_SELECT" => "N",	// Разрешить несколько активных пунктов одновременно
+                "MENU_CACHE_GET_VARS" => "",    // Значимые переменные запроса
+                "MAX_LEVEL" => "1", // Уровень вложенности меню
+                "CHILD_MENU_TYPE" => "bottom_useful",   // Тип меню для остальных уровней
+                "USE_EXT" => "Y",   // Подключать файлы с именами вида .тип_меню.menu_ext.php
+                "DELAY" => "N", // Откладывать выполнение шаблона меню
+                "ALLOW_MULTI_SELECT" => "N",    // Разрешить несколько активных пунктов одновременно
                 "COMPONENT_TEMPLATE" => "catalog_horizontal"
             ),
                 false
@@ -41,18 +41,20 @@
                     <li><a href="tel:+74951140102"><span class="glipf-call-answer"></span>+7 (495) 114-01-02</a></li>
                     <li><a href="mailto:avs@metplus-vrn.ru" class="footer-mail"><span class="glipf-email"></span>avs@metplus-vrn.ru</a></li>
                     <li>
-						<span class="glipf-clock"></span>Будни: 8:00 - 17:00 <br>Суббота, воскресенье - выходные
+                        <span class="glipf-clock"></span>Будни: 8:00 - 17:00 <br>Суббота, воскресенье - выходные
                     </li>
+                    <noindex><li><a href="https://www.instagram.com/metplus.vrn/"  rel="nofollow"><span class="instagram-link"><i  class="fab fa-instagram"></i> Наш Инстаграм</span></a></li></noindex>
                 </ul>
                 <ul class="social-network">
+                    <!--
                     <li><a href=""><span class="glipf-vk"></span></a></li>
                     <li><a href=""><span class="glipf-facebook"></span></a></li>
                     <li><a href=""><span class="glipf-odnoklassniki"></span></a></li>
                     <li><a href=""><span class="glipf-twitter"></span></a></li>
-					<li><a href="https://www.instagram.com/metplus.vrn/"><span class="instagram-link"><i  class="fab fa-instagram"></i></span></a></li>
+                -->
                 </ul>
  </div>
-		</div>
+        </div>
         <div class="row">
             <div class="col-lg-10">
                 <div class="rules">
@@ -82,15 +84,15 @@
             <button aria-label="Close" class="close uhified_close-btn" data-dismiss="modal" type="button"></button>
             <div class="row">
                 <ul class="modal-city_list-unstyled col-sm-6">
-					<li>Москва</li>
+                    <li>Москва</li>
                     <li>
-						<a href="https://metplus-vrn.ru/">Воронеж</a>
+                        <a href="https://metplus-vrn.ru/">Воронеж</a>
                     </li>
                 </ul>
                 <ul class="modal-city_list-unstyled col-sm-6">
 
                     <li><a href="http://metplus-osk.ru/">Старый Оскол</a></li>
-					<li>
+                    <li>
                         Лиски
                     </li>
                 </ul>

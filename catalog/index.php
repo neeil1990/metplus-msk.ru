@@ -1,6 +1,7 @@
 <?
 define("HIDE_SIDEBAR", true);
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
+$APPLICATION->SetPageProperty("description", "В разделе представлен каталог продукции Металлинвест Плюс, специализирующейся на поставках нержавейки и цветного металла");
 $APPLICATION->SetTitle("Каталог продукции Металлинвест Плюс");
 $IBLOCK_ID = 13;
 

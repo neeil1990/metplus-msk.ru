@@ -6,8 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?$APPLICATION->ShowTitle()?></title>
     <link href="<?=SITE_DIR?>favicon.ico" rel="icon" type="image/png" />
-    <link href="<?=SITE_DIR?>favicon.png" rel="icon" type="image/png" />
-    <link href="<?=SITE_DIR?>apple-touch-icon.png" rel="apple-touch-icon" />
+
     <? $APPLICATION->ShowHead(); ?>
     <style>body{opacity: 0;}</style>
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
