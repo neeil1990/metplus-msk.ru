@@ -34,6 +34,11 @@ Disallow: /*?view_result=
 Disallow: /*&view_result=
 Disallow: */filter/*
 Disallow: /*?
+Disallow: /bitrix/rk.php/
+Disallow: /bitrix/rk.php
+Disallow: /bitrix/rk.php*
+Disallow: *rk.php?goto=
+Disallow: *rk.php?
 #################vylezli dubli stranicy#################
 Disallow: /catalog/truba-profilnaya-nerzhaveyushchaya/*/*
 Disallow: /catalog/ano-21/*/*

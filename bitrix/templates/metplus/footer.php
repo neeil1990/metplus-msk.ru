@@ -58,6 +58,7 @@
         <div class="row">
             <div class="col-lg-10">
                 <div class="rules">
+					@ 2006-2022. ООО «Корпорация Металлинвест»
                     <a href="/upload/politics.pdf" target="_blank">Политика конфиденциальности</a>
                     <a href="/upload/compliance.pdf" target="_blank">Согласие на обработку персональных данных</a>
                 </div>

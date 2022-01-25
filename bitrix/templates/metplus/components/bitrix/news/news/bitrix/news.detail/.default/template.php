@@ -14,7 +14,7 @@ $this->setFrameMode(true);
 ?>
 
 <?if($arParams["DISPLAY_NAME"]!="N" && $arResult["NAME"]):?>
-    <h3 class="news-detailed_title"><?=$arResult["NAME"]?></h3>
+<h1 class="news-detailed_title" style="color:#2b2b2b"><?=$arResult["NAME"]?></h1>
 <?endif;?>
 
 <?if($arParams["DISPLAY_DATE"]!="N" && $arResult["DISPLAY_ACTIVE_FROM"]):?>

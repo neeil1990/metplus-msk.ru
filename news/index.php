@@ -3,7 +3,21 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("title", "Новости компании «Корпорация Металлинвест»");
 $APPLICATION->SetPageProperty("description", "Радел новостей от компании «Корпорация Металлинвест»");
 $APPLICATION->SetTitle("Новости компании");
+
+$page = $APPLICATION->GetCurPage();
 ?>
+
+	<style>
+		.h1 {
+			font-size: 1.875rem;
+			font-weight: 800;
+			color: #fff;
+			margin-top: 0;
+			line-height: 1.15;
+			margin-bottom: 1em;
+			text-transform: uppercase;
+		}
+	</style>
 
     <main class="main-content">
         <div class="inner-page_title-section">
@@ -11,7 +25,11 @@ $APPLICATION->SetTitle("Новости компании");
                 <?$APPLICATION->IncludeComponent("bitrix:breadcrumb", "breadcrumb", Array("SITE_ID" => SITE_ID),
                     false
                 );?>
-                <h1>новости</h1>
+				<? if($page === '/news/'): ?>
+					<h1><? $APPLICATION->ShowTitle(false) ?></h1>
+				<? else: ?>
+                	<h3 class="h1"><? $APPLICATION->ShowTitle(false) ?></h3>
+				<? endif; ?>
             </div>
         </div>
         <!-- end inner-page_title-section -->

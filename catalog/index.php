@@ -300,13 +300,14 @@ if($code &&  $cat == "catalog"){
 		"PAGER_BASE_LINK_ENABLE" => "N",
 		"LAZY_LOAD" => "N",
 		"LOAD_ON_SCROLL" => "N",
-		"SHOW_404" => "N",
+		"SHOW_404" => "Y",
 		"MESSAGE_404" => "",
 		"DISABLE_INIT_JS_IN_COMPONENT" => "N",
 		"DETAIL_SET_VIEWED_IN_COMPONENT" => "N",
 		"DETAIL_ADD_TO_BASKET_ACTION_PRIMARY" => array(
 			0 => "BUY",
 		),
+		"FILE_404" => "",
 		"SEF_URL_TEMPLATES" => array(
 			"sections" => "",
 			"section" => "#SECTION_CODE#/",

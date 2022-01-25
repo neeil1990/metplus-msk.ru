@@ -505,7 +505,6 @@ h3,
 .head-logo {
   margin-right: .6em;
   position: relative;
-  top: -6px;
 }
 
 .head-logo img {
@@ -514,6 +513,8 @@ h3,
 
 .head_phone-box {
   margin-right: auto;
+display:flex;
+align-items: center;
 }
 
 .head_phone-number {
