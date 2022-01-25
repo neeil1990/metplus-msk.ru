@@ -1,3 +1,4 @@
+web/*
 upload/*
 bitrix/php_interface/*
 !/bitrix/php_interface/init.php

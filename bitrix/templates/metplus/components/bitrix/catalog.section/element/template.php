@@ -59,7 +59,11 @@ if(count($arResult['ITEMS'])) :
                     <?=htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?>
                 </span>
                 <span class="product-availability">
-                    <? if($arItem['CATALOG_QUANTITY'] < 1000):?>Количество ограничено, уточняйте у менеджера<? else:?>В наличии на складе.<?endif;?>
+                    <? if($arItem['CATALOG_QUANTITY'] < 1000):?>
+                        <span>Количество ограничено, уточняйте у менеджера.</span>
+                    <? else:?>
+                        <span>В наличии на складе.</span>
+                    <?endif;?>
                 </span>
                 <div class="product-item_popup">
                     <div class="product-item_popup-close"><span class="glipf-reset"></span></div>
@@ -81,7 +85,7 @@ if(count($arResult['ITEMS'])) :
                             <?=$priceGroup?>
                         </li>
                         <li>
-                            <strong>Порезка, руб</strong>
+                            <strong>Резка, руб</strong>
                             <?=CurrencyFormat($arItem['PROPERTIES']['PRICE_CUTTING']['VALUE'], $arItem['ITEM_PRICES'][0]['CURRENCY']);?>
                         </li>
                     </ul>
@@ -114,7 +118,7 @@ if(count($arResult['ITEMS'])) :
 </div>
 
 <?
-endif; 
+endif;
 ?>
 
 <? if($arParams["DEPTH_LEVEL"] == "1"): ?>
