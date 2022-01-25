@@ -60,9 +60,9 @@ if(count($arResult['ITEMS'])) :
                 </span>
                 <span class="product-availability">
                     <? if($arItem['CATALOG_QUANTITY'] < 1000):?>
-                        <span>Количество ограничено, уточняйте у менеджера.</span>
+                        <span class="manager">Количество ограничено, уточняйте у менеджера.</span>
                     <? else:?>
-                        <span>В наличии на складе.</span>
+                        <span class="instock">В наличии на складе.</span>
                     <?endif;?>
                 </span>
                 <div class="product-item_popup">
