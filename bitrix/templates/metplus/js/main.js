@@ -589,7 +589,7 @@ jQuery(document).ready(function($) {
 
   $('.tag-slider').slick({
     dots: false,
-    arrows: true,
+    arrows: false,
     infinite: true,
     autoplay: true,
     variableWidth: true,
@@ -618,7 +618,7 @@ jQuery(document).ready(function($) {
     $(".subcategories .sub-links-2").removeClass("open");
     $('.tag-slider').slick({
       dots: false,
-      arrows: true,
+      arrows: false,
       infinite: true,
       autoplay: true,
       variableWidth: true,

@@ -148,14 +148,11 @@
 
 <link href="<?=SITE_TEMPLATE_PATH?>/css/min.css" rel="stylesheet" />
 <link href="<?=SITE_TEMPLATE_PATH?>/css/main.css" rel="stylesheet" />
-<link rel="stylesheet" type="text/css" href="//cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css"/>
-
 <script src="<?=SITE_TEMPLATE_PATH?>/js/min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/fancyTable.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/parallax.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.sticky-kit.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/libs/jquery.cookie.js"></script>
-<script type="text/javascript" src="//cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
 <script src="<?=SITE_TEMPLATE_PATH?>/js/main.js"></script>
 
 
