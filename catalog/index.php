@@ -30,8 +30,8 @@ if($code &&  $cat == "catalog"){
 		</div>
 		<!-- end inner-page_title-section -->
 		<?$APPLICATION->IncludeComponent(
-	"bitrix:catalog", 
-	"catalog", 
+	"bitrix:catalog",
+	"catalog",
 	array(
 		"IBLOCK_TYPE" => "catalog",
 		"IBLOCK_ID" => $IBLOCK_ID,
@@ -84,7 +84,7 @@ if($code &&  $cat == "catalog"){
 		"SECTION_TOP_DEPTH" => "2",
 		"SECTIONS_VIEW_MODE" => "TILE",
 		"SECTIONS_SHOW_PARENT_NAME" => "N",
-		"PAGE_ELEMENT_COUNT" => "30",
+		"PAGE_ELEMENT_COUNT" => "1000",
 		"LINE_ELEMENT_COUNT" => "3",
 		"ELEMENT_SORT_FIELD" => "sort",
 		"ELEMENT_SORT_ORDER" => "asc",

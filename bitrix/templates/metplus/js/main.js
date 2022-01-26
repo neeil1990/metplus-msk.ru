@@ -553,6 +553,10 @@ jQuery(document).ready(function($) {
     sortable: false,
     searchable: true,
     globalSearch: true,
+    pagination: true,
+    perPage:30,
+    paginationElement: '.fancy-pagination .main-pagination',
+    paginationClass: '',
     inputPlaceholder: "Введите название или марку стали",
   });
 

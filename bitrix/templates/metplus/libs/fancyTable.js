@@ -60,18 +60,21 @@
 						var a = $("<a>",{
 							html:n,
 							"data-n": n,
-							style:"margin:0.2em",
-							class:settings.paginationClass+" "+((n==elm.fancyTable.page)?settings.paginationClassActive:"")
 						}).css("cursor","pointer").bind("click",function(){
 							elm.fancyTable.page = $(this).data("n");
 							instance.tableUpdate(elm);
 						});
+
+						a = $('<li />', {
+							class: ((n==elm.fancyTable.page)?settings.paginationClassActive:"")
+						}).append(a);
+
 						if(n==elm.fancyTable.pages && elm.fancyTable.page<(elm.fancyTable.pages-settings.pagClosest-1)){
-							paginationElement.append($("<span>...</span>"));
+							paginationElement.append($("<span>...</span>").css('line-height','2.5'));
 						}
 						paginationElement.append(a);
 						if(n==1 && elm.fancyTable.page>settings.pagClosest+2){
-							paginationElement.append($("<span>...</span>"));
+							paginationElement.append($("<span>...</span>").css('line-height','2.5'));
 						}
 					}
 				}
