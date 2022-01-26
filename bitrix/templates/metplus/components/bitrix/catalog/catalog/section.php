@@ -212,7 +212,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                             "element", array(
                             "IBLOCK_TYPE" => $arParams["IBLOCK_TYPE"],
                             "IBLOCK_ID" => $arParams["IBLOCK_ID"],
-                            "SECTION_USER_FIELDS" => array('UF_HIDDEN_COL'),
+                            "SECTION_USER_FIELDS" => array('UF_*'),
                             "ELEMENT_SORT_FIELD" => $arParams["ELEMENT_SORT_FIELD"],
                             "ELEMENT_SORT_ORDER" => $arParams["ELEMENT_SORT_ORDER"],
                             "ELEMENT_SORT_FIELD2" => $arParams["ELEMENT_SORT_FIELD2"],
