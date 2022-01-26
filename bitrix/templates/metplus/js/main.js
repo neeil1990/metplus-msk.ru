@@ -559,6 +559,14 @@ jQuery(document).ready(function($) {
     paginationClass: '',
     inputPlaceholder: "Введите название или марку стали",
   });
+  $('.fancy-pagination .main-pagination').click(function () {
+    let table = $('#product-table').offset();
+
+    $('html, body').animate({
+      scrollTop: table.top
+    });
+    return false;
+  });
 
   $('#success_msg').modal('show');
 
