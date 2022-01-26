@@ -3,11 +3,6 @@ IncludeModuleLangFile(__FILE__);
 IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/options.php");
 \Bitrix\Main\UI\Extension::load("ui.hint");
 
-    $arFields = array(
-        'MODULE_ID' => $mid,
-        'MESSAGE' => 'Правила успешно сохранены!',
-    );
-
     if ($REQUEST_METHOD == "POST" && strlen($Save) > 0 && check_bitrix_sessid())
     {
         $data = [];
@@ -21,8 +16,6 @@ IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/options.p
 
         if(count($data))
             COption::SetOptionString($mid, "data", json_encode($data));
-
-        CAdminNotify::Add($arFields);
 
         LocalRedirect($APPLICATION->GetCurPage()."?mid=".urlencode($mid)."&lang=".urlencode(LANGUAGE_ID)."&mid_menu=".urlencode($_REQUEST["mid_menu"]));
     }
@@ -46,23 +39,9 @@ IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/options.p
     <form method="post" action="<?echo $APPLICATION->GetCurPage()?>?mid=<?=htmlspecialchars($mid)?>&lang=<?=LANGUAGE_ID?>&mid_menu=<?=urlencode($_REQUEST["mid_menu"])?>">
     <?=bitrix_sessid_post()?>
     <?$tabControl->BeginNextTab();?>
-    <tr>
-        <td width="100%" style="" colspan="2">
-            <?
-                if($_REQUEST['Save'] === "1")
-                    CAdminMessage::ShowMessage(
-                        Array(
-                            "TYPE" => "OK",
-                            "MESSAGE" => "Saved",
-                            "DETAILS" => "",
-                            "HTML" => true
-                        )
-                    );
-            ?>
-        </td>
-    </tr>
+
     <tr class="heading">
-        <td valign="top" colspan="2" align="center">Title</td>
+        <td valign="top" colspan="2" align="center"><?=GetMessage('nBrains_hidden_TITLE')?></td>
     </tr>
     <tr>
         <td width="100%" style="" colspan="2">
@@ -74,15 +53,15 @@ IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/options.p
                                 <tr class="heading">
                                     <td>
                                         URL
-                                        <span data-hint="Относительный URL"></span>
+                                        <span data-hint="<?=GetMessage('nBrains_hidden_URL')?>"></span>
                                     </td>
                                     <td>
                                         Selector
-                                        <span data-hint="css селектор"></span>
+                                        <span data-hint="<?=GetMessage('nBrains_hidden_Selector_hint')?>"></span>
                                     </td>
                                     <td>
                                         Quantity
-                                        <span data-hint="С какого элемента применять правило"></span>
+                                        <span data-hint="<?=GetMessage('nBrains_hidden_Quantity_hint')?>"></span>
                                     </td>
                                     <td></td>
                                 </tr>
@@ -103,7 +82,7 @@ IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/options.p
                                             <td><input name="quantity[]" value="<?=$setting['quantity']?>" type="text" size="20" pattern="^[ 0-9]+$" /></td>
                                             <td>
                                                 <? if($i > 0): ?>
-                                                    <a href="javascript:void(0)" onclick="remove_row(this)">Удалить</a>
+                                                    <a href="javascript:void(0)" onclick="remove_row(this)"><?=GetMessage('nBrains_hidden_Delete')?></a>
                                                 <? endif; ?>
                                             </td>
                                         </tr>
@@ -114,15 +93,15 @@ IncludeModuleLangFile($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/options.p
 
                         <br />
                         <div style="width: 100%; text-align: center;">
-                            <input type="button" value="More" onclick="additional_row(this);" />
+                            <input type="button" value="<?=GetMessage('nBrains_hidden_more')?>" onclick="additional_row(this);" />
                         </div>
 
                         <div style="clear: both"> </div>
                         <br />
                         <?=BeginNote();?>
-                            <p><strong>URL</strong> - Относительный URL сайта для которого работает правило. Без домена и протокола http/s. Пример: '/catalog/'</p>
-                            <p><strong>Selector</strong> - Элемент к которому нужно обратиться в формате css селекторов. Пример: .class > div</p>
-                            <p><strong>Quantity</strong> - С какого элемента применять правило. Другими словами, сколько элементов должно быть пропущено.</p>
+                            <p><strong>URL</strong> - <?=GetMessage('nBrains_hidden_URL')?></p>
+                            <p><strong>Selector</strong> - <?=GetMessage('nBrains_hidden_Selector')?></p>
+                            <p><strong>Quantity</strong> - <?=GetMessage('nBrains_hidden_Quantity')?></p>
                         <?=EndNote();?>
                     </td>
                 <tr>

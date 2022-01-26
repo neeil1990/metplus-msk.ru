@@ -1,4 +1,7 @@
 <?
+
+use Bitrix\Main\Localization\Loc;
+
 IncludeModuleLangFile(__FILE__);
 
 if (class_exists('nbrains_hiddens')) return;
@@ -27,19 +30,28 @@ class nbrains_hiddens extends CModule
         }
 
         $this->PARTNER_NAME = "nBrains";
-        $this->PARTNER_URI = 'https://nbrains.ru/';
+        $this->PARTNER_URI = '';
 
-        $this->MODULE_NAME = "Скрытие содержимого HTML тегов для SEO";
-        $this->MODULE_DESCRIPTION = "Убирает содержимое тега,  помещает его в атрибут тега и далее выводит его с помощью Java Script после загрузки страницы, скрывая содержимое от индексации.";
+        $this->MODULE_NAME = GetMessage('nBrains_hidden_MODULE_NAME');
+        $this->MODULE_DESCRIPTION = GetMessage('nBrains_hidden_MODULE_DESCRIPTION');
     }
 
     public function DoInstall()
     {
-        RegisterModule($this->MODULE_ID);
+        global $USER, $APPLICATION, $step;
+        $step = IntVal($step);
+        if ($step < 2)
+        {
+            $APPLICATION->IncludeAdminFile('nBrains', $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/$this->MODULE_ID/install/step.php");
+        }
+        elseif ($step == 2)
+        {
+            RegisterModule($this->MODULE_ID);
 
-        RegisterModuleDependences("main", "OnEndBufferContent", $this->MODULE_ID, "nBrainsBase", "index");
+            RegisterModuleDependences("main", "OnEndBufferContent", $this->MODULE_ID, "nBrainsBase", "index");
 
-        return true;
+            return true;
+        }
     }
 
     public function DoUninstall()

@@ -27,6 +27,10 @@ class nBrainsBase
 
             $content = $this->html->save();
 
+            $this->html->clear();
+
+            unset($this->html);
+
             $this->setJs($content);
         }
     }
