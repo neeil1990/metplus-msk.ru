@@ -44,10 +44,8 @@ if ($isFilter)
                 "NAME",
                 "IBLOCK_SECTION_ID",
                 "DEPTH_LEVEL",
-                "UF_DESCRIPTION_TOP",
                 "DESCRIPTION",
-                "UF_INCLUDE_SUBSECTIONS",
-                "UF_IN_STOCK"
+                "UF_*",
             ));
 
             if(defined("BX_COMP_MANAGED_CACHE"))
@@ -337,6 +335,21 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                             $component
                         );
                         ?>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <?
+                            /* TAGS LIST */
+                            $APPLICATION->IncludeFile(SITE_TEMPLATE_PATH."/inc/tags_list.php", Array("SECTION" => $arCurSection), Array(
+                                "MODE"      => "php",
+                                "NAME"      => "",
+                                "TEMPLATE"  => "",
+                                "SHOW_BORDER" => false,
+                            ));
+                            ?>
+                        </div>
+                    </div>
+
 					<? if($arCurSection['DEPTH_LEVEL'] > 1): ?>
 					<div class="unified-text-section">
 						<?=$arCurSection['DESCRIPTION'];?>

@@ -587,6 +587,47 @@ jQuery(document).ready(function($) {
     self.html(self.data('text'));
   });
 
+  $('.tag-slider').slick({
+    dots: false,
+    arrows: true,
+    infinite: true,
+    autoplay: true,
+    variableWidth: true,
+    centerMode: true,
+    slidesToShow: 3,
+    responsive: [
+      {
+        breakpoint: 767,
+        settings: {
+          slidesToShow: 1,
+          slidesToScroll: 1
+        }
+      }
+    ]
+  });
+
+  $(".subcategories .open").click(function(){
+    $(this).hide();
+    $(".subcategories .close").show();
+    $(".subcategories .sub-links-2").addClass("open");
+    $('.tag-slider').slick('unslick');
+  });
+  $(".subcategories .close").click(function(){
+    $(this).hide();
+    $(".subcategories .open").show();
+    $(".subcategories .sub-links-2").removeClass("open");
+    $('.tag-slider').slick({
+      dots: false,
+      arrows: true,
+      infinite: true,
+      autoplay: true,
+      variableWidth: true,
+      centerMode: true,
+      slidesToShow: 3,
+    });
+  });
+
+
 });
 if ($('.map-container').length) {
   YaMapsShown = false;
