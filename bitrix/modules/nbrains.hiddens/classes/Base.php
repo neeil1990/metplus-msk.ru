@@ -33,7 +33,7 @@ class nBrainsBase
 
     protected function initDom()
     {
-        $site = file_get_contents('https://metplus-msk.ru/catalog/truba-kruglaya-nerzhaveyushchaya/');
+        $site = file_get_contents('https://metplus-msk.ru/catalog/nerzhaveyushchie-fitingi/');
         $this->dom = (new simple_html_dom())->load($site);
 
     }
