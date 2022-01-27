@@ -33,14 +33,17 @@ class nBrainsBase
 
     protected function initDom()
     {
-        $this->dom = (new simple_html_dom())->load($this->body);
+        $site = file_get_contents('https://metplus-msk.ru/catalog/truba-kruglaya-nerzhaveyushchaya/');
+        $this->dom = (new simple_html_dom())->load($site);
+
     }
 
     protected function saveBodyTo(&$content)
     {
         $body = $this->dom->save();
 
-        $content = preg_replace('#<body(.*?)>(.*?)</body>#is', $body, $content);
+        $content = $body;
+        //$content = preg_replace('#<body(.*?)>(.*?)</body>#is', $body, $content);
 
         $this->dom->clear();
 
