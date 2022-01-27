@@ -336,6 +336,12 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                         );
                         ?>
 
+					<? if($arCurSection['DEPTH_LEVEL'] > 1): ?>
+					<div class="unified-text-section">
+						<?=$arCurSection['DESCRIPTION'];?>
+					</div>
+					<? endif; ?>
+
                     <div class="row">
                         <div class="col-md-12">
                             <?
@@ -350,11 +356,6 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                         </div>
                     </div>
 
-					<? if($arCurSection['DEPTH_LEVEL'] > 1): ?>
-					<div class="unified-text-section">
-						<?=$arCurSection['DESCRIPTION'];?>
-					</div>
-					<? endif; ?>
                 </div>
             </div>
 
