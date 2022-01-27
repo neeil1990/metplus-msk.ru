@@ -1,4 +1,5 @@
 <?php
+require __DIR__ . '/vendor/autoload.php';
 
 $module_id = 'nbrains.hiddens';
 IncludeModuleLangFile(__FILE__);

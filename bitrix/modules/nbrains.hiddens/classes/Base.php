@@ -1,5 +1,7 @@
 <?php
 use \Bitrix\Main\Page\Asset;
+use PHPHtmlParser\Dom;
+use PHPHtmlParser\Options;
 
 class nBrainsBase
 {
@@ -33,19 +35,23 @@ class nBrainsBase
 
     protected function initDom()
     {
-        $site = file_get_contents('https://metplus-msk.ru/catalog/nerzhaveyushchie-fitingi/');
-        $this->dom = (new simple_html_dom())->load($site);
+        $dom = (new Dom)->setOptions((new Options())
+            ->setRemoveSmartyScripts(false)
+            ->setRemoveStyles(false)
+            ->setRemoveScripts(false)
+        )->loadStr($this->body);
 
+        if(count($dom->find('#panel')))
+            $dom->find('#panel')[0]->delete();
+
+        $this->dom = $dom;
     }
 
     protected function saveBodyTo(&$content)
     {
-        $body = $this->dom->save();
+        $body = $this->dom->outerHtml;
 
-        $content = $body;
-        //$content = preg_replace('#<body(.*?)>(.*?)</body>#is', $body, $content);
-
-        $this->dom->clear();
+        $content = preg_replace('#<body(.*?)>(.*?)</body>#is', $body, $content);
 
         unset($this->dom);
     }
@@ -82,8 +88,10 @@ class nBrainsBase
                 if($i < $setting['quantity'])
                     continue;
 
-                $e->textjs = htmlspecialcharsEx($e->innertext);
-                $e->innertext = '';
+                $e->setAttribute('textjs', $e->innerHtml);
+
+                if(strlen($e->text) > 0)
+                    $e->firstChild()->setText('');
             }
         }
     }
