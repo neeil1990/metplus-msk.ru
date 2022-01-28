@@ -183,9 +183,26 @@
                     </div>
                 </div>
                 <div class="mobile-visible">
-                    <?$APPLICATION->IncludeComponent("bitrix:search.form", "mobile", Array(
-                        "PAGE" => "#SITE_DIR#search/",	// Страница выдачи результатов поиска (доступен макрос #SITE_DIR#)
-                        "USE_SUGGEST" => "N",	// Показывать подсказку с поисковыми фразами
+                    <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title.mobile", Array(
+                        "CATEGORY_0" => array(	// Ограничение области поиска
+                            0 => "iblock_catalog",
+                        ),
+                        "CATEGORY_0_TITLE" => "",	// Название категории
+                        "CATEGORY_0_iblock_catalog" => array(	// Искать в информационных блоках типа "iblock_catalog"
+                            0 => "13",
+                        ),
+                        "IBLOCK_ID" => "13",
+                        "IBLOCK_TYPE" => "catalog",
+                        "CHECK_DATES" => "N",	// Искать только в активных по дате документах
+                        "CONTAINER_ID" => "title-search-mobile",	// ID контейнера, по ширине которого будут выводиться результаты
+                        "INPUT_ID" => "title-search-mobile-input",	// ID строки ввода поискового запроса
+                        "NUM_CATEGORIES" => "1",	// Количество категорий поиска
+                        "ORDER" => "rank",	// Сортировка результатов
+                        "PAGE" => "/",	// Страница выдачи результатов поиска (доступен макрос #SITE_DIR#)
+                        "SHOW_INPUT" => "Y",	// Показывать форму ввода поискового запроса
+                        "SHOW_OTHERS" => "N",	// Показывать категорию "прочее"
+                        "TOP_COUNT" => "5",	// Количество результатов в каждой категории
+                        "USE_LANGUAGE_GUESS" => "N",	// Включить автоопределение раскладки клавиатуры
                     ),
                         false
                     );?>
