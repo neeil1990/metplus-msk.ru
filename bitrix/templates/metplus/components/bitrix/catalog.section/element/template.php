@@ -86,63 +86,13 @@ if(count($arResult['ITEMS'])) :
                         endif; ?>
                     <?endif;?>
                 </span>
-                <div class="product-item_popup">
-                    <div class="product-item_popup-close"><span class="glipf-reset"></span></div>
-                    <ul class="product-item_popup-list">
-                        <li>
-                            <? if($arResult['UF_JS_NAME'] && $arResult['UF_JS_NAME'] <= $i): ?>
-                                <strong data-text="Наименование товара"></strong>
-                            <? else: ?>
-                                <strong>Наименование товара</strong>
-                            <? endif; ?>
 
-                            <span class="product-item_name"><?=htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?></span>
-                        </li>
-                        <li>
-                            <? if($arResult['UF_JS_STEEL'] && $arResult['UF_JS_STEEL'] <= $i): ?>
-                                <strong data-text="Марка Стали"></strong>
-                            <? else: ?>
-                                <strong>Марка Стали</strong>
-                            <? endif; ?>
-
-                            <?=$arItem['PROPERTIES']['TYPE_METALL']['VALUE']?>
-                        </li>
-                        <li>
-                            <? if($arResult['UF_JS_WEIGHT'] && $arResult['UF_JS_WEIGHT'] <= $i): ?>
-                                <strong data-text="Вес"></strong>
-                            <? else: ?>
-                                <strong>Вес</strong>
-                            <? endif; ?>
-
-                            <?=$arItem['PROPERTIES']['_3_VESPMSAYT']['VALUE']?>
-                        </li>
-                        <li>
-                            <? if($arResult['UF_JS_PRICE_WITH_NDS'] && $arResult['UF_JS_PRICE_WITH_NDS'] <= $i): ?>
-                                <strong data-text="Цена руб/кг (с НДС)"></strong>
-                            <? else: ?>
-                                <strong>Цена руб/кг (с НДС)</strong>
-                            <? endif; ?>
-
-                            <?=$priceGroup?>
-                        </li>
-                        <li>
-                            <? if($arResult['UF_JS_SLICE'] && $arResult['UF_JS_SLICE'] <= $i): ?>
-                                <strong data-text="Резка, руб"></strong>
-                            <? else: ?>
-                                <strong>Резка, руб</strong>
-                            <? endif; ?>
-
-                            <?=CurrencyFormat($arItem['PROPERTIES']['PRICE_CUTTING']['VALUE'], $arItem['ITEM_PRICES'][0]['CURRENCY']);?>
-                        </li>
-                    </ul>
-
-                    <? if($arResult['UF_JS_BUY'] && $arResult['UF_JS_BUY'] <= $i): ?>
-                        <a href="javascript:void(0)" class="main-btn product-item_buy-btn" data-text="Купить"></a>
-                    <? else: ?>
-                        <a href="javascript:void(0)" class="main-btn product-item_buy-btn">Купить</a>
-                    <? endif; ?>
-
-                </div>
+                <?
+                if($arResult['UF_JS_MOBILE_TABLE'] && $arResult['UF_JS_MOBILE_TABLE'] <= $i)
+                    include __DIR__ . "/parties/mobile_table_js.php";
+                else
+                    include __DIR__ . "/parties/mobile_table.php";
+                ?>
             </td>
             <td><?=$arItem['PROPERTIES']['TYPE_METALL']['VALUE']?></td>
             <td><?=$arItem['PROPERTIES']['_3_VESPMSAYT']['VALUE']?></td>
