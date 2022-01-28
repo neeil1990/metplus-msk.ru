@@ -196,6 +196,9 @@ if(!$arParams['SECTION']['UF_TAGS_LIST'])
 </style>
 
 <div class="tags-list">
+
+    <?=$arParams['SECTION']['UF_TAGS_LIST_TITLE']?>
+
     <div class="subcategories">
         <ul class="tag-slider sub-links-2">
             <? foreach ($arParams['SECTION']['UF_TAGS_LIST'] as $tags):
