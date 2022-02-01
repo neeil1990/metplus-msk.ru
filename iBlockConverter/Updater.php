@@ -69,6 +69,8 @@ class Updater {
     //properties for current good. end
 
     public function __construct(){
+        CSearch::DeleteForReindex("iblock");
+
         $this->idAccIBlock = $this->getIdAccIBlock();
         $this->goodsDon = $this->getGoodsDon();
         $this->accordances = include('groupAccordance.php');

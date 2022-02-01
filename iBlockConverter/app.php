@@ -20,8 +20,6 @@ require('autoloader.php');
 @set_time_limit(3000000);
 ini_set('max_execution_time', 3000000);
 
-CSearch::DeleteForReindex("iblock");
-
 require('Updater.php');
 
 while (ob_get_level()) {

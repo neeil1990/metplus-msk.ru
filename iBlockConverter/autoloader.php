@@ -5,7 +5,6 @@ $map = array(
     'iblock' => 'CIBlock CIBlockElement CIBlockSection CIBlockResult',
     'catalog' => 'CCatalogProduct CPrice',
     'main' => 'CMain CApplicationException',
-    'search' => 'CAllSearch',
 );
 
 // Преобразуем карту в удобный для обработки вид
