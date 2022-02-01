@@ -11,6 +11,7 @@ require($_SERVER['DOCUMENT_ROOT'] . "/bitrix/modules/main/include/prolog_before.
 error_reporting(E_ERROR);
 
 CModule::IncludeModule('main');
+CModule::IncludeModule("search");
 
 $APPLICATION = new CMain();
 
@@ -18,6 +19,8 @@ require('autoloader.php');
 
 @set_time_limit(3000000);
 ini_set('max_execution_time', 3000000);
+
+CSearch::DeleteForReindex("iblock");
 
 require('Updater.php');
 
