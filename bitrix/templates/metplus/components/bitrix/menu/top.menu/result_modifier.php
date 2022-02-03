@@ -275,3 +275,10 @@ $arResult = array();
 $arResult["ALL_ITEMS"] = $arAllItems;
 $arResult["ITEMS_IMG_DESC"] = $arImgDesc;
 $arResult["MENU_STRUCTURE"] = $arMenuStructure;
+
+
+$page = $APPLICATION->GetCurPage();
+$code = explode('/', $page);
+$dbRes = CIBlockSection::GetList(array(), ["IBLOCK_ID" => $arParams['IBLOCK_ID'], "CODE" => $code[2]], false, array("ID", "UF_*"));
+if ($arCurSection = $dbRes->Fetch())
+    $arResult['PROPERTIES'] = $arCurSection;

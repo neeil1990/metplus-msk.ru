@@ -30,9 +30,16 @@ $this->setFrameMode(true);
                     </li>
                         <? foreach($arRow as $itemIdLevel_2=>$arLevel_3): ?>
                             <li class="dropdown-menu_item">
+
                                 <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">
                                     <span class="menu-icon <?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["PARAMS"]["ICON_MENU"]?>"></span>
-                                    <?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>
+
+                                    <? if(in_array($arResult["ALL_ITEMS"][$itemIdLevel_2]["PARAMS"]["ID"], $arResult['PROPERTIES']['UF_JS_MENU'])): ?>
+                                        <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
+                                    <? else: ?>
+                                        <span><?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?></span>
+                                    <? endif; ?>
+
                                 </a>
                             <?if (is_array($arLevel_3) && count($arLevel_3) > 0):?>
                             <div class="dropdown-submenu-content">
@@ -40,7 +47,13 @@ $this->setFrameMode(true);
                                     <?foreach($arLevel_3 as $itemIdLevel_3):?>
                                         <li>
                                             <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["LINK"]?>">
-                                                <?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?>
+
+                                                <? if(in_array($arResult["ALL_ITEMS"][$itemIdLevel_3]["PARAMS"]["ID"], $arResult['PROPERTIES']['UF_JS_MENU'])): ?>
+                                                    <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?>"></span>
+                                                <? else: ?>
+                                                    <span><?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?></span>
+                                                <? endif; ?>
+
                                             </a>
                                         </li>
                                     <?endforeach;?>

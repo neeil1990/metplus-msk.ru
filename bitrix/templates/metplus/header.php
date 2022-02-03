@@ -161,6 +161,7 @@
                     "MENU_CACHE_USE_GROUPS" => "Y",	// Учитывать права доступа
                     "MENU_THEME" => "site",	// Тема меню
                     "CACHE_SELECTED_ITEMS" => "N",
+                    "IBLOCK_ID" => "13",
                     "MENU_CACHE_GET_VARS" => "",	// Значимые переменные запроса
                     "MAX_LEVEL" => "3",	// Уровень вложенности меню
                     "CHILD_MENU_TYPE" => "left",	// Тип меню для остальных уровней
