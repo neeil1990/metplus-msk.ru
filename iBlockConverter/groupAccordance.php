@@ -313,7 +313,12 @@ $accordances = [
         'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
         'Некондиция (нержавеющая сталь)'
     ],
-
+	[
+        'idDon' => '81',
+        'idSecondPrice' => '',
+        'secCode' => 'latunnyy-shestigrannik',
+        'Латунный шестигранник'
+    ],
 ];
 
 
