@@ -59,7 +59,7 @@ if(count($arResult['ITEMS'])) :
         <tr>
             <td class="product-table_first-cell">
                 <span class="product-item_name <? if($arItem['CATALOG_QUANTITY'] < 1000):?>product-item_name-mod<?endif;?>">
-                    <?=htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?>
+                    <a href="javascript:void(0)"><?=htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?></a>
                 </span>
                 <span class="product-availability">
                     <? if($arItem['CATALOG_QUANTITY'] < 1000):?>
