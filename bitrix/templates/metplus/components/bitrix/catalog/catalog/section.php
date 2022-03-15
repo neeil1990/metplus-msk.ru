@@ -23,7 +23,7 @@ if ($isFilter)
         "ACTIVE" => "Y",
         "CNT_ACTIVE" => "Y",
         "GLOBAL_ACTIVE" => "Y",
-        "ELEMENT_SUBSECTIONS" => "N"
+        "ELEMENT_SUBSECTIONS" => "Y"
     );
     if (0 < intval($arResult["VARIABLES"]["SECTION_ID"]))
         $arFilter["ID"] = $arResult["VARIABLES"]["SECTION_ID"];
