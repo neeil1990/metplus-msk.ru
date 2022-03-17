@@ -18,7 +18,7 @@ $this->setFrameMode(true);
     <?$existPictureDescColomn = ($arResult["ALL_ITEMS"][$itemID]["PARAMS"]["picture_src"] || $arResult["ALL_ITEMS"][$itemID]["PARAMS"]["description"]) ? true : false;?>
     <li class="head-menu_item <? if(count($arColumns) > 0): ?>head-menu_catalog-item<?endif;?>">
         <a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>">
-            <span class="head-menu_text"><?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?></span>
+            <span class="head-menu_text" data-text="<?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?>"></span>
         </a>
     <?if (is_array($arColumns) && count($arColumns) > 0):?>
         <div class="dropdown-content is-animation">
