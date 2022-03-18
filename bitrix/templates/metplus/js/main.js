@@ -607,16 +607,19 @@ jQuery(document).ready(function($) {
   });
 
   $(".subcategories .open").click(function(){
+    let tags = $(this).closest('.tags-list');
+
     $(this).hide();
-    $(".subcategories .close").show();
-    $(".subcategories .sub-links-2").addClass("open");
-    $('.tag-slider').slick('unslick');
+    tags.find(".subcategories .close").show();
+    tags.find(".subcategories .sub-links-2").addClass("open");
+    tags.find('.tag-slider').slick('unslick');
   });
   $(".subcategories .close").click(function(){
+    let tags = $(this).closest('.tags-list');
     $(this).hide();
-    $(".subcategories .open").show();
-    $(".subcategories .sub-links-2").removeClass("open");
-    $('.tag-slider').slick({
+    tags.find(".subcategories .open").show();
+    tags.find(".subcategories .sub-links-2").removeClass("open");
+    tags.find('.tag-slider').slick({
       dots: false,
       arrows: false,
       infinite: true,
@@ -627,6 +630,14 @@ jQuery(document).ready(function($) {
     });
   });
 
+  $( "#accordion" ).accordion({
+    collapsible: true,
+    heightStyle: "content",
+    icons: {
+      "header": "none",
+      "activeHeader": "none"
+    }
+  });
 
 });
 if ($('.map-container').length) {

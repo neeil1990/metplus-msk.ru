@@ -1,0 +1,18 @@
+
+.accordion {
+	margin-top: 20px;
+	margin-bottom: 20px;
+}
+.accordion .ui-state-active .ui-icon.none,
+.accordion .ui-icon.none {
+	background-image: none;
+}
+.accordion .ui-state-active,
+.accordion .ui-state-default {
+	border: 2px solid #3ebbf3;
+	background: none;
+	color: #3d3c3c;
+}
+.accordion .ui-widget-content {
+	border: none;
+}
