@@ -43,7 +43,6 @@
                     <li>
                         <span class="glipf-clock"></span>Будни: 8:00 - 17:00 <br>Суббота, воскресенье - выходные
                     </li>
-					<noindex><li><a href="https://www.instagram.com/metplus.vrn/"  rel="nofollow"><span class="instagram-link"><img style="width:14px; height: 14px; margin-right: 6px;" src="https://metplus-osk.ru/upload/medialibrary/0a7/0a7a3c6c25e7c545d5205588d04a9c41.png" alt="instagram"> Наш Инстаграм</span></a></li></noindex>
 					<noindex><li><a href="https://vk.com/metplusvrn"  rel="nofollow"><span class="instagram-link"><img style="width:14px; height: 14px; margin-right: 6px;" src="https://metplus-osk.ru/upload/medialibrary/9f5/9f502909be683766dde6842684115a95.png" alt="vk"> Наш ВКонтакте</span></a></li></noindex>
 				</ul>
                 <ul class="social-network">
