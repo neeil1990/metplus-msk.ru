@@ -18,7 +18,7 @@ $this->setFrameMode(true);
     <?$existPictureDescColomn = ($arResult["ALL_ITEMS"][$itemID]["PARAMS"]["picture_src"] || $arResult["ALL_ITEMS"][$itemID]["PARAMS"]["description"]) ? true : false;?>
     <li class="head-menu_item <? if(count($arColumns) > 0): ?>head-menu_catalog-item<?endif;?>">
         <a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>">
-            <span class="head-menu_text" data-text="<?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?>"></span>
+            <span class="head-menu_text"><?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?></span>
         </a>
     <?if (is_array($arColumns) && count($arColumns) > 0):?>
         <div class="dropdown-content is-animation">
@@ -33,13 +33,7 @@ $this->setFrameMode(true);
 
                                 <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">
                                     <span class="menu-icon <?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["PARAMS"]["ICON_MENU"]?>"></span>
-
-                                    <? if(in_array($arResult["ALL_ITEMS"][$itemIdLevel_2]["PARAMS"]["ID"], $arResult['PROPERTIES']['UF_JS_MENU'])): ?>
-                                        <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
-                                    <? else: ?>
-                                        <span><?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?></span>
-                                    <? endif; ?>
-
+                                    <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
                                 </a>
                             <?if (is_array($arLevel_3) && count($arLevel_3) > 0):?>
                             <div class="dropdown-submenu-content">
@@ -47,13 +41,7 @@ $this->setFrameMode(true);
                                     <?foreach($arLevel_3 as $itemIdLevel_3):?>
                                         <li>
                                             <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["LINK"]?>">
-
-                                                <? if(in_array($arResult["ALL_ITEMS"][$itemIdLevel_3]["PARAMS"]["ID"], $arResult['PROPERTIES']['UF_JS_MENU'])): ?>
-                                                    <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?>"></span>
-                                                <? else: ?>
-                                                    <span><?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?></span>
-                                                <? endif; ?>
-
+                                                <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_3]["TEXT"]?>"></span>
                                             </a>
                                         </li>
                                     <?endforeach;?>

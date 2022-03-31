@@ -78,7 +78,6 @@
                             <div class="select-city_field">Москва</div>
                         </div>
 
-                        <noindex>
                         <?$APPLICATION->IncludeComponent("bitrix:menu", "catalog.menu.fixed", Array(
                             "ROOT_MENU_TYPE" => "left",	// Тип меню для первого уровня
                             "MENU_CACHE_TYPE" => "A",	// Тип кеширования
@@ -96,7 +95,6 @@
                         ),
                             false
                         );?>
-                        </noindex>
 
                         <div class="hamburger hamburger--spring fixed-menu_hamburger">
                             <div class="hamburger-box">

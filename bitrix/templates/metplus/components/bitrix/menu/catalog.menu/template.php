@@ -19,7 +19,12 @@ $this->setFrameMode(true);
     <li class="catalog-menu_item">
         <a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>">
             <span class="menu-icon <?=$arResult["ALL_ITEMS"][$itemID]["PARAMS"]["ICON_MENU"]?>"></span>
-            <?=mb_strtoupper($arResult["ALL_ITEMS"][$itemID]["TEXT"])?>
+
+            <? if(in_array($arResult["ALL_ITEMS"][$itemID]["PARAMS"]["ID"], $arResult['PROPERTIES']['UF_JS_MENU'])): ?>
+                <span data-text="<?=mb_strtoupper($arResult["ALL_ITEMS"][$itemID]["TEXT"])?>"></span>
+            <? else: ?>
+                <span><?=mb_strtoupper($arResult["ALL_ITEMS"][$itemID]["TEXT"])?></span>
+            <? endif; ?>
         </a>
     <?if (is_array($arColumns) && count($arColumns) > 0):?>
         <?foreach($arColumns as $key=>$arRow):?>
@@ -27,7 +32,11 @@ $this->setFrameMode(true);
             <?foreach($arRow as $itemIdLevel_2=>$arLevel_3):?>
                 <li>
                     <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">
-                        <?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>
+                        <? if(in_array($arResult["ALL_ITEMS"][$itemIdLevel_2]["PARAMS"]["ID"], $arResult['PROPERTIES']['UF_JS_MENU'])): ?>
+                            <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
+                        <? else: ?>
+                            <span><?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?></span>
+                        <? endif; ?>
                     </a>
                 </li>
             <?endforeach;?>

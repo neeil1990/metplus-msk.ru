@@ -95,6 +95,7 @@ if(isset($_COOKIE["in_stock_$arCurSection[ID]"]))
                             <div class="sidebar-title catalog_sidebar-title">Каталог продукции</div>
                             <?$APPLICATION->IncludeComponent("bitrix:menu", "catalog.menu", Array(
                                 "ROOT_MENU_TYPE" => "left",	// Тип меню для первого уровня
+                                "IBLOCK_ID" => $arParams["IBLOCK_ID"],
                                 "MENU_CACHE_TYPE" => "A",	// Тип кеширования
                                 "MENU_CACHE_TIME" => "36000000",	// Время кеширования (сек.)
                                 "MENU_CACHE_USE_GROUPS" => "Y",	// Учитывать права доступа

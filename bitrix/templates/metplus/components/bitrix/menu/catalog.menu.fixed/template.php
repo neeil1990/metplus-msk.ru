@@ -26,14 +26,15 @@ $this->setFrameMode(true);
                 <li class="dropdown-menu_item">
                     <a href="<?=$arResult["ALL_ITEMS"][$itemID]["LINK"]?>">
                         <span class="menu-icon <?=$arResult["ALL_ITEMS"][$itemID]["PARAMS"]["ICON_MENU"]?>"></span>
-                        <?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?>
+                        <span data-text="<?=$arResult["ALL_ITEMS"][$itemID]["TEXT"]?>"></span>
                     </a>
                     <div class="dropdown-submenu-content">
                         <?foreach($arColumns as $key=>$arRow):?>
                         <ul class="dropdown-submenu">
                             <?foreach($arRow as $itemIdLevel_2=>$arLevel_3):?>
-                            <li><a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">
-                                    <?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>
+                            <li>
+                                <a href="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["LINK"]?>">
+                                    <span data-text="<?=$arResult["ALL_ITEMS"][$itemIdLevel_2]["TEXT"]?>"></span>
                                 </a>
                             </li>
                             <?endforeach;?>
