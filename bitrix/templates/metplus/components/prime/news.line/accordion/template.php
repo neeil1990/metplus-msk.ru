@@ -36,7 +36,7 @@ if(!strlen($DESCRIPTION))
                 $this->AddEditAction($arItem['ID'], $arItem['EDIT_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_EDIT"));
                 $this->AddDeleteAction($arItem['ID'], $arItem['DELETE_LINK'], CIBlock::GetArrayByID($arItem["IBLOCK_ID"], "ELEMENT_DELETE"), array("CONFIRM" => GetMessage('CT_BNL_ELEMENT_DELETE_CONFIRM')));
                 ?>
-                <h3><?echo $arItem["NAME"]?></h3>
+				<h3><span class="title"><?echo $arItem["NAME"]?></span></h3>
                 <div id="<?=$this->GetEditAreaId($arItem['ID']);?>">
                     <?=$arItem["DETAIL_TEXT"]?>
 

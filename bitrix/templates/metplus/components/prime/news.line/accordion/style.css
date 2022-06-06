@@ -1,4 +1,3 @@
-
 .accordion {
 	margin-top: 20px;
 	margin-bottom: 20px;
@@ -9,9 +8,22 @@
 }
 .accordion .ui-state-active,
 .accordion .ui-state-default {
-	border: 2px solid #3ebbf3;
-	background: none;
-	color: #3d3c3c;
+	background: url(/bitrix/templates/metplus/img/faq.svg) 0 6px no-repeat;
+	background-size: 26px;
+	padding: 5px 0 10px 20px!important;
+	border: none;
+	color: #3ebbf3;
+}
+.accordion .ui-state-active .title,
+.accordion .ui-state-default .title {
+    font-size: 19px;
+    line-height: 27px;
+    color: #0e6caa;
+    cursor: pointer;
+    border-bottom: 1px dashed #0e6caa;
+}
+.accordion .ui-state-active .title:hover, .accordion .ui-state-default .title:hover {
+	border: none;
 }
 .accordion .ui-widget-content {
 	border: none;

@@ -5,17 +5,12 @@ if(!$arParams['SECTION']['UF_TAGS_LIST'])
 ?>
 
 <style>
-    .tags-list{
-        margin-top: 30px;
-    }
     .sub-links-2 {
         font-size: 14px;
         font-weight: 500;
         padding: 0;
         margin-right: 120px !important;
         list-style: none;
-        padding-left: 20px;
-        padding-right: 20px;
         width: auto;
         position: relative;
         overflow: hidden;
