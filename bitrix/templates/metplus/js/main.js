@@ -34,7 +34,7 @@ jQuery(document).ready(function($) {
     }
   });
   $('.modal-city_list-unstyled li').on('click', function() {
-    var text = $(this).html();
+    var text = $(this).text();
     $('.select-city_field').text(text);
     $('#citySelect').modal('hide');
   });
@@ -548,13 +548,18 @@ jQuery(document).ready(function($) {
     showMaskOnHover: false,
   });
 
-  $("#product-table").fancyTable({
+  let productTable = $("#product-table");
+  let productTablePagin = 30;
+  if(productTable.data('pagin')){
+     productTablePagin = productTable.data('pagin');
+  }
+  productTable.fancyTable({
     sortColumn: 1,
     sortable: false,
     searchable: true,
     globalSearch: true,
     pagination: true,
-    perPage:30,
+    perPage:productTablePagin,
     paginationElement: '.fancy-pagination .main-pagination',
     paginationClass: '',
     inputPlaceholder: "Введите название или марку стали",

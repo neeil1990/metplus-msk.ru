@@ -95,8 +95,6 @@ Allow: /bitrix/cache/
 Allow: /bitrix/js/
 Allow: /bitrix/templates/
 Allow: /bitrix/panel/
-#################zakryli gosty beя kontenta#################
-Disallow: /gost/
 Disallow: /articles/
 #################info bez kom poleznosti#################
 Disallow: /upload/politics.pdf

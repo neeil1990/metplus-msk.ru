@@ -1,7 +1,7 @@
 <?
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» предлагает купить изделия из металлопроката в Москве по ценам производителя! Широкий ассортимент продукции в нашем каталоге!");
-$APPLICATION->SetPageProperty("title", "ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» - изделия из металлопроката в Москве по низким ценам!");
+$APPLICATION->SetPageProperty("title", "Металлопрокат в Москве от ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» | Низкие цены от поставщиков");
 $APPLICATION->SetTitle("ООО «КОРПОРАЦИЯ МЕТАЛЛИНВЕСТ» - изделия из металлопроката");
 ?><main class="main-content">
 

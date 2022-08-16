@@ -11,7 +11,7 @@
     <ul class="product-item_popup-list">
         <li>
             <strong>Наименование товара</strong>
-            <span class="product-item_name"><?=htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?></span>
+            <span class="product-item_name"><?=($arItem['PROPERTIES']['SEO_NAME']['VALUE']) ? $arItem['PROPERTIES']['SEO_NAME']['VALUE'] : htmlspecialchars_decode(preg_replace(array('|[\s]+|s','/\(|\)/'), array(' ', '"'), trim($arItem['NAME'])))?></span>
         </li>
         <li>
             <strong>Марка Стали</strong>

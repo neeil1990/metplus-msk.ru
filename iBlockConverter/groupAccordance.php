@@ -313,78 +313,140 @@ $accordances = [
         'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
         'Некондиция (нержавеющая сталь)'
     ],	
-//Те что закоментированы, не проставлены символьные коды, либо нет в админке, или нет товаров.	
-/*	
-		[
+	[
         'idDon' => '60',
         'idSecondPrice' => '',
         'secCode' => 'truba-kruglaya-alyuminievaya',
-        'Некондиция (нержавеющая сталь)'
+        'Труба круглая алюминиевая'
     ],
 		[
         'idDon' => '61',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-*/	
-		[
+        'secCode' => 'alyuminievyy-ugolok-cm',
+        'Алюминиевый уголок'
+    ],	
+	[
         'idDon' => '62',
         'idSecondPrice' => '',
         'secCode' => 'alyuminievyy-list-cm',
         'Алюминиевый лист'
     ],
-/*	
-		[
+	[
         'idDon' => '63',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
+        'secCode' => 'alyuminievyy-list-kvintet-cm',
+        'АЛЮМИНИЕВЫЙ ЛИСТ «‎КВИНТЕТ»'
     ],
-*/	
-		[
+	[
         'idDon' => '64',
         'idSecondPrice' => '',
         'secCode' => 'alyuminievyy-krug',
         'Алюминиевый круг'
     ],
-/*	
-		[
+	[
         'idDon' => '65',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
+        'secCode' => 'truba-alyuminievaya-profilnaya-cm',
+        'Труба алюминиевая профильная'
     ],
-	
-		[
+	[
         'idDon' => '66',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
+        'secCode' => 'alyuminievaya-shina-cm',
+        'Алюминиевая шина'
     ],
-	
-		[
+	[
         'idDon' => '67',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
+        'secCode' => 'mednyy-list-cm',
+        'Медный лист'
     ],
 	
 		[
         'idDon' => '68',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
+        'secCode' => 'mednaya-provoloka-cm',
+        'Медная проволока'
     ],
-*/	
-		[
+	[
         'idDon' => '69',
         'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
+        'secCode' => 'mednyy-prutok-krug',
         'Медный пруток круг'
+    ],
+	[
+        'idDon' => '70',
+        'idSecondPrice' => '',
+        'secCode' => 'mednaya-truba-cm',
+        'Медная труба'
+    ],
+	[
+        'idDon' => '71',
+        'idSecondPrice' => '',
+        'secCode' => 'mednaya-truba-dlya-konditsionerov-cm',
+        'Медная труба для кондиционеров'
     ],
 	
 		[
+        'idDon' => '72',
+        'idSecondPrice' => '',
+        'secCode' => 'mednaya-shina-cm',
+        'Медная шина'
+    ],
+	
+		[
+        'idDon' => '73',
+        'idSecondPrice' => '',
+        'secCode' => 'latunnyy-list-cm',
+        'Латунный лист'
+    ],
+	
+		[
+        'idDon' => '74',
+        'idSecondPrice' => '',
+        'secCode' => 'latunnyy-kvadrat-cm',
+        'Латунный квадрат'
+    ],
+	
+		[
+        'idDon' => '75',
+        'idSecondPrice' => '',
+        'secCode' => 'latunnaya-provoloka-cm',
+        'Латунная проволока'
+    ],
+	
+		[
+        'idDon' => '76',
+        'idSecondPrice' => '',
+        'secCode' => 'latunnyy-prutok-krug-cm',
+        'Латунный пруток круг'
+    ],
+	[
+        'idDon' => '77',
+        'idSecondPrice' => '',
+        'secCode' => 'latunnaya-truba-cm',
+        'Латунная труба'
+    ],
+	
+		[
+        'idDon' => '78',
+        'idSecondPrice' => '',
+        'secCode' => 'bronzovaya-lenta-cm',
+        'Бронзовая лента'
+    ],
+	[
+        'idDon' => '79',
+        'idSecondPrice' => '',
+        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
+        'Бронзовый пруток круг'
+    ],
+	[
+        'idDon' => '80',
+        'idSecondPrice' => '',
+        'secCode' => 'bronzovyy-shestigrannik-cm',
+        'Бронзовый шестигранник'
+    ],
+	[
         'idDon' => '81',
         'idSecondPrice' => '',
         'secCode' => 'latunnyy-shestigrannik',
@@ -396,83 +458,6 @@ $accordances = [
         'secCode' => 'tsvetmet-shtuchnyy',
         'Цветмет штучный'
     ],
-/*	
-		[
-        'idDon' => '71',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '72',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '73',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '74',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '75',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '76',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '77',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-		[
-        'idDon' => '78',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-	
-		[
-        'idDon' => '79',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-	
-	
-		[
-        'idDon' => '80',
-        'idSecondPrice' => '',
-        'secCode' => 'nekonditsiya-nerzhaveyushchaya-stal',
-        'Некондиция (нержавеющая сталь)'
-    ],
-*/	
-	
-	
-	
-	
 
 ];
 

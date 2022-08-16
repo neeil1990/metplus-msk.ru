@@ -1095,7 +1095,7 @@ align-items: center;
 /* Scroll bar style */
 .dropdown-content .dropdown-menu,
 .dropdown-content .dropdown-submenu {
-  height: 400px;
+  height: 600px;
   overflow: auto;
   text-align: left;
 }
