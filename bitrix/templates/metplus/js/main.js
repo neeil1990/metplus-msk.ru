@@ -548,29 +548,13 @@ jQuery(document).ready(function($) {
     showMaskOnHover: false,
   });
 
-  let productTable = $("#product-table");
-  let productTablePagin = 30;
-  if(productTable.data('pagin')){
-     productTablePagin = productTable.data('pagin');
-  }
-  productTable.fancyTable({
+  $("#product-table").fancyTable({
     sortColumn: 1,
     sortable: false,
     searchable: true,
     globalSearch: true,
-    pagination: true,
-    perPage:productTablePagin,
-    paginationElement: '.fancy-pagination .main-pagination',
-    paginationClass: '',
+    pagination: false,
     inputPlaceholder: "Введите название или марку стали",
-  });
-  $('.fancy-pagination .main-pagination').click(function () {
-    let table = $('#product-table').offset();
-
-    $('html, body').animate({
-      scrollTop: table.top
-    });
-    return false;
   });
 
   $('#success_msg').modal('show');

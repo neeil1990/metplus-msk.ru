@@ -38,7 +38,7 @@ if(count($arResult['ITEMS'])) :
     <? endforeach; ?>
 <? endif; ?>
 
-<table class="product-table" id="product-table" data-pagin="<?=$arResult['UF_COUNT']?>">
+<table class="product-table" id="product-table">
     <thead>
         <tr>
             <? foreach ($arResult['FIELDS'] as $field):?>
@@ -112,18 +112,15 @@ if(count($arResult['ITEMS'])) :
         <div class="product-availability_text">— Наличие товара на складе</div>
         <div class="product-availability_text yellow">— Количество ограничено, уточняйте у менеджера</div>
     </div>
-    <div class="col-md-6 fancy-pagination">
-        <ul class="main-pagination"></ul>
+
+    <? if($arParams["DISPLAY_BOTTOM_PAGER"]):?>
+    <div class="col-md-6">
+        <?=$arResult["NAV_STRING"]?>
     </div>
+    <?endif;?>
 </div>
 
-<?if($arParams["DISPLAY_BOTTOM_PAGER"]):?>
-    <?//=$arResult["NAV_STRING"]?>
-<?endif;?>
-
-<?
-endif;
-?>
+<? endif; ?>
 
 <? if($arParams["DEPTH_LEVEL"] == "1"): ?>
 	<div class="unified-text-section"><?=$arResult['DESCRIPTION'];?></div>

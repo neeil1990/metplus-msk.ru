@@ -7,7 +7,7 @@
         <?if ($arResult["NAV"]["PAGE_NUMBER"] == 1):?>
             <li class="prev-page"><a href="#"></a></li>
         <?else:?>
-            <li class="prev-page active"><a href="<?=$arResult["NAV"]["URL"]["FIRST_PAGE"]?>"></a></li>
+            <li class="prev-page active"><a href="<?=$arResult["NAV"]["URL"]["PREV_PAGE"]?>"></a></li>
         <?endif;?>
 
         <?for ($PAGE_NUMBER=$arResult["NAV"]["START_PAGE"]; $PAGE_NUMBER<=$arResult["NAV"]["END_PAGE"]; $PAGE_NUMBER++):?>
