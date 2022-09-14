@@ -160,6 +160,10 @@ class Updater {
             $props['_8_SHT'] = $this->curDonProps['_8_SHT']['VALUE'];
         } else $props['_8_SHT'] = "";
 
+        if ($this->curDonProps['SEO_NAME']['VALUE'] != '') {
+            $props['SEO_NAME'] = $this->curDonProps['SEO_NAME']['VALUE'];
+        } else $props['SEO_NAME'] = "";
+
         $props['UPD_STATUS'] = $this->curIdAcc ? 'updated' : 'created';
 
 
