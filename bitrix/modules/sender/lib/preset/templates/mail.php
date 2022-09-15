@@ -71,7 +71,6 @@ class Mail
 				'%TEXT%',
 				'%IMAGE_PATH%',
 				'%BUTTON_TEXT%',
-
 				'%UNSUB_LINK%',
 			),
 			array(
@@ -170,7 +169,7 @@ class Mail
 
 		foreach (Texts::getListByType(Message\iBase::CODE_MAIL) as $item)
 		{
-			$code = strtolower("mail_" . $item['CODE']);
+			$code = mb_strtolower("mail_".$item['CODE']);
 			if($templateId && $code !== $templateId)
 			{
 				continue;

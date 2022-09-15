@@ -20,6 +20,8 @@ use Bitrix\Sender\Recipient;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\Security;
 use Bitrix\Sender\Integration;
+use Bitrix\Sender\Transport\CountLimiter;
+use Bitrix\Sender\Transport\TimeLimiter;
 
 Loc::loadMessages(__FILE__);
 
@@ -277,10 +279,11 @@ class Tester
 		// agreement accept check
 		if(!Security\User::current()->isAgreementAccepted())
 		{
-			$result->addError(new Error(Security\Agreement::getErrorText()));
+			$result->addError(new Error(Security\Agreement::getErrorText(), 'NEED_ACCEPT_AGREEMENT'));
+			return $result;
 		}
 
-		$campaignId = isset($parameters['CAMPAIGN_ID']) ? $parameters['CAMPAIGN_ID'] : Entity\Campaign::getDefaultId();
+		$campaignId = isset($parameters['CAMPAIGN_ID']) ? $parameters['CAMPAIGN_ID'] : Entity\Campaign::getDefaultId(SITE_ID);
 		$name = isset($parameters['NAME']) ? $parameters['NAME'] : null;
 		$name = $name ?: $GLOBALS['USER']->getFirstName();
 		$userId = isset($parameters['USER_ID']) ? $parameters['USER_ID'] : null;
@@ -300,12 +303,33 @@ class Tester
 
 			if ($this->message->getTransport()->isLimitsExceeded($this->message))
 			{
-				$result->addError(new Error(Loc::getMessage('SENDER_MESSAGE_TESTER_ERROR_LIMIT_EXCEEDED', array('%name%' => $code))));
-				return $result;
+				$limiter = $this->message->getTransport()->getExceededLimiter();
+
+				// special message for portal verification
+				if (($limiter instanceof CountLimiter) && $limiter->getName() === 'portal_verify')
+				{
+					$result->addError(new Error(Loc::getMessage('SENDER_MESSAGE_TESTER_ERROR_LIMIT_PORTAL_VERIFY_FAILED', array('%name%' => $code))));
+					return $result;
+				}
+
+				if (!($limiter instanceof TimeLimiter))
+				{
+					$result->addError(new Error(Loc::getMessage('SENDER_MESSAGE_TESTER_ERROR_LIMIT_EXCEEDED', array('%name%' => $code))));
+					return $result;
+				}
 			}
 
 			if (Integration\Bitrix24\Service::isCloud())
 			{
+				if ($this->message->getCode() === Message\IBase::CODE_MAIL) {
+					$verifyLimit = Integration\Bitrix24\Limitation\PortalVerifyLimit::instance();
+					if ($verifyLimit->getCurrent() >= $verifyLimit->getLimit())
+					{
+						$result->addError(new Error(Loc::getMessage('SENDER_MESSAGE_TESTER_ERROR_LIMIT_PORTAL_VERIFY_FAILED', array('%name%' => $code))));
+						return $result;
+					}
+				}
+
 				$testerDailyLimit = Integration\Bitrix24\Limitation\TesterDailyLimit::instance();
 				if ($testerDailyLimit->getCurrent() >= $testerDailyLimit->getLimit())
 				{

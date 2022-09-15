@@ -29,23 +29,23 @@ class LandingBindingGroupComponent extends LandingBaseComponent
 		}
 
 		$this->checkParam('GROUP_ID', 0);
+		$this->checkParam('TYPE', '');
 		$this->checkParam('PATH_AFTER_CREATE', '');
 		$this->arResult['ERROR'] = [];
-		$this->arResult['TYPE'] = Connector\SocialNetwork::SITE_TYPE;
 
 		if ($this->arParams['GROUP_ID'] <= 0)
 		{
-			$this->arResult['ERROR']['NOT_GROUP_ID'] = Loc::getMessage('LANDING_CMP_NOT_GROUP_ID');
+			$this->addError('NOT_GROUP_ID', Loc::getMessage('LANDING_CMP_NOT_GROUP_ID'));
 		}
 		else if (!Connector\SocialNetwork::userInGroup($this->arParams['GROUP_ID']))
 		{
-			$this->arResult['ERROR']['NOT_IN_GROUP'] = Loc::getMessage('LANDING_CMP_NOT_IN_GROUP');
+			$this->addError('NOT_IN_GROUP', Loc::getMessage('LANDING_CMP_NOT_IN_GROUP'));
 		}
 		else if (Binding\Group::getList($this->arParams['GROUP_ID']))
 		{
-			$this->arResult['ERROR']['ALREADY_EXIST'] = Loc::getMessage('LANDING_CMP_ALREADY_EXIST');
+			$this->addError('ALREADY_EXIST', Loc::getMessage('LANDING_CMP_ALREADY_EXIST'));
 		}
 
-		$this->includeComponentTemplate();
+		parent::executeComponent();
 	}
 }

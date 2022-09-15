@@ -1,4 +1,5 @@
-<?
+<?php
+$MESS["SENDER_DISPATCH_STATE_M"] = "Segment wird vorbereitet";
 $MESS["SENDER_LETTER_LIST_BTN_ADD"] = "Kampagne erstellen";
 $MESS["SENDER_LETTER_LIST_BTN_COPY"] = "Kopieren";
 $MESS["SENDER_LETTER_LIST_BTN_COPY_TITLE"] = "Kopieren";
@@ -10,6 +11,10 @@ $MESS["SENDER_LETTER_LIST_BTN_VIEW"] = "Anzeigen";
 $MESS["SENDER_LETTER_LIST_BTN_VIEW_TITLE"] = "Anzeigen";
 $MESS["SENDER_LETTER_LIST_BUTTON_RECIPIENT"] = "Empfänger";
 $MESS["SENDER_LETTER_LIST_BUTTON_STAT"] = "Statistik";
+$MESS["SENDER_LETTER_LIST_COMP_UI_ROW_CONSENT_SUPPORT_N"] = "Nein";
+$MESS["SENDER_LETTER_LIST_COMP_UI_ROW_CONSENT_SUPPORT_Y"] = "Ja";
+$MESS["SENDER_LETTER_LIST_COMP_UI_ROW_CONSENT_TITLE_N"] = "Zum Versand dieses Newsletters ist keine Einwilligung des Empfängers erforderlich";
+$MESS["SENDER_LETTER_LIST_COMP_UI_ROW_CONSENT_TITLE_Y"] = "Zum Versand dieses Newsletters ist Einwilligung des Empfängers erforderlich";
 $MESS["SENDER_LETTER_LIST_DURATION"] = "Zeit, die zum Senden von E-Mail-Nachrichten erforderlich ist, wenn sofort gestartet wird.";
 $MESS["SENDER_LETTER_LIST_DUR_DATE_CREATE"] = "Erstellt am";
 $MESS["SENDER_LETTER_LIST_DUR_DATE_FINISH"] = "Bis zum Schluss";
@@ -18,11 +23,12 @@ $MESS["SENDER_LETTER_LIST_RECIPIENTS_SENT"] = "Anzahl der Empfänger, an die E-M
 $MESS["SENDER_LETTER_LIST_ROW_FROM"] = "von";
 $MESS["SENDER_LETTER_LIST_ROW_RECIPIENT"] = "Empfänger";
 $MESS["SENDER_LETTER_LIST_ROW_STATS"] = "Statistik";
-$MESS["SENDER_LETTER_LIST_ROW_STATS_CLICKS"] = "Klicks: #COUNT#";
+$MESS["SENDER_LETTER_LIST_ROW_STATS_CLICKS"] = "Klicks: #COUNT# / -#UNSUB#";
 $MESS["SENDER_LETTER_LIST_ROW_STATS_VIEWS"] = "Angezeigt: #COUNT#";
 $MESS["SENDER_LETTER_LIST_SENDING_LOADER_TITLE"] = "E-Mail-Kampagne läuft, alles in Ordnung.";
 $MESS["SENDER_LETTER_LIST_SENDING_TITLE"] = "E-Mail-Nachrichten wurden an %count% Empfänger gesendet.";
 $MESS["SENDER_LETTER_LIST_SPEED_TITLE"] = "Tägliches Nachrichtenlimit wurde erreicht. Das Senden wird morgen fortgesetzt.";
+$MESS["SENDER_LETTER_LIST_SPEED_WAITING_SEND_TITLE"] = "Auf die Sendezeit wird noch gewartet. Gesendet wird am %day% um %time%";
 $MESS["SENDER_LETTER_LIST_STATE_IS_PAUSED"] = "Gestoppt";
 $MESS["SENDER_LETTER_LIST_STATE_IS_SENT"] = "Abgeschlossen";
 $MESS["SENDER_LETTER_LIST_STATE_IS_STOPPED"] = "Gestoppt";
@@ -35,4 +41,4 @@ $MESS["SENDER_LETTER_LIST_STATE_SEND_TITLE"] = "Nachrichten der E-Mail-Kampagne 
 $MESS["SENDER_LETTER_LIST_STATE_STOP"] = "Abbrechen";
 $MESS["SENDER_LETTER_LIST_STATE_STOP_TITLE"] = "Kampagne stoppen und beenden.";
 $MESS["SENDER_LETTER_LIST_STATE_WILL_SEND"] = "Wird gestartet";
-?>
+$MESS["SENDER_LETTER_LIST_TRACKING_OFF"] = "Nachverfolgung deaktiviert";

@@ -12,7 +12,6 @@ return array(
 		'section' => array('forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'type' => ['page', 'store'],
 	),
 	'cards' => array(),
 	'groups' => array(),
@@ -21,6 +20,7 @@ return array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.15_NODE_IMG'),
 			'type' => 'img',
 			'dimensions' => array('width' => 570),
+			'create2xByDefault' => false,
 		),
 	),
 	'style' => array(

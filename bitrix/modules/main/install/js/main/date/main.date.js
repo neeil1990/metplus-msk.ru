@@ -21,7 +21,7 @@
 
 	var BX = window.BX;
 
-	BX.Main.Date = {
+	BX.Main.Date = BX.Main.DateTimeFormat = {
 
 		AM_PM_MODE: {
 			UPPER: 1,
@@ -878,7 +878,7 @@
 			   ["", "#05#"]
 			];
 			var formattedDate = this.format(format, timestamp, now, utc);
-
+			var match = null;
 			if ((match = /^#(\d+)#(.*)/.exec(formattedDate)) != null)
 			{
 				switch (match[1])

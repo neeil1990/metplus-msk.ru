@@ -45,10 +45,28 @@
 		{
 			if (this.lazyload)
 			{
-				BX.onCustomEvent("BX.Main.SelectorV2:initDialog", [ {
-					selectorId: this.id,
-					openDialogWhenInit: true
-				}]);
+				var initialized = false;
+
+				if (BX.Main.selectorManagerV2)
+				{
+					var selectorInstance = BX.Main.selectorManagerV2.getById(this.id);
+					if (
+						selectorInstance
+						&& selectorInstance.initialized
+					)
+					{
+						BX.Main.User.SelectorController.open(this);
+						initialized = true;
+					}
+				}
+
+				if (!initialized)
+				{
+					BX.onCustomEvent("BX.Main.SelectorV2:initDialog", [ {
+						selectorId: this.id,
+						openDialogWhenInit: true
+					}]);
+				}
 			}
 			else
 			{
@@ -175,7 +193,26 @@
 			}
 			else
 			{
+				var jsonValue = false;
+				if (BX.type.isNotEmptyObject(BX.Main.selectorManagerV2))
+				{
+					var mainSelectorInstance = BX.Main.selectorManagerV2.getById(this.id);
+					if (mainSelectorInstance.getOption('returnJsonValue') == 'Y')
+					{
+						jsonValue = true;
+					}
+				}
+
 				var list = this.getUsers().filter(function (id) {
+					if (jsonValue)
+					{
+						var parsedItem = JSON.parse(id);
+						if (BX.type.isNotEmptyObject(parsedItem))
+						{
+							id = parsedItem.id;
+						}
+
+					}
 					return id !== value;
 				});
 				this.setUsers(list);
@@ -290,8 +327,35 @@
 				bindNode: userSelector.container
 			}]);
 		},
+		formatName: function(params)
+		{
+			var result = '';
+			var nameTemplate = (BX.type.isNotEmptyString(params.nameTemplate) ? BX.util.htmlspecialcharsback(BX.util.htmlspecialcharsback(params.nameTemplate)) : '#NAME#');
+
+			if (BX.type.isNotEmptyObject(params.item))
+			{
+				var item = params.item;
+				result = nameTemplate;
+			}
+			else
+			{
+				return result;
+			}
+
+			for (var field in item)
+			{
+				if (item.hasOwnProperty(field))
+				{
+					result = result.replace('#' + field.toUpperCase() + '#', BX.util.htmlspecialcharsback(item[field]));
+				}
+			}
+
+			return result;
+		},
 		select: function (params)
 		{
+			var mainSelectorInstance = (BX.type.isNotEmptyObject(BX.Main.selectorManagerV2) ? BX.Main.selectorManagerV2.getById(params.selectorId) : null);
+
 			var self = BX.Main.User.SelectorController;
 			var userSelector = self.getUserSelector(params.selectorId);
 			if (
@@ -305,11 +369,27 @@
 			if (
 				BX.type.isNotEmptyObject(params.item.params)
 				&& BX.type.isNotEmptyString(params.item.params.email)
+				&& (
+					!mainSelectorInstance
+					|| mainSelectorInstance.getOption('returnJsonValue') != 'Y'
+				)
 			)
 			{
-				entityId = 'UE' + entityId;
+				entityId = (BX.type.isNotEmptyString(params.prefix) ? params.prefix : 'UE') + entityId;
 			}
-			userSelector.setValue(entityId);
+
+			var jsonValue = false;
+			if (
+				mainSelectorInstance
+				&& mainSelectorInstance.getOption('returnJsonValue') == 'Y'
+			)
+			{
+				userSelector.setValue(JSON.stringify(params.item));
+			}
+			else
+			{
+				userSelector.setValue(entityId);
+			}
 
 			var data = {
 				readonly: !!params.undeletable
@@ -340,8 +420,15 @@
 			{
 				data.crmEmail = true;
 			}
+			if (BX.type.isNotEmptyString(params.state))
+			{
+				data.state = params.state;
+			}
 
-			userSelector.selector.addTile(BX.util.htmlspecialcharsback(params.item.name), data, entityId);
+			userSelector.selector.addTile(self.formatName({
+				item: params.item,
+				nameTemplate: (mainSelectorInstance ? mainSelectorInstance.getOption('nameTemplate') : '#NAME# #LAST_NAME#')
+			}), data, entityId);
 			userSelector.selector.input.value = '';
 
 			if (
@@ -357,7 +444,9 @@
 			BX.onCustomEvent('BX.Main.User.SelectorController:select', [ {
 				selectorId: params.selectorId,
 				item: params.item,
-				contextNode: userSelector.selector.context
+				contextNode: userSelector.selector.context,
+				containerId: userSelector.containerId,
+				inputName: userSelector.inputName
 			} ]);
 		},
 		unSelect: function (params)
@@ -411,7 +500,9 @@
 			BX.onCustomEvent('BX.Main.User.SelectorController:unSelect', [ {
 				selectorId: params.selectorId,
 				item: params.item,
-				contextNode: userSelector.selector.context
+				contextNode: userSelector.selector.context,
+				containerId: userSelector.containerId,
+				inputName: userSelector.inputName
 			} ]);
 		},
 		openDialog: function (params)
@@ -468,6 +559,25 @@
 		},
 		closeSearch: function (params)
 		{
+			var self = BX.Main.User.SelectorController;
+			var userSelector = self.getUserSelector(params.selectorId);
+			if (!userSelector)
+			{
+				return;
+			}
+
+			if (userSelector.selector)
+			{
+				var selectorInstance = BX.UI.SelectorManager.instances[params.selectorId];
+				if (
+					!selectorInstance
+					|| !selectorInstance.closeByEmptySearchResult
+				) // e.g. autohide
+				{
+					userSelector.selector.input.style.display = 'none';
+					userSelector.selector.buttonSelect.style.display = '';
+				}
+			}
 		},
 		getUserSelector: function (id)
 		{

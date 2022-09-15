@@ -51,12 +51,33 @@ class Result extends BaseResult
 	protected $objectInitPassed = false;
 
 	/** @var array Column names (chain aliases) of primary fields in result */
-	protected $primaryAliases;
+	protected $primaryAliases = [];
+
+	/** @var string[] Fields available for for fetchObject, but hidden for fetch */
+	protected $hiddenObjectFields;
 
 	public function __construct(Query $query, BaseResult $result)
 	{
 		$this->query = $query;
 		$this->result = $result;
+	}
+
+	/**
+	 * @param string[] $hiddenObjectFields
+	 */
+	public function setHiddenObjectFields($hiddenObjectFields)
+	{
+		$this->hiddenObjectFields = $hiddenObjectFields;
+	}
+
+	protected function hideObjectFields(&$row)
+	{
+		foreach ($this->hiddenObjectFields as $fieldName)
+		{
+			unset($row[$fieldName]);
+		}
+
+		return $row;
 	}
 
 	public function getFields()
@@ -266,6 +287,29 @@ class Result extends BaseResult
 								// create new collection and set as value for current object
 								/** @var Collection $collection */
 								$collection = $remoteEntity->createCollection();
+
+								// collection should be filled if there are no LIMIT and relation filter in query
+								if ($this->query->getLimit() === null)
+								{
+									// noting in filter should start with $currentDefinition
+									$noRelationInFilter = true;
+
+									foreach ($this->query->getFilterChains() as $chain)
+									{
+										if (strpos($chain->getDefinition(), $currentDefinition) === 0)
+										{
+											$noRelationInFilter = false;
+											break;
+										}
+									}
+
+									if ($noRelationInFilter)
+									{
+										// now we are sure the set is complete
+										$collection->sysSetFilled();
+									}
+								}
+
 								$currentObject->sysSetActual($field->getName(), $collection);
 							}
 							else
@@ -567,12 +611,34 @@ class Result extends BaseResult
 
 	public function fetch(\Bitrix\Main\Text\Converter $converter = null)
 	{
-		return $this->result->fetch($converter);
+		$row = $this->result->fetch($converter);
+
+		if ($row && !empty($this->hiddenObjectFields))
+		{
+			return $this->hideObjectFields($row);
+		}
+
+		return $row;
 	}
 
 	public function fetchAll(\Bitrix\Main\Text\Converter $converter = null)
 	{
-		return $this->result->fetchAll($converter);
+		if (empty($this->hiddenObjectFields))
+		{
+			return $this->result->fetchAll($converter);
+		}
+		else
+		{
+			$data = $this->result->fetchAll($converter);
+
+			foreach ($data as &$row)
+			{
+				$this->hideObjectFields($row);
+			}
+
+			return $data;
+		}
+
 	}
 
 	public function getTrackerQuery()
@@ -600,7 +666,7 @@ class Result extends BaseResult
 		return $this->result->getCount();
 	}
 
-	public function getIterator()
+	public function getIterator(): \Traversable
 	{
 		return $this->result->getIterator();
 	}

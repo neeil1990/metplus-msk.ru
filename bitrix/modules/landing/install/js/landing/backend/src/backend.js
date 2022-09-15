@@ -1,10 +1,16 @@
 import {Uri, Cache, Loc, Reflection, Type, Http, ajax, Text} from 'main.core';
 import {Env} from 'landing.env';
-import type {Block, Landing, Site, Template, CreatePageOptions} from './types';
+import type {Block, Landing, Site, Template, CreatePageOptions, SourceResponse, PreparedResponse} from './types';
 
+let additionalRequestCompleted = true;
+
+/**
+ * @memberOf BX.Landing
+ */
 export class Backend
 {
-	static getInstance()
+	static +instance: Backend = null;
+	static getInstance(): Backend
 	{
 		if (!Backend.instance)
 		{
@@ -12,6 +18,48 @@ export class Backend
 		}
 
 		return Backend.instance;
+	}
+
+	static makeResponse(xhr: XMLHttpRequest, sourceResponse: SourceResponse = {}): PreparedResponse
+	{
+		const type = (() => {
+			if (Type.isStringFilled(sourceResponse.type))
+			{
+				return sourceResponse.type;
+			}
+
+			if (Type.isPlainObject(sourceResponse) && Object.values(sourceResponse).length > 0)
+			{
+				const allSuccess = Object.values(sourceResponse).every((item) => {
+					return item.type === 'success';
+				});
+
+				if (allSuccess)
+				{
+					return 'success';
+				}
+			}
+
+			if (Type.isArray(sourceResponse))
+			{
+				return 'other';
+			}
+
+			return 'error';
+		})();
+
+		if (type === 'other')
+		{
+			return sourceResponse;
+		}
+
+		return {
+			result: null,
+			type,
+			...sourceResponse,
+			status: xhr.status,
+			authorized: xhr.getResponseHeader('X-Bitrix-Ajax-Status') !== 'Authorize',
+		};
 	}
 
 	static request({url, data}): Promise<any, any>
@@ -25,10 +73,43 @@ export class Backend
 				data: fd,
 				start: false,
 				preparePost: false,
-				onsuccess: (response) => {
+				onsuccess: (sourceResponse) => {
+					const response = Backend.makeResponse(xhr, sourceResponse);
+
 					if (
-						Type.isPlainObject(response)
-						&& response.type === 'error'
+						Type.isStringFilled(response.sessid) &&
+						Loc.getMessage('bitrix_sessid') !== response.sessid &&
+						additionalRequestCompleted
+					)
+					{
+						Loc.setMessage('bitrix_sessid', response.sessid);
+						additionalRequestCompleted = false;
+
+						const newData = {...data, sessid: Loc.getMessage('bitrix_sessid')};
+
+						Backend
+							.request({url, data: newData})
+							.then((newResponse) => {
+								additionalRequestCompleted = true;
+								resolve(newResponse);
+							})
+							.catch((newResponse) => {
+								additionalRequestCompleted = true;
+								reject(newResponse);
+							});
+
+						return;
+					}
+
+					if (!Type.isPlainObject(response))
+					{
+						resolve(response);
+						return;
+					}
+
+					if (
+						response.type === 'error'
+						|| response.authorized === false
 					)
 					{
 						reject(response);
@@ -37,7 +118,20 @@ export class Backend
 
 					resolve(response);
 				},
-				onfailure: reject,
+				onfailure: (sourceResponse) => {
+					if (sourceResponse === 'auth')
+					{
+						reject(
+							Backend.makeResponse(xhr),
+						);
+					}
+					else
+					{
+						reject(
+							Backend.makeResponse(xhr, sourceResponse),
+						);
+					}
+				},
 			});
 
 			xhr.send(fd);
@@ -109,7 +203,10 @@ export class Backend
 		uploadParams = {},
 	): Promise<{[key: string]: any}, any>
 	{
-		queryParams.site_id = this.getSiteId();
+		if (!queryParams.site_id)
+		{
+			queryParams.site_id = this.getSiteId();
+		}
 
 		const requestBody = {
 			sessid: Loc.getMessage('bitrix_sessid'),
@@ -141,19 +238,46 @@ export class Backend
 					BX.Landing.UI.Panel.StatusPanel.getInstance().update();
 				}
 
+				BX.onCustomEvent(
+					BX.Landing.PageObject.getRootWindow(),
+					'BX.Landing.Backend:action',
+					[action, data]
+				);
+
+				/*if (!response.result) {
+					BX.Landing.ErrorManager.getInstance().add({
+						type: 'error'
+					});
+				}*/
+
 				return response.result;
 			})
 			.catch((err) => {
-				if (requestBody.action !== 'Block::getById')
+				if (
+					requestBody.action !== 'Landing::downBlock'
+					&& requestBody.action !== 'Landing::upBlock'
+				)
 				{
-					const error = Type.isString(err) ? {type: 'error'} : err;
-					err.action = requestBody.action;
+					if (
+						requestBody.action !== 'Block::getById'
+						&& requestBody.action !== 'Block::publication'
+						&& requestBody.action !== 'Landing::move'
+						&& requestBody.action !== 'Landing::copy'
+						&& requestBody.action !== 'Landing::publication'
+						&& requestBody.action !== 'Site::publication'
+						&& requestBody.action !== 'Site::moveFolder'
+						&& requestBody.action !== 'Site::markDelete'
+					)
+					{
+						const error = Type.isString(err) ? {type: 'error'} : err;
+						err.action = requestBody.action;
 
-					// eslint-disable-next-line
-					BX.Landing.ErrorManager.getInstance().add(error);
+						// eslint-disable-next-line
+						BX.Landing.ErrorManager.getInstance().add(error);
+					}
+
+					return Promise.reject(err);
 				}
-
-				return Promise.reject(err);
 			});
 	}
 
@@ -180,20 +304,40 @@ export class Backend
 				data: requestBody,
 			})
 			.then((response) => {
+
 				// eslint-disable-next-line
 				BX.Landing.UI.Panel.StatusPanel.getInstance().update();
+
+				BX.onCustomEvent(
+					BX.Landing.PageObject.getRootWindow(),
+					'BX.Landing.Backend:batch',
+					[action, data]
+				);
+
+				/*if (!response.result) {
+					BX.Landing.ErrorManager.getInstance().add({
+						type: 'error'
+					});
+				}*/
+
 				return response;
 			})
 			.catch((err) => {
-				if (requestBody.action !== 'Block::getById')
+				if (
+					requestBody.action !== 'Landing::downBlock'
+					&& requestBody.action !== 'Landing::upBlock'
+				)
 				{
-					const error = Type.isString(err) ? {type: 'error'} : err;
-					error.action = requestBody.action;
-					// eslint-disable-next-line
-					BX.Landing.ErrorManager.getInstance().add(error);
-				}
+					if (requestBody.action !== 'Block::getById')
+					{
+						const error = Type.isString(err) ? {type: 'error'} : err;
+						error.action = requestBody.action;
+						// eslint-disable-next-line
+						BX.Landing.ErrorManager.getInstance().add(error);
+					}
 
-				return Promise.reject(err);
+					return Promise.reject(err);
+				}
 			});
 	}
 
@@ -220,6 +364,11 @@ export class Backend
 		{
 			formData.set('action', 'Site::uploadFile');
 			formData.append('data[id]', uploadParams.id);
+		}
+
+		if ('temp' in uploadParams)
+		{
+			formData.append('data[temp]', true);
 		}
 
 		const uri = new Uri(this.getControllerUrl());
@@ -254,28 +403,49 @@ export class Backend
 			return this
 				.action('Site::getList', {
 					params: {
-						order: {ID: 'DESC'},
-						filter: {TYPE: this.getSitesType(), ...filter},
+						filter,
+						order: {ID: 'DESC'}
 					},
 				})
 				.then((response) => response);
 		});
 	}
 
-	getLandings({siteId = []}: {siteId?: number | Array<number>} = {}): Promise<Array<Landing>>
+	getLandings({siteId = []}: {siteId?: number | Array<number>} = {}, filter: {}): Promise<Array<Landing>>
 	{
+		let skipFilter = false;
+		if (!BX.Type.isPlainObject(filter))
+		{
+			filter = {};
+			skipFilter = true;
+		}
+
 		const ids = Type.isArray(siteId) ? siteId : [siteId];
+		filter.SITE_ID = ids;
+
 		const getBathItem = (id) => ({
 			action: 'Landing::getList',
 			data: {
 				params: {
-					filter: {SITE_ID: id},
+					filter: (() => {
+						if (skipFilter)
+						{
+							return {
+								SITE_ID: id,
+								DELETED: 'N',
+								FOLDER: 'N',
+							};
+						}
+
+						return filter;
+					})(),
 					order: {ID: 'DESC'},
 					get_preview: true,
 					check_area: 1,
 				},
 			},
 		});
+
 		const prepareResponse = (response) => {
 			return response.reduce((acc, item) => {
 				return [...acc, ...item.result];
@@ -373,35 +543,62 @@ export class Backend
 		});
 	}
 
-	getDynamicTemplates(): Promise<Array<Template>>
+	getDynamicTemplates(sourceId: string = ''): Promise<Array<Template>>
 	{
-		return this.cache.remember('dynamicTemplates', () => {
-			return this.getTemplates({filter: {section: 'dynamic'}});
+		return this.cache.remember(`dynamicTemplates:${sourceId}`, () => {
+			return this.getTemplates({filter: {section: `dynamic${sourceId ? `:${sourceId}` : ''}`}});
 		});
 	}
 
 	createPage(options: CreatePageOptions = {})
 	{
+		const envOptions = Env.getInstance().getOptions();
 		const {
 			title,
-			siteId = Env.getInstance().getOptions().site_id,
+			siteId = envOptions.site_id,
+			siteType = envOptions.params.type,
 			code = Text.getRandom(16),
 			blockId,
 			menuCode,
+			folderId,
 		} = options;
 
-		const fields = {
-			TITLE: title,
-			SITE_ID: siteId,
-			CODE: code,
+		const templateCode = (() => {
+			const {theme} = envOptions;
+			if (
+				Type.isPlainObject(theme)
+				&& Type.isArray(theme.newPageTemplate)
+				&& Type.isStringFilled(theme.newPageTemplate[0])
+			)
+			{
+				return theme.newPageTemplate[0];
+			}
+
+			return 'empty';
+		})();
+
+		const requestBody = {
+			siteId,
+			code: templateCode,
+			fields: {
+				TITLE: title,
+				CODE: code,
+				//@todo: refactor
+				ADD_IN_MENU: (siteType === 'KNOWLEDGE' || siteType === 'GROUP') ? 'Y' : 'N'
+			},
 		};
 
 		if (Type.isNumber(blockId) && Type.isString(menuCode))
 		{
-			fields.BLOCK_ID = blockId;
-			fields.MENU_CODE = menuCode;
+			requestBody.fields.BLOCK_ID = blockId;
+			requestBody.fields.MENU_CODE = menuCode;
 		}
 
-		return this.action('Landing::add', {fields});
+		if (Type.isNumber(folderId))
+		{
+			requestBody.fields.FOLDER_ID = folderId;
+		}
+
+		return this.action('Landing::addByTemplate', requestBody);
 	}
 }

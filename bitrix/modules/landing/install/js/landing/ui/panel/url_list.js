@@ -19,6 +19,8 @@
 	var TYPE_PAGE = "landing";
 	var TYPE_BLOCK = "block";
 	var TYPE_SYSTEM = "system";
+	var TYPE_CRM_FORM = "crmFormPopup";
+	var TYPE_CRM_PHONE = "crmPhone";
 
 	var SidebarButton = BX.Landing.UI.Button.SidebarButton;
 
@@ -125,10 +127,20 @@
 				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_LANDINGS_TITLE"));
 				this.showSites(options);
 			}
-			else
+			else if (view === TYPE_BLOCK)
 			{
 				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_BLOCKS_TITLE"));
 				this.showBlocks(options);
+			}
+			else if (view === TYPE_CRM_FORM)
+			{
+				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_CRM_FORMS_TITLE"));
+				this.showForms(options);
+			}
+			else if (view === TYPE_CRM_PHONE)
+			{
+				setTextContent(this.title, options.panelTitle || BX.Landing.Loc.getMessage("LANDING_LINKS_CRM_PHONES_TITLE"));
+				this.showPhones(options);
 			}
 
 			return new Promise(function(resolve) {
@@ -136,46 +148,95 @@
 			}.bind(this));
 		},
 
-
 		/**
 		 * Shows sites list
 		 * @param {object} options
 		 */
 		showSites: function(options)
 		{
-			var currentSiteId = options.siteId;
+			let currentSiteId = options.siteId;
 
 			void style(this.layout, {
 				width: null
 			});
 
-			void BX.Landing.Backend.getInstance()
-				.getSites(options).then(function(sites) {
-					this.appendSidebarButton(
-						new SidebarButton("current_site", {
-							text: BX.Landing.Loc.getMessage("LANDING_LINKS_PANEL_CURRENT_SITE")
-						})
-					);
+			if (!BX.Type.isPlainObject(options.filter))
+			{
+				options.filter = {};
+			}
 
-					sites.forEach(function(site) {
+			var env = BX.Landing.Env.getInstance();
+			if (BX.Type.isNil(options.filter.ID) && env.getType() === 'GROUP')
+			{
+				options.filter.ID =	env.getSiteId();
+			}
+
+			if (options.filter.ID === -1)
+			{
+				delete options.filter.ID;
+			}
+
+			options.filter.SPECIAL = 'N';
+
+			void BX.Landing.Backend.getInstance()
+				.getSites(options).then(sites => {
+					sites.forEach(site => {
 						// noinspection EqualityComparisonWithCoercionJS
 						if (parseInt(site.ID) == currentSiteId)
 						{
-							this.appendSidebarButton(
-								new SidebarButton(site.ID, {
-									text: site.TITLE,
-									onClick: this.onSiteClick.bind(this, site.ID, options.enableAreas),
-									child: true,
-									active: true
-								})
-							);
+							this.appendSidebarButton(this.createCurrentSiteButton());
+
+							this.currentSiteButton = new SidebarButton(site.ID, {
+								text: site.TITLE,
+								onClick: !options.currentSiteOnly ? this.onSiteClick.bind(this, site.ID, options.enableAreas) : null,
+								child: true,
+								active: true,
+							});
+							this.appendSidebarButton(this.currentSiteButton);
 						}
-					}, this);
+					});
+
+					if (!options.currentSiteOnly)
+					{
+						this.appendSidebarButton(
+							new SidebarButton("my_sites", {
+								text: BX.Landing.Loc.getMessage("LANDING_LINKS_PANEL_MY_SITES")
+							})
+						);
+
+						sites.forEach(site => {
+							const button = new SidebarButton(site.ID, {
+								text: site.TITLE,
+								onClick: this.onSiteClick.bind(this, site.ID, options.enableAreas),
+								child: true,
+								active: !this.currentSiteButton,
+							});
+							// get first site if current not in list
+							if (!this.currentSiteButton)
+							{
+								this.currentSiteButton = button;
+								currentSiteId = site.ID;
+							}
+
+							this.appendSidebarButton(button);
+						});
+					}
 
 					BX.Landing.Backend.getInstance()
-						.getLandings({siteId: currentSiteId})
-						.then(function(landings) {
-							landings.forEach(function(landing) {
+						.getLandings({siteId: currentSiteId}, options.filterLanding)
+						.then(landings => {
+							const fakeEvent = {currentTarget: this.currentSiteButton.layout};
+							const siteClick = this.onSiteClick.bind(this, currentSiteId, options.enableAreas, fakeEvent);
+							if (!options.disableAddPage)
+							{
+								this.appendCard(
+									new BX.Landing.UI.Card.AddPageCard({
+										siteId: currentSiteId,
+										onSave: this.addPageSave.bind(this, siteClick, currentSiteId)
+									})
+								);
+							}
+							landings.forEach(landing => {
 								if (!landing.IS_AREA || (landing.IS_AREA && options.enableAreas))
 								{
 									this.appendCard(
@@ -187,30 +248,11 @@
 										})
 									);
 								}
-							}, this);
+							});
 
 							this.loader.hide();
-						}.bind(this));
-
-					if (!options.currentSiteOnly)
-					{
-						this.appendSidebarButton(
-							new SidebarButton("my_sites", {
-								text: BX.Landing.Loc.getMessage("LANDING_LINKS_PANEL_MY_SITES")
-							})
-						);
-
-						sites.forEach(function(site) {
-							this.appendSidebarButton(
-								new SidebarButton(site.ID, {
-									text: site.TITLE,
-									onClick: this.onSiteClick.bind(this, site.ID, options.enableAreas),
-									child: true
-								})
-							);
-						}, this);
-					}
-				}.bind(this));
+						});
+				});
 		},
 
 		/**
@@ -238,14 +280,21 @@
 				width: "880px"
 			});
 
+			if (!BX.Type.isPlainObject(options.filter))
+			{
+				options.filter = {
+					SPECIAL: 'N',
+				};
+			}
+			else
+			{
+				options.filter.SPECIAL = 'N';
+			}
+
 			BX.Landing.Backend.getInstance()
 				.getSites(options)
 				.then(function(sites) {
-					this.appendSidebarButton(
-						this.createCurrentSiteButton()
-					);
-
-					var sitesIds = sites.map(function(site) {
+					const sitesIds = sites.map(function(site) {
 						return site.ID;
 					}, this);
 
@@ -253,7 +302,7 @@
 						.getLandings({siteId: sitesIds})
 						.then(function(landings) {
 							return sites.reduce(function(result, site, index) {
-								var currentLandings = landings.filter(function(landing) {
+								const currentLandings = landings.filter(function(landing) {
 									return site.ID === landing.SITE_ID;
 								});
 
@@ -263,21 +312,29 @@
 						})
 				}.bind(this))
 				.then(function(result) {
-					result[currentSiteId].landings.forEach(function(landing) {
-						var active = parseInt(landing.ID) === parseInt(currentLandingId);
+					let activeButton = null;
+					if (result[currentSiteId])
+					{
+						this.appendSidebarButton(
+							this.createCurrentSiteButton()
+						);
 
-						if (!options.currentPageOnly || active)
+						result[currentSiteId].landings.forEach(function (landing)
 						{
-							var button = this.createLandingSidebarButton(landing, active);
-							this.appendSidebarButton(button);
+							const isActive = parseInt(landing.ID) === parseInt(currentLandingId);
 
-							if (active)
+							if (!options.currentPageOnly || isActive)
 							{
-								button.layout.click();
+								const button = this.createLandingSidebarButton(landing, isActive);
+								this.appendSidebarButton(button);
+								if (isActive)
+								{
+									activeButton = button;
+								}
 							}
-						}
 
-					}, this);
+						}, this);
+					}
 
 					if (!options.currentPageOnly)
 					{
@@ -290,16 +347,97 @@
 								);
 
 								result[siteId].landings.forEach(function(landing) {
-									this.appendSidebarButton(
-										this.createLandingSidebarButton(landing)
-									);
+									const button = this.createLandingSidebarButton(landing);
+									this.appendSidebarButton(button);
+									if (!activeButton)
+									{
+										activeButton = button;
+									}
 								}, this)
 							}
 						}, this);
 					}
+
+					if (activeButton)
+					{
+						activeButton.layout.click();
+					}
 				}.bind(this));
 		},
 
+		showForms: function()
+		{
+			void style(this.layout, {
+				width: "500px"
+			});
+
+			BX.Landing.Backend
+				.getInstance()
+				.action('Form::getList')
+				.then(function(result) {
+					result.forEach(function(form) {
+						var cardParams = {
+							title: form.NAME,
+							className: 'landing-ui-card-form-preview',
+							onClick: this.onFormChange.bind(this, form)
+						};
+						if(form.IS_CALLBACK_FORM === 'Y')
+						{
+							cardParams.className += ' landing-ui-card-form-preview--callback';
+							// cardParams.title = BX.message();
+							// cardParams.attrs = {
+							// 	title: 'callback form'
+							// };
+						}
+						this.appendCard(new BX.Landing.UI.Card.BaseCard(cardParams));
+					}.bind(this));
+
+					this.loader.hide();
+				}.bind(this));
+		},
+
+		onFormChange: function(form)
+		{
+			this.hide();
+			this.promiseResolve({
+				id: form.ID,
+				type: 'crmFormPopup',
+				name: form.NAME
+			});
+		},
+
+		showPhones: function()
+		{
+			void style(this.layout, {
+				width: "500px"
+			});
+
+			BX.Landing.Env
+				.getInstance()
+				.getOptions()
+				.references
+				.forEach(function(item) {
+				this.appendCard(
+					new BX.Landing.UI.Card.BaseCard({
+						title: item.text,
+						className: 'landing-ui-card-form-preview',
+						onClick: this.onPhoneChange.bind(this, item)
+					})
+				);
+			}.bind(this));
+
+			this.loader.hide();
+		},
+
+		onPhoneChange: function(phone)
+		{
+			this.hide();
+			this.promiseResolve({
+				id: phone.value,
+				type: 'crmPhone',
+				name: phone.text
+			});
+		},
 
 		createLandingSidebarButton: function(landing, active)
 		{
@@ -352,7 +490,6 @@
 			editorUrl = editorUrl.replace("#landing_edit#", landing.ID);
 
 			return addQueryParams(editorUrl, {
-				forceLoad: true,
 				landing_mode: "edit"
 			});
 		},
@@ -373,7 +510,9 @@
 									wrapper.classList.add("landing-ui-block-selectable-overlay");
 									wrapper.addEventListener("click", function(event) {
 										event.preventDefault();
-										this.onBlockClick(parseInt(wrapper.id.replace("block", "")), event);
+										var mainNode = wrapper.closest('[data-landing]');
+										var landingId = BX.Dom.attr(mainNode, 'data-landing');
+										this.onBlockClick(parseInt(wrapper.id.replace("block", "")), event, landingId);
 									}.bind(this));
 								}, this);
 							resolve(this.previewFrame);
@@ -459,13 +598,14 @@
 		 * Handle block click event
 		 * @param {Number|String} id
 		 * @param event
+		 * @param {number} landingId
 		 */
-		onBlockClick: function(id, event)
+		onBlockClick: function(id, event, landingId)
 		{
 			if (event.isTrusted)
 			{
 				void BX.Landing.Backend.getInstance()
-					.getBlocks({landingId: this.currentSelectedLanding.ID})
+					.getBlocks({landingId: landingId})
 					.then(function(blocks) {
 						var currentBlock = blocks.find(function(block) {
 							return block.id === id;
@@ -516,15 +656,22 @@
 		onSiteClick: function(siteId, enableAreas, event)
 		{
 			this.sidebarButtons.forEach(function(button) {
-				if (button.layout === event.currentTarget)
+				if (
+					button.layout === event.currentTarget
+					|| (
+						!!event.target
+						&& button.layout === event.target.closest('.landing-ui-button')
+					)
+				)
 				{
+					this.currentSiteButton = button;
 					button.activate();
 				}
 				else
 				{
 					button.deactivate();
 				}
-			});
+			}, this);
 
 			this.content.innerHTML = "";
 			this.showLoader();
@@ -532,6 +679,13 @@
 			BX.Landing.Backend.getInstance()
 				.getLandings({siteId: siteId})
 				.then(function(landings) {
+					var siteClick = this.onSiteClick.bind(this, siteId, enableAreas, event);
+					this.appendCard(
+						new BX.Landing.UI.Card.AddPageCard({
+							siteId: siteId,
+							onSave: this.addPageSave.bind(this, siteClick, siteId)
+						})
+					);
 					landings.forEach(function(landing) {
 						if (!landing.IS_AREA || (landing.IS_AREA && enableAreas))
 						{
@@ -542,6 +696,15 @@
 				}.bind(this));
 		},
 
+		addPageSave: function(reloadFn, siteId)
+		{
+			this.cache = new BX.Cache.MemoryCache();
+			var backend = BX.Landing.Backend.getInstance();
+			backend.cache.delete('landings+['+siteId+']');
+			backend.cache.delete('landings+["'+siteId+'"]');
+			backend.cache.delete('landing+'+siteId);
+			reloadFn();
+		},
 
 		/**
 		 * Creates landing preview

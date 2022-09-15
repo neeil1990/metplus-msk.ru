@@ -167,7 +167,8 @@ if($this->StartResultCache(false, array('v10', $preFilter, ($arParams["CACHE_GRO
 				while($arElement = $rsElements->Fetch())
 					$arElements[$arElement["IBLOCK_ELEMENT_ID"]] = $arElement;
 			}
-			else
+
+			if (empty($arElements))
 			{
 				$rsElements = CIBlockElement::GetList(array('ID' => 'ASC'), $arElementFilter, false, false, array('ID', 'IBLOCK_ID'));
 				while($arElement = $rsElements->Fetch())
@@ -357,7 +358,7 @@ foreach($arResult["ITEMS"] as $PID => $arItem)
 			{
 				$arResult["ITEMS"][$PID]["VALUES"][$key]["HTML_VALUE"] = htmlspecialcharsbx($_CHECK[$ar["CONTROL_NAME"]]);
 				$arResult["ITEMS"][$PID]["DISPLAY_EXPANDED"] = "Y";
-				if ($arResult["FACET_FILTER"] && strlen($_CHECK[$ar["CONTROL_NAME"]]) > 0)
+				if ($arResult["FACET_FILTER"] && $_CHECK[$ar["CONTROL_NAME"]] <> '')
 				{
 					if ($key == "MIN")
 						$this->facet->addNumericPropertyFilter($PID, ">=", $_CHECK[$ar["CONTROL_NAME"]]);
@@ -369,7 +370,7 @@ foreach($arResult["ITEMS"] as $PID => $arItem)
 			{
 				$arResult["ITEMS"][$PID]["VALUES"][$key]["HTML_VALUE"] = htmlspecialcharsbx($_CHECK[$ar["CONTROL_NAME"]]);
 				$arResult["ITEMS"][$PID]["DISPLAY_EXPANDED"] = "Y";
-				if ($arResult["FACET_FILTER"] && strlen($_CHECK[$ar["CONTROL_NAME"]]) > 0)
+				if ($arResult["FACET_FILTER"] && $_CHECK[$ar["CONTROL_NAME"]] <> '')
 				{
 					if ($key == "MIN")
 						$this->facet->addPriceFilter($arResult["PRICES"][$PID]["ID"], ">=", $_CHECK[$ar["CONTROL_NAME"]]);
@@ -381,7 +382,7 @@ foreach($arResult["ITEMS"] as $PID => $arItem)
 			{
 				$arResult["ITEMS"][$PID]["VALUES"][$key]["HTML_VALUE"] = htmlspecialcharsbx($_CHECK[$ar["CONTROL_NAME"]]);
 				$arResult["ITEMS"][$PID]["DISPLAY_EXPANDED"] = "Y";
-				if ($arResult["FACET_FILTER"] && strlen($_CHECK[$ar["CONTROL_NAME"]]) > 0)
+				if ($arResult["FACET_FILTER"] && $_CHECK[$ar["CONTROL_NAME"]] <> '')
 				{
 					if ($key == "MIN")
 						$this->facet->addDatetimePropertyFilter($PID, ">=", MakeTimeStamp($_CHECK[$ar["CONTROL_NAME"]], FORMAT_DATE));
@@ -491,7 +492,7 @@ if ($_CHECK)
 						)
 						{
 							$currency = $row["VALUE"];
-							$existCurrency = strlen($currency) > 0;
+							$existCurrency = $currency <> '';
 							if ($existCurrency)
 								$currency = $this->facet->lookupDictionaryValue($currency);
 
@@ -583,17 +584,35 @@ foreach($arResult["ITEMS"] as $PID => $arItem)
 {
 	if(isset($arItem["PRICE"]))
 	{
-		if(strlen($arItem["VALUES"]["MIN"]["HTML_VALUE"]) && strlen($arItem["VALUES"]["MAX"]["HTML_VALUE"]))
-			${$FILTER_NAME}["><CATALOG_PRICE_".$arItem["ID"]] = array($arItem["VALUES"]["MIN"]["HTML_VALUE"], $arItem["VALUES"]["MAX"]["HTML_VALUE"]);
-		elseif(strlen($arItem["VALUES"]["MIN"]["HTML_VALUE"]))
+		$setValue = false;
+		if($arItem["VALUES"]["MIN"]["HTML_VALUE"] <> '' && $arItem["VALUES"]["MAX"]["HTML_VALUE"] <> '')
+		{
+			${$FILTER_NAME}["><CATALOG_PRICE_".$arItem["ID"]] = array(
+				$arItem["VALUES"]["MIN"]["HTML_VALUE"],
+				$arItem["VALUES"]["MAX"]["HTML_VALUE"]
+			);
+			$setValue = true;
+		}
+		elseif($arItem["VALUES"]["MIN"]["HTML_VALUE"] <> '')
+		{
 			${$FILTER_NAME}[">=CATALOG_PRICE_".$arItem["ID"]] = $arItem["VALUES"]["MIN"]["HTML_VALUE"];
-		elseif(strlen($arItem["VALUES"]["MAX"]["HTML_VALUE"]))
+			$setValue = true;
+		}
+		elseif($arItem["VALUES"]["MAX"]["HTML_VALUE"] <> '')
+		{
 			${$FILTER_NAME}["<=CATALOG_PRICE_".$arItem["ID"]] = $arItem["VALUES"]["MAX"]["HTML_VALUE"];
+			$setValue = true;
+		}
+		if ($setValue && $this->convertCurrencyId != '')
+		{
+			${$FILTER_NAME}["CATALOG_CURRENCY_SCALE_".$arItem["ID"]] = $this->convertCurrencyId;
+		}
+		unset($setValue);
 	}
 	elseif($arItem["PROPERTY_TYPE"] == "N")
 	{
-		$existMinValue = (strlen($arItem["VALUES"]["MIN"]["HTML_VALUE"]) > 0);
-		$existMaxValue = (strlen($arItem["VALUES"]["MAX"]["HTML_VALUE"]) > 0);
+		$existMinValue = ($arItem["VALUES"]["MIN"]["HTML_VALUE"] <> '');
+		$existMaxValue = ($arItem["VALUES"]["MAX"]["HTML_VALUE"] <> '');
 		if ($existMinValue || $existMaxValue)
 		{
 			$filterKey = '';
@@ -630,8 +649,8 @@ foreach($arResult["ITEMS"] as $PID => $arItem)
 	}
 	elseif($arItem["DISPLAY_TYPE"] == "U")
 	{
-		$existMinValue = (strlen($arItem["VALUES"]["MIN"]["HTML_VALUE"]) > 0);
-		$existMaxValue = (strlen($arItem["VALUES"]["MAX"]["HTML_VALUE"]) > 0);
+		$existMinValue = ($arItem["VALUES"]["MIN"]["HTML_VALUE"] <> '');
+		$existMaxValue = ($arItem["VALUES"]["MAX"]["HTML_VALUE"] <> '');
 		if ($existMinValue || $existMaxValue)
 		{
 			$filterKey = '';
@@ -858,6 +877,10 @@ if(isset($_REQUEST["ajax"]) && $_REQUEST["ajax"] === "y")
 	$arFilter = $this->makeFilter($FILTER_NAME);
 	if (!empty($preFilter))
 		$arFilter = array_merge($preFilter, $arFilter);
+	if (Loader::includeModule('catalog'))
+	{
+		$arFilter = CProductQueryBuilder::convertOldFilter($arFilter);
+	}
 	$arResult["ELEMENT_COUNT"] = CIBlockElement::GetList(array(), $arFilter, array(), false);
 
 	if (isset($_GET["bxajaxid"]))
@@ -956,23 +979,18 @@ if ($arParams["XML_EXPORT"] === "Y" && $_REQUEST["mode"] === "xml")
 	while(ob_end_clean());
 	header("Content-Type: text/xml; charset=utf-8");
 	$error = "";
-	echo \Bitrix\Main\Text\Encoding::convertEncoding($xml, LANG_CHARSET, "utf-8", $error);
-	CMain::FinalActions();
-	die();
+	CMain::FinalActions(\Bitrix\Main\Text\Encoding::convertEncoding($xml, LANG_CHARSET, "utf-8", $error));
 }
 elseif(isset($_REQUEST["ajax"]) && $_REQUEST["ajax"] === "y")
 {
 	$this->setFrameMode(false);
-	define("BX_COMPRESSION_DISABLED", true);
 	ob_start();
 	$this->IncludeComponentTemplate("ajax");
 	$json = ob_get_contents();
 	$APPLICATION->RestartBuffer();
 	while(ob_end_clean());
 	header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
-	CMain::FinalActions();
-	echo $json;
-	die();
+	CMain::FinalActions($json);
 }
 else
 {

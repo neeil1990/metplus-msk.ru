@@ -1,6 +1,6 @@
 module.exports = {
-	input: './src/userfieldfactory.js',
+	input: './src/index.js',
 	output: './dist/userfieldfactory.bundle.js',
-	namespace: 'BX.UI',
+	namespace: 'BX.UI.UserFieldFactory',
 	adjustConfigPhp: false,
 };

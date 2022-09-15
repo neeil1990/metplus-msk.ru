@@ -5,12 +5,16 @@ import {Main} from 'landing.main';
 import {Backend} from 'landing.backend';
 import {MenuItem} from 'landing.menu.menuitem';
 import {MenuForm} from 'landing.ui.form.menuform';
+import {StylePanel} from 'landing.ui.panel.stylepanel';
 import buildTree from './build-tree';
 import makeFlatTree from './make-flat-tree';
 import getNodeClass from './get-node-class';
 
 import './css/style.css';
 
+/**
+ * @memberOf BX.Landing.Menu
+ */
 export class Menu extends Event.EventEmitter
 {
 	constructor(options = {})
@@ -39,7 +43,10 @@ export class Menu extends Event.EventEmitter
 		}
 
 		Event.bind(this.root, 'click', (event: MouseEvent) => {
-			if (event.target.nodeName === 'A')
+			if (
+				!StylePanel.getInstance().isShown()
+				&& event.target.nodeName === 'A'
+			)
 			{
 				event.preventDefault();
 				const href = Dom.attr(event.target, 'href');
@@ -132,47 +139,53 @@ export class Menu extends Event.EventEmitter
 	{
 		if (event.keyCode === 13)
 		{
-			const input = this.getAddPageInput();
-			const {value} = input;
+			this.addPage();
+		}
+	}
 
-			input.value = '';
-			input.focus();
+	addPage()
+	{
+		const input = this.getAddPageInput();
+		const {value} = input;
 
-			if (Type.isStringFilled(value))
-			{
-				const code = BX.translit(
-					value,
-					{
-						change_case: 'L',
-						replace_space: '-',
-						replace_other: '',
-					},
-				);
+		input.value = '';
+		input.focus();
 
-				const backend = Backend.getInstance();
+		if (Type.isStringFilled(value))
+		{
+			const code = BX.translit(
+				value,
+				{
+					change_case: 'L',
+					replace_space: '-',
+					replace_other: '',
+				},
+			);
 
-				backend
-					.createPage({
-						title: value,
-						menuCode: this.code,
-						blockId: this.block,
-						code,
-					})
-					.then((id) => {
-						const li = this.createLi({
-							text: value,
-							href: `#landing${id}`,
-							target: '_self',
-							children: [],
-						});
+			const backend = Backend.getInstance();
 
-						Dom.append(li, this.root);
-						Dom.remove(this.getAddPageField());
-						Dom.removeClass(this.root, 'landing-menu-root-list-with-field');
-
-						this.reloadPage(id);
+			backend
+				.createPage({
+					title: value,
+					menuCode: this.code,
+					blockId: this.block,
+					code,
+				})
+				.then((id) => {
+					const li = this.createLi({
+						text: value,
+						href: `#landing${id}`,
+						target: '_self',
+						children: [],
 					});
-			}
+
+					Dom.append(li, this.root);
+					Dom.remove(this.getAddPageField());
+					Dom.removeClass(this.root, 'landing-menu-root-list-with-field');
+					Dom.removeClass(this.getAddPageLayout(), 'landing-menu-add-with-background');
+
+					this.reloadPage(id);
+				});
 		}
 	}
 
@@ -201,28 +214,51 @@ export class Menu extends Event.EventEmitter
 		});
 	}
 
-	onAddPageInputClearButtonClick(event: MouseEvent)
+	onAddPageInputCloseButtonClick(event: MouseEvent)
 	{
 		event.preventDefault();
 
 		const input = this.getAddPageInput();
 
 		input.value = '';
-		input.focus();
+		Dom.removeClass(this.root, 'landing-menu-root-list-with-field');
+		Dom.removeClass(this.getAddPageLayout(), 'landing-menu-add-with-background');
+		Dom.remove(this.getAddPageField());
+		Dom.append(this.getAddPageButton(), this.getAddPageLayout());
 	}
 
-	getAddPageInputClearButton(): HTMLElement
+	getAddPageInputCloseButton(): HTMLElement
 	{
-		return this.cache.remember('addPageInputClearButton', () => {
+		return this.cache.remember('addPageInputCloseButton', () => {
 			return Tag.render`
 				<span 
-					class="landing-menu-add-field-clear"
-					onclick="${this.onAddPageInputClearButtonClick.bind(this)}"
-					title="${Loc.getMessage('LANDING_MENU_CLEAR_FIELD')}"
+					class="landing-menu-add-field-close"
+					onclick="${this.onAddPageInputCloseButtonClick.bind(this)}"
+					title="${Loc.getMessage('LANDING_MENU_CLOSE_BUTTON_LABEL')}"
 					>
 				</span>
 			`;
 		});
+	}
+
+	getAddPageInputApplyButton(): HTMLElement
+	{
+		return this.cache.remember('addPageInputApplyButton', () => {
+			return Tag.render`
+				<span 
+					class="landing-menu-add-field-apply"
+					onclick="${this.onAddPageInputApplyButtonClick.bind(this)}"
+					title="${Loc.getMessage('LANDING_MENU_APPLY_BUTTON_LABEL')}"
+					>
+				</span>
+			`;
+		});
+	}
+
+	onAddPageInputApplyButtonClick(event: MouseEvent)
+	{
+		event.preventDefault();
+		this.addPage();
 	}
 
 	getAddPageField(): HTMLElement
@@ -231,7 +267,8 @@ export class Menu extends Event.EventEmitter
 			return Tag.render`
 				<div class="landing-menu-add-field">
 					${this.getAddPageInput()}
-					${this.getAddPageInputClearButton()}
+					${this.getAddPageInputApplyButton()}
+					${this.getAddPageInputCloseButton()}
 				</div>
 			`;
 		});
@@ -252,7 +289,9 @@ export class Menu extends Event.EventEmitter
 	{
 		event.preventDefault();
 		Dom.addClass(this.root, 'landing-menu-root-list-with-field');
+		Dom.addClass(this.getAddPageLayout(), 'landing-menu-add-with-background');
 		Dom.prepend(this.getAddPageField(), this.getAddPageLayout());
+		Dom.remove(this.getAddPageButton());
 		this.getAddPageInput().focus();
 	}
 

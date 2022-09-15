@@ -1,6 +1,6 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
-(function (exports,main_core,landing_loc,landing_env,landing_main,landing_backend,landing_ui_form_menuform,landing_menu_menuitem) {
+(function (exports,main_core,landing_loc,landing_env,landing_main,landing_backend,landing_ui_form_menuform,landing_ui_panel_stylepanel,landing_menu_menuitem) {
 	'use strict';
 
 	function buildTree(root, selector) {
@@ -55,8 +55,18 @@ this.BX.Landing = this.BX.Landing || {};
 	  return BX.Landing.Block.Node.Text;
 	}
 
-	function _templateObject8() {
+	function _templateObject9() {
 	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<li class=\"", "\">\n\t\t\t\t", "\n\t\t\t\t", "\n\t\t\t</li>\n\t\t"]);
+
+	  _templateObject9 = function _templateObject9() {
+	    return data;
+	  };
+
+	  return data;
+	}
+
+	function _templateObject8() {
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<a class=\"", "\" href=\"", "\" target=\"", "\">", "</a>\n\t\t"]);
 
 	  _templateObject8 = function _templateObject8() {
 	    return data;
@@ -66,7 +76,7 @@ this.BX.Landing = this.BX.Landing || {};
 	}
 
 	function _templateObject7() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<a class=\"", "\" href=\"", "\" target=\"", "\">", "</a>\n\t\t"]);
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<ul class=\"", "\">", "</ul>\n\t\t"]);
 
 	  _templateObject7 = function _templateObject7() {
 	    return data;
@@ -76,7 +86,7 @@ this.BX.Landing = this.BX.Landing || {};
 	}
 
 	function _templateObject6() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<ul class=\"", "\">", "</ul>\n\t\t"]);
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"landing-menu-add\">\n\t\t\t\t\t", "\n\t\t\t\t</div>\n\t\t\t"]);
 
 	  _templateObject6 = function _templateObject6() {
 	    return data;
@@ -86,7 +96,7 @@ this.BX.Landing = this.BX.Landing || {};
 	}
 
 	function _templateObject5() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"landing-menu-add\">\n\t\t\t\t\t", "\n\t\t\t\t</div>\n\t\t\t"]);
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"landing-menu-add-field\">\n\t\t\t\t\t", "\n\t\t\t\t\t", "\n\t\t\t\t\t", "\n\t\t\t\t</div>\n\t\t\t"]);
 
 	  _templateObject5 = function _templateObject5() {
 	    return data;
@@ -96,7 +106,7 @@ this.BX.Landing = this.BX.Landing || {};
 	}
 
 	function _templateObject4() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"landing-menu-add-field\">\n\t\t\t\t\t", "\n\t\t\t\t\t", "\n\t\t\t\t</div>\n\t\t\t"]);
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<span \n\t\t\t\t\tclass=\"landing-menu-add-field-apply\"\n\t\t\t\t\tonclick=\"", "\"\n\t\t\t\t\ttitle=\"", "\"\n\t\t\t\t\t>\n\t\t\t\t</span>\n\t\t\t"]);
 
 	  _templateObject4 = function _templateObject4() {
 	    return data;
@@ -106,7 +116,7 @@ this.BX.Landing = this.BX.Landing || {};
 	}
 
 	function _templateObject3() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<span \n\t\t\t\t\tclass=\"landing-menu-add-field-clear\"\n\t\t\t\t\tonclick=\"", "\"\n\t\t\t\t\ttitle=\"", "\"\n\t\t\t\t\t>\n\t\t\t\t</span>\n\t\t\t"]);
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<span \n\t\t\t\t\tclass=\"landing-menu-add-field-close\"\n\t\t\t\t\tonclick=\"", "\"\n\t\t\t\t\ttitle=\"", "\"\n\t\t\t\t\t>\n\t\t\t\t</span>\n\t\t\t"]);
 
 	  _templateObject3 = function _templateObject3() {
 	    return data;
@@ -134,9 +144,11 @@ this.BX.Landing = this.BX.Landing || {};
 
 	  return data;
 	}
-	var Menu =
-	/*#__PURE__*/
-	function (_Event$EventEmitter) {
+	/**
+	 * @memberOf BX.Landing.Menu
+	 */
+
+	var Menu = /*#__PURE__*/function (_Event$EventEmitter) {
 	  babelHelpers.inherits(Menu, _Event$EventEmitter);
 
 	  function Menu() {
@@ -164,7 +176,7 @@ this.BX.Landing = this.BX.Landing || {};
 	    }
 
 	    main_core.Event.bind(_this.root, 'click', function (event) {
-	      if (event.target.nodeName === 'A') {
+	      if (!landing_ui_panel_stylepanel.StylePanel.getInstance().isShown() && event.target.nodeName === 'A') {
 	        event.preventDefault();
 	        var href = main_core.Dom.attr(event.target, 'href');
 
@@ -260,41 +272,47 @@ this.BX.Landing = this.BX.Landing || {};
 	  }, {
 	    key: "onAddPageTextInputKeydown",
 	    value: function onAddPageTextInputKeydown(event) {
+	      if (event.keyCode === 13) {
+	        this.addPage();
+	      }
+	    }
+	  }, {
+	    key: "addPage",
+	    value: function addPage() {
 	      var _this5 = this;
 
-	      if (event.keyCode === 13) {
-	        var input = this.getAddPageInput();
-	        var value = input.value;
-	        input.value = '';
-	        input.focus();
+	      var input = this.getAddPageInput();
+	      var value = input.value;
+	      input.value = '';
+	      input.focus();
 
-	        if (main_core.Type.isStringFilled(value)) {
-	          var code = BX.translit(value, {
-	            change_case: 'L',
-	            replace_space: '-',
-	            replace_other: ''
+	      if (main_core.Type.isStringFilled(value)) {
+	        var code = BX.translit(value, {
+	          change_case: 'L',
+	          replace_space: '-',
+	          replace_other: ''
+	        });
+	        var backend = landing_backend.Backend.getInstance();
+	        backend.createPage({
+	          title: value,
+	          menuCode: this.code,
+	          blockId: this.block,
+	          code: code
+	        }).then(function (id) {
+	          var li = _this5.createLi({
+	            text: value,
+	            href: "#landing".concat(id),
+	            target: '_self',
+	            children: []
 	          });
-	          var backend = landing_backend.Backend.getInstance();
-	          backend.createPage({
-	            title: value,
-	            menuCode: this.code,
-	            blockId: this.block,
-	            code: code
-	          }).then(function (id) {
-	            var li = _this5.createLi({
-	              text: value,
-	              href: "#landing".concat(id),
-	              target: '_self',
-	              children: []
-	            });
 
-	            main_core.Dom.append(li, _this5.root);
-	            main_core.Dom.remove(_this5.getAddPageField());
-	            main_core.Dom.removeClass(_this5.root, 'landing-menu-root-list-with-field');
+	          main_core.Dom.append(li, _this5.root);
+	          main_core.Dom.remove(_this5.getAddPageField());
+	          main_core.Dom.removeClass(_this5.root, 'landing-menu-root-list-with-field');
+	          main_core.Dom.removeClass(_this5.getAddPageLayout(), 'landing-menu-add-with-background');
 
-	            _this5.reloadPage(id);
-	          });
-	        }
+	          _this5.reloadPage(id);
+	        });
 	      }
 	    } // eslint-disable-next-line class-methods-use-this
 
@@ -317,38 +335,56 @@ this.BX.Landing = this.BX.Landing || {};
 	      });
 	    }
 	  }, {
-	    key: "onAddPageInputClearButtonClick",
-	    value: function onAddPageInputClearButtonClick(event) {
+	    key: "onAddPageInputCloseButtonClick",
+	    value: function onAddPageInputCloseButtonClick(event) {
 	      event.preventDefault();
 	      var input = this.getAddPageInput();
 	      input.value = '';
-	      input.focus();
+	      main_core.Dom.removeClass(this.root, 'landing-menu-root-list-with-field');
+	      main_core.Dom.removeClass(this.getAddPageLayout(), 'landing-menu-add-with-background');
+	      main_core.Dom.remove(this.getAddPageField());
+	      main_core.Dom.append(this.getAddPageButton(), this.getAddPageLayout());
 	    }
 	  }, {
-	    key: "getAddPageInputClearButton",
-	    value: function getAddPageInputClearButton() {
+	    key: "getAddPageInputCloseButton",
+	    value: function getAddPageInputCloseButton() {
 	      var _this7 = this;
 
-	      return this.cache.remember('addPageInputClearButton', function () {
-	        return main_core.Tag.render(_templateObject3(), _this7.onAddPageInputClearButtonClick.bind(_this7), landing_loc.Loc.getMessage('LANDING_MENU_CLEAR_FIELD'));
+	      return this.cache.remember('addPageInputCloseButton', function () {
+	        return main_core.Tag.render(_templateObject3(), _this7.onAddPageInputCloseButtonClick.bind(_this7), landing_loc.Loc.getMessage('LANDING_MENU_CLOSE_BUTTON_LABEL'));
 	      });
+	    }
+	  }, {
+	    key: "getAddPageInputApplyButton",
+	    value: function getAddPageInputApplyButton() {
+	      var _this8 = this;
+
+	      return this.cache.remember('addPageInputApplyButton', function () {
+	        return main_core.Tag.render(_templateObject4(), _this8.onAddPageInputApplyButtonClick.bind(_this8), landing_loc.Loc.getMessage('LANDING_MENU_APPLY_BUTTON_LABEL'));
+	      });
+	    }
+	  }, {
+	    key: "onAddPageInputApplyButtonClick",
+	    value: function onAddPageInputApplyButtonClick(event) {
+	      event.preventDefault();
+	      this.addPage();
 	    }
 	  }, {
 	    key: "getAddPageField",
 	    value: function getAddPageField() {
-	      var _this8 = this;
+	      var _this9 = this;
 
 	      return this.cache.remember('addPageInput', function () {
-	        return main_core.Tag.render(_templateObject4(), _this8.getAddPageInput(), _this8.getAddPageInputClearButton());
+	        return main_core.Tag.render(_templateObject5(), _this9.getAddPageInput(), _this9.getAddPageInputApplyButton(), _this9.getAddPageInputCloseButton());
 	      });
 	    }
 	  }, {
 	    key: "getAddPageLayout",
 	    value: function getAddPageLayout() {
-	      var _this9 = this;
+	      var _this10 = this;
 
 	      return this.cache.remember('addPageLayout', function () {
-	        return main_core.Tag.render(_templateObject5(), _this9.getAddPageButton());
+	        return main_core.Tag.render(_templateObject6(), _this10.getAddPageButton());
 	      });
 	    }
 	  }, {
@@ -356,18 +392,20 @@ this.BX.Landing = this.BX.Landing || {};
 	    value: function onAddPageButtonClick(event) {
 	      event.preventDefault();
 	      main_core.Dom.addClass(this.root, 'landing-menu-root-list-with-field');
+	      main_core.Dom.addClass(this.getAddPageLayout(), 'landing-menu-add-with-background');
 	      main_core.Dom.prepend(this.getAddPageField(), this.getAddPageLayout());
+	      main_core.Dom.remove(this.getAddPageButton());
 	      this.getAddPageInput().focus();
 	    }
 	  }, {
 	    key: "createList",
 	    value: function createList(items) {
-	      var _this10 = this;
+	      var _this11 = this;
 
 	      var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'root';
 	      var ulClassName = this.manifest[type].ulClassName;
-	      return main_core.Tag.render(_templateObject6(), ulClassName, items.map(function (item) {
-	        return _this10.createLi(item, type);
+	      return main_core.Tag.render(_templateObject7(), ulClassName, items.map(function (item) {
+	        return _this11.createLi(item, type);
 	      }));
 	    }
 	  }, {
@@ -375,14 +413,14 @@ this.BX.Landing = this.BX.Landing || {};
 	    value: function createA(item) {
 	      var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'root';
 	      var aClassName = this.manifest[type].aClassName;
-	      return main_core.Tag.render(_templateObject7(), aClassName, item.href, item.target, main_core.Text.encode(item.text));
+	      return main_core.Tag.render(_templateObject8(), aClassName, item.href, item.target, main_core.Text.encode(item.text));
 	    }
 	  }, {
 	    key: "createLi",
 	    value: function createLi(item) {
 	      var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'root';
 	      var liClassName = this.manifest[type].liClassName;
-	      return main_core.Tag.render(_templateObject8(), liClassName, this.createA(item, type), item.children ? this.createList(item.children, 'children') : undefined);
+	      return main_core.Tag.render(_templateObject9(), liClassName, this.createA(item, type), item.children ? this.createList(item.children, 'children') : undefined);
 	    }
 	  }, {
 	    key: "rebuild",
@@ -397,5 +435,5 @@ this.BX.Landing = this.BX.Landing || {};
 
 	exports.Menu = Menu;
 
-}((this.BX.Landing.Menu = this.BX.Landing.Menu || {}),BX,BX.Landing,BX.Landing,BX.Landing,BX.Landing,BX.Landing.UI.Form,BX.Landing.Menu));
+}((this.BX.Landing.Menu = this.BX.Landing.Menu || {}),BX,BX.Landing,BX.Landing,BX.Landing,BX.Landing,BX.Landing.UI.Form,BX.Landing.UI.Panel,BX.Landing.Menu));
 //# sourceMappingURL=menu.bundle.js.map

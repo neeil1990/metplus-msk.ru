@@ -2,6 +2,9 @@
 
 namespace Bitrix\Main\Mail\Smtp;
 
+use \Bitrix\Main;
+use \Bitrix\Mail;
+
 class Config
 {
 
@@ -84,6 +87,51 @@ class Config
 	public function getPassword()
 	{
 		return $this->password;
+	}
+
+	public static function canCheck()
+	{
+		return Main\Loader::includeModule('mail') && class_exists('Bitrix\Mail\Smtp');
+	}
+
+	public function check(&$error = null, Main\ErrorCollection &$errors = null)
+	{
+		$error = null;
+		$errors = null;
+
+		if (!$this->canCheck())
+		{
+			return null;
+		}
+
+		if (Main\ModuleManager::isModuleInstalled('bitrix24'))
+		{
+			// Private addresses can't be used in the cloud
+			$ip = Main\Web\IpAddress::createByName($this->host);
+			if ($ip->isPrivate())
+			{
+				$error = 'SMTP server address is invalid';
+				$errors = new Main\ErrorCollection([new Main\Error($error)]);
+				return false;
+			}
+		}
+
+		$client = new Mail\Smtp(
+			$this->host,
+			$this->port,
+			('smtps' === $this->protocol || ('smtp' !== $this->protocol && 465 === $this->port)),
+			true,
+			$this->login,
+			$this->password
+		);
+
+		if (!$client->authenticate($error))
+		{
+			$errors = $client->getErrors();
+			return false;
+		}
+
+		return true;
 	}
 
 }

@@ -5,11 +5,13 @@ use Bitrix\Main\Config\Option;
 use Bitrix\Main\Error;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Type\Date;
 use Bitrix\Sale\Basket;
 use Bitrix\Sale\BasketItem;
 use Bitrix\Sale\BasketItemBase;
 use Bitrix\Sale\Discount;
 use Bitrix\Sale\DiscountCouponsManager;
+use Bitrix\Sale\Fuser;
 use Bitrix\Sale\Helpers\Admin\Blocks\OrderBasket;
 use Bitrix\Sale\Helpers\Admin\OrderEdit;
 use Bitrix\Sale\Order;
@@ -84,7 +86,7 @@ abstract class BasketBuilder
 	{
 		$result = true;
 
-		if((int)$productData['QUANTITY'] <= 0)
+		if((float)$productData['QUANTITY'] <= 0)
 		{
 			$this->getErrorsContainer()->addError(
 				new Error(
@@ -122,7 +124,7 @@ abstract class BasketBuilder
 
 			if(self::isBasketItemNew($basketCode))
 			{
-				$basketInternalId = intval(substr($basketCode, 1));
+				$basketInternalId = intval(mb_substr($basketCode, 1));
 
 				if($basketInternalId > $this->maxBasketCodeIdx)
 					$this->maxBasketCodeIdx = $basketInternalId;
@@ -147,6 +149,9 @@ abstract class BasketBuilder
 		return $this;
 	}
 
+	/**
+	 * @deprecated
+	 */
 	protected function getExistsItem($moduleId, $productId, array $properties = array())
 	{
 		return $this->getBasket()->getExistsItem($moduleId, $productId, $properties);
@@ -154,56 +159,60 @@ abstract class BasketBuilder
 
 	public function removeDeletedItems()
 	{
-		if($this->builder->getSettingsContainer()->getItemValue('deleteBaketItemsIfNotExists'))
+		$deleteBasketItemsIfNotExists = $this->builder->getSettingsContainer()->getItemValue('deleteBasketItemsIfNotExists');
+		$itemsBasketCodes = [];
+
+		foreach($this->formData["PRODUCT"] as $basketCode => $productData)
 		{
-			$itemsBasketCodes = [];
-
-			foreach($this->formData["PRODUCT"] as $basketCode => $productData)
+			if (!isset($productData["PROPS"]))
 			{
-				if (!isset($productData["PROPS"]))
-				{
-					$productData["PROPS"] = array();
-				}
-
-				$item = $this->getExistsItem($productData["MODULE"], $productData["OFFER_ID"], $productData["PROPS"]);
-
-				if ($item == null)
-				{
-					DiscountCouponsManager::useSavedCouponsForApply(false);
-				}
-
-				if($item == null && $basketCode != \Bitrix\Sale\Helpers\Admin\OrderEdit::BASKET_CODE_NEW)
-				{
-					$item = $this->getBasket()->getItemByBasketCode($basketCode);
-				}
-
-				if($item && $item->isBundleChild())
-				{
-					continue;
-				}
-
-				if(!$item)
-				{
-					continue;
-				}
-
-				$itemsBasketCodes[] = $item->getBasketCode();
+				$productData["PROPS"] = array();
 			}
 
-			/** @var  \Bitrix\Sale\BasketItem  $item */
-			$basketItems = $this->getBasket()->getBasketItems();
-
-			foreach($basketItems as $item)
+			$item = null;
+			if ($basketCode != \Bitrix\Sale\Helpers\Admin\OrderEdit::BASKET_CODE_NEW)
 			{
-				if(!in_array($item->getBasketCode(), $itemsBasketCodes))
-				{
-					$res = $item->delete();
+				$item = $this->getBasket()->getItemByBasketCode($basketCode);
+			}
 
-					if (!$res->isSuccess())
+			if ($item == null && $deleteBasketItemsIfNotExists)
+			{
+				DiscountCouponsManager::useSavedCouponsForApply(false);
+			}
+
+			if($item && $item->isBundleChild())
+			{
+				continue;
+			}
+
+			if(!$item)
+			{
+				continue;
+			}
+
+			$itemsBasketCodes[] = $item->getBasketCode();
+		}
+
+		/** @var  \Bitrix\Sale\BasketItem  $item */
+		$basketItems = $this->getBasket()->getBasketItems();
+
+		foreach($basketItems as $item)
+		{
+			if(!in_array($item->getBasketCode(), $itemsBasketCodes))
+			{
+				if ($deleteBasketItemsIfNotExists)
+				{
+					$itemDeleteResult = $item->delete();
+
+					if (!$itemDeleteResult->isSuccess())
 					{
-						$this->builder->getErrorsContainer()->addErrors($res->getErrors());
+						$this->builder->getErrorsContainer()->addErrors($itemDeleteResult->getErrors());
 						throw new BuildingException();
 					}
+				}
+				elseif ($this->getSettingsContainer()->getItemValue('clearReservesIfEmpty') === true)
+				{
+					$this->clearReservesForItem($item);
 				}
 			}
 		}
@@ -250,7 +259,9 @@ abstract class BasketBuilder
 				/** @var \Bitrix\Sale\BasketPropertiesCollection $property */
 				$property = $item->getPropertyCollection();
 				if(!$property->isPropertyAlreadyExists($productData["PROPS"]))
+				{
 					$property->setProperty($productData["PROPS"]);
+				}
 			}
 		}
 
@@ -287,7 +298,7 @@ abstract class BasketBuilder
 			$productData = $this->formData['PRODUCT'][$basketCode];
 			$isProductDataNeedUpdate = in_array($basketCode, $this->needDataUpdate);
 
-			if(isset($productData["PRODUCT_PROVIDER_CLASS"]) && strlen($productData["PRODUCT_PROVIDER_CLASS"]) > 0)
+			if(isset($productData["PRODUCT_PROVIDER_CLASS"]) && $productData["PRODUCT_PROVIDER_CLASS"] <> '')
 			{
 				$item->setField("PRODUCT_PROVIDER_CLASS", trim($productData["PRODUCT_PROVIDER_CLASS"]));
 			}
@@ -302,12 +313,30 @@ abstract class BasketBuilder
 			}
 
 			$item->setField("NAME", $productData["NAME"]);
+
+			if ($productData['CUSTOM_PRICE'] === 'Y')
+			{
+				$item->markFieldCustom('PRICE');
+			}
+
 			$res = $item->setField("QUANTITY", $productData["QUANTITY"]);
 
 			if(!$res->isSuccess())
 			{
 				$this->getErrorsContainer()->addErrors($res->getErrors());
 				throw new BuildingException();
+			}
+
+			if (isset($productData['VAT_RATE']))
+			{
+				$item->markFieldCustom('VAT_RATE');
+				$item->setField('VAT_RATE', $productData['VAT_RATE']);
+			}
+
+			if (isset($productData['VAT_INCLUDED']))
+			{
+				$item->markFieldCustom('VAT_INCLUDED');
+				$item->setField('VAT_INCLUDED', $productData['VAT_INCLUDED']);
 			}
 
 			if(isset($productData["MODULE"]) && $productData["MODULE"] == "catalog")
@@ -319,7 +348,7 @@ abstract class BasketBuilder
 				$availableFields = BasketItemBase::getAvailableFields();
 				$availableFields = array_fill_keys($availableFields, true);
 				$fillFields = array_intersect_key($productData, $availableFields);
-				
+
 				$orderCurrency = $this->getOrder()->getCurrency();
 				if ($fillFields['CURRENCY'] !== $orderCurrency)
 				{
@@ -430,7 +459,7 @@ abstract class BasketBuilder
 
 		if($this->getOrder()->getId() <= 0 && (empty($productProviderData[$basketCode]) || !$this->cacheProductProviderData || $isProductDataNeedUpdate))
 		{
-			if(empty($productProviderData[$basketCode]) && strlen($productFormData["PRODUCT_PROVIDER_CLASS"]) > 0)
+			if(empty($productProviderData[$basketCode]) && $productFormData["PRODUCT_PROVIDER_CLASS"] <> '')
 			{
 				$result = false;
 			}
@@ -548,15 +577,15 @@ abstract class BasketBuilder
 			//discard BasketItem redundant fields
 			$product = array_intersect_key($product, array_flip($item::getAvailableFields()));
 
-			if(isset($product["MEASURE_CODE"]) && strlen($product["MEASURE_CODE"]) > 0)
+			if(isset($product["MEASURE_CODE"]) && $product["MEASURE_CODE"] <> '')
 			{
 				$measures = OrderBasket::getCatalogMeasures();
 
-				if(isset($measures[$product["MEASURE_CODE"]]) && strlen($measures[$product["MEASURE_CODE"]]) > 0)
+				if(isset($measures[$product["MEASURE_CODE"]]) && $measures[$product["MEASURE_CODE"]] <> '')
 					$product["MEASURE_NAME"] = $measures[$product["MEASURE_CODE"]];
 			}
 
-			if(!isset($product["CURRENCY"]) || strlen($product["CURRENCY"]) <= 0)
+			if(!isset($product["CURRENCY"]) || $product["CURRENCY"] == '')
 				$product["CURRENCY"] = $order->getCurrency();
 
 			if($productFormData["IS_SET_PARENT"] == "Y")
@@ -589,9 +618,91 @@ abstract class BasketBuilder
 			}
 
 			self::setBasketItemFields($item, $product);
+
+			if (!empty($productFormData['RESERVE']) && is_array($productFormData['RESERVE']))
+			{
+				$reserveData = $productFormData['RESERVE'];
+				$this->setReserveDataForItem($item, $reserveData);
+			}
+			elseif ($this->getSettingsContainer()->getItemValue('clearReservesIfEmpty') === true)
+			{
+				$this->clearReservesForItem($item);
+			}
 		}
 
 		return $this;
+	}
+
+	protected function clearReservesForItem(BasketItem $item)
+	{
+		$item->getReserveQuantityCollection()->clearCollection();
+	}
+
+	protected function setReserveDataForItem(BasketItem $item, array $reserveData)
+	{
+		$reserveCollection = $item->getReserveQuantityCollection();
+
+		// if some reserves were created upon order creation, we have to clear them and set the manual reserves
+		if ($this->getOrder()->isNew())
+		{
+			$this->clearReservesForItem($item);
+		}
+
+		foreach ($reserveData as $reserveCode => $reserve)
+		{
+			$isNewReserve = mb_strpos($reserveCode, 'n') === 0;
+			if ($isNewReserve)
+			{
+				$reserveCollectionItem = $reserveCollection->create();
+			}
+			else
+			{
+				$reserveCollectionItem = $reserveCollection->getItemById($reserveCode);
+				if (!$reserveCollectionItem)
+				{
+					continue;
+				}
+			}
+
+			if (isset($reserve['STORE_ID']) && (int)$reserve['STORE_ID'] !== $reserveCollectionItem->getStoreId())
+			{
+				if (!$isNewReserve)
+				{
+					// drop the old reserve and create a new one instead since we can't just change the store id like that
+					$deleteResult = $reserveCollectionItem->delete();
+					if (!$deleteResult->isSuccess())
+					{
+						$this->getErrorsContainer()->addErrors($deleteResult->getErrors());
+						continue;
+					}
+
+					$reserveCollectionItem = $reserveCollection->create();
+				}
+
+				$reserveCollectionItem->setStoreId((int)$reserve['STORE_ID']);
+			}
+
+			if (isset($reserve['QUANTITY']))
+			{
+				$quantity = (float)$reserve['QUANTITY'];
+				if ($quantity < 0)
+				{
+					$quantity = 0;
+				}
+				$reserveCollectionItem->setQuantity($quantity);
+			}
+
+			if (isset($reserve['DATE_RESERVE_END']) && $reserve['DATE_RESERVE_END'] !== '')
+			{
+				$dateReserveEnd = new Date($reserve['DATE_RESERVE_END']);
+				$reserveCollectionItem->setField('DATE_RESERVE_END', $dateReserveEnd);
+			}
+
+			if (isset($reserve['RESERVED_BY']))
+			{
+				$reserveCollectionItem->setField('RESERVED_BY', $reserve['RESERVED_BY']);
+			}
+		}
 	}
 
 	public function getOrder()
@@ -621,7 +732,7 @@ abstract class BasketBuilder
 
 	public static function isBasketItemNew($basketCode)
 	{
-		return (strpos($basketCode, 'n') === 0) && ($basketCode != self::BASKET_CODE_NEW);
+		return (mb_strpos($basketCode, 'n') === 0) && ($basketCode != self::BASKET_CODE_NEW);
 	}
 
 	protected function getItemFromBasket($basketCode, $productData)
@@ -671,7 +782,7 @@ abstract class BasketBuilder
 		return $item;
 	}
 
-	public function getCatalogMeasures()
+	public static function getCatalogMeasures()
 	{
 		static $result = null;
 		$catalogIncluded = null;
@@ -709,7 +820,7 @@ abstract class BasketBuilder
 		if(empty($productData["PROVIDER_DATA"]) || !CheckSerializedData($productData["PROVIDER_DATA"]))
 			return;
 
-		$trustData = unserialize($productData["PROVIDER_DATA"]);
+		$trustData = unserialize($productData["PROVIDER_DATA"], ['allowed_classes' => false]);
 
 		//quantity was changed so data must be changed
 		if(empty($trustData) || $trustData["QUANTITY"] == $productData["QUANTITY"])
@@ -773,5 +884,33 @@ abstract class BasketBuilder
 	public function isProductAdded()
 	{
 		return $this->isProductAdded;
+	}
+
+	/**
+	 * Filling fuser of basket is needed.
+	 *
+	 * If empty get by user id of order.
+	 *
+	 * @return self
+	 */
+	public function fillFUser()
+	{
+		$basket = $this->getBasket();
+		if ($basket && !$basket->getFUserId(true))
+		{
+			$fuserId = null;
+
+			$order = $this->getOrder();
+			if ($order && $order->getUserId())
+			{
+				$fuserId = Fuser::getUserIdById($order->getUserId());
+			}
+
+			$basket->setFUserId(
+				$fuserId ?: Fuser::getId(false)
+			);
+		}
+
+		return $this;
 	}
 }

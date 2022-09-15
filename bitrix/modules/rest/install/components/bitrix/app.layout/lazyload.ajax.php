@@ -5,7 +5,7 @@ define('NO_AGENT_CHECK', true);
 define('PUBLIC_AJAX_MODE', true);
 define('DisableEventsCheck', true);
 
-$siteID = isset($_REQUEST['site']) ? substr(preg_replace('/[^a-z0-9_]/i', '', $_REQUEST['site']), 0, 2) : '';
+$siteID = isset($_REQUEST['site'])? mb_substr(preg_replace('/[^a-z0-9_]/i', '', $_REQUEST['site']), 0, 2) : '';
 if($siteID !== '')
 {
 	define('SITE_ID', $siteID);
@@ -34,7 +34,18 @@ $componentParams['LAZYLOAD'] = true;
 $APPLICATION->IncludeComponent(
 	'bitrix:app.layout',
 	'',
-	$componentParams,
+	[
+		'PLACEMENT' => $componentParams['PLACEMENT'] ?? null,
+		'PLACEMENT_OPTIONS' => $componentParams['PLACEMENT_OPTIONS'] ?? null,
+		'ID' => $componentParams['ID'] ?? null,
+		'PLACEMENT_ID' => $componentParams['PLACEMENT_ID'] ?? null,
+		'APP_VIEW' => $componentParams['APP_VIEW'] ?? null,
+		'USE_PADDING' => $componentParams['USE_PADDING'] ?? null,
+		'POPUP' => $componentParams['POPUP'] ?? null,
+		'IS_SLIDER' => $componentParams['IS_SLIDER'] ?? null,
+		'INITIALIZE' => $componentParams['INITIALIZE'] ?? null,
+		'LAZYLOAD' => $componentParams['LAZYLOAD'],
+	],
 	false,
 	array('HIDE_ICONS' => 'Y')
 );

@@ -3,6 +3,9 @@ import Dom from './dom';
 
 const UA = navigator.userAgent.toLowerCase();
 
+/**
+ * @memberOf BX
+ */
 export default class Browser
 {
 	static isOpera()
@@ -129,6 +132,16 @@ export default class Browser
 		return UA.includes('macintosh');
 	}
 
+	static isWin()
+	{
+		return UA.includes('windows');
+	}
+
+	static isLinux()
+	{
+		return UA.includes('linux') && !Browser.isAndroid();
+	}
+
 	static isAndroid()
 	{
 		return UA.includes('android');
@@ -136,7 +149,7 @@ export default class Browser
 
 	static isIPad()
 	{
-		return UA.includes('ipad;');
+		return UA.includes('ipad;') || (this.isMac() && this.isTouchDevice());
 	}
 
 	static isIPhone()
@@ -163,6 +176,13 @@ export default class Browser
 	static isRetina()
 	{
 		return window.devicePixelRatio && window.devicePixelRatio >= 2;
+	}
+
+	static isTouchDevice()
+	{
+		return (
+			('ontouchstart' in window) || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0
+		);
 	}
 
 	static isDoctype(target: any)

@@ -31,7 +31,7 @@ class UserDataProvider extends EntityDataProvider
 		return $result;
 	}
 
-	public static function getFiredAvailability()
+	public static function getFiredAvailability(): bool
 	{
 		global $USER;
 
@@ -41,7 +41,7 @@ class UserDataProvider extends EntityDataProvider
 		{
 			$result = (
 				(
-					Option::get("bitrix24", "show_fired_employees", "Y") == "Y"
+					Option::get('bitrix24', 'show_fired_employees', 'Y') === 'Y'
 					|| $USER->canDoOperation('edit_all_users')
 				)
 				&& !self::extranetSite()
@@ -51,7 +51,7 @@ class UserDataProvider extends EntityDataProvider
 		return $result;
 	}
 
-	public static function getExtranetAvailability()
+	public static function getExtranetAvailability(): bool
 	{
 		static $result = null;
 
@@ -59,7 +59,7 @@ class UserDataProvider extends EntityDataProvider
 		{
 			$result = (
 				ModuleManager::isModuleInstalled('extranet')
-				&& strlen(Option::get("extranet", "extranet_site")) > 0
+				&& Option::get('extranet', 'extranet_site') !== ''
 			);
 		}
 
@@ -78,10 +78,8 @@ class UserDataProvider extends EntityDataProvider
 				$USER->canDoOperation('edit_all_users')
 				&& (
 					!ModuleManager::isModuleInstalled('extranet')
-					|| (
-						strlen(Option::get("extranet", "extranet_site")) > 0
-						&& !self::extranetSite()
-					)
+					|| Option::get("extranet", "extranet_site") == '' // master hasn't been run
+					|| !self::extranetSite()
 				)
 			);
 		}
@@ -103,7 +101,7 @@ class UserDataProvider extends EntityDataProvider
 				&& (
 					!ModuleManager::isModuleInstalled('extranet')
 					|| (
-						strlen(Option::get("extranet", "extranet_site")) > 0
+						Option::get("extranet", "extranet_site") <> ''
 						&& !self::extranetSite()
 					)
 				)
@@ -125,10 +123,8 @@ class UserDataProvider extends EntityDataProvider
 				$USER->canDoOperation('edit_all_users')
 				&& (
 					!ModuleManager::isModuleInstalled('extranet')
-					|| (
-						strlen(Option::get("extranet", "extranet_site")) > 0
-						&& !self::extranetSite()
-					)
+					|| Option::get("extranet", "extranet_site", "") === ""
+					|| !self::extranetSite()
 				)
 			);
 		}
@@ -201,7 +197,10 @@ class UserDataProvider extends EntityDataProvider
 				'items' => $countriesList
 			];
 		}
-		elseif ($fieldID === 'DEPARTMENT')
+		elseif (
+			$fieldID === 'DEPARTMENT'
+			|| $fieldID === 'DEPARTMENT_FLAT'
+		)
 		{
 			return [
 				'params' => [
@@ -210,7 +209,7 @@ class UserDataProvider extends EntityDataProvider
 					'multiple' => 'N',
 					'contextCode' => 'DR',
 					'enableDepartments' => 'Y',
-					'departmentFlatEnable' => 'Y',
+					'departmentFlatEnable' => ($fieldID === 'DEPARTMENT_FLAT' ? 'Y' : 'N'),
 					'enableAll' => 'N',
 					'enableUsers' => 'N',
 					'enableSonetgroups' => 'N',
@@ -218,7 +217,6 @@ class UserDataProvider extends EntityDataProvider
 					'allowSearchEmailUsers' => 'N',
 					'departmentSelectDisable' => 'N',
 					'isNumeric' => 'N',
-//					'prefix' => 'DR',
 				]
 			];
 		}
@@ -246,7 +244,7 @@ class UserDataProvider extends EntityDataProvider
 				'options' => [ 'default' => true ]
 			],
 			'SECOND_NAME' => [
-				'whiteList' => 'SECOND_NAME'
+				'whiteList' => [ 'SECOND_NAME' ]
 			],
 			'FIRED' => [
 //				'conditionMethod' => 'self::getFiredAvailability',
@@ -272,91 +270,91 @@ class UserDataProvider extends EntityDataProvider
 				'options' => [ 'type' => 'checkbox' ]
 			],
 			'DEPARTMENT' => [
-				'whiteList' => 'UF_DEPARTMENT',
+				'whiteList' => [ 'UF_DEPARTMENT' ],
 				'options' => [ 'default' => true, 'type' => 'dest_selector', 'partial' => true ]
 			],
 			'DEPARTMENT_FLAT' => [
-				'whiteList' => 'UF_DEPARTMENT_FLAT',
+				'whiteList' => [ 'UF_DEPARTMENT_FLAT' ],
 				'options' => [ 'type' => 'dest_selector', 'partial' => true ]
 			],
 			'TAGS' => [
-				'whiteList' => 'TAGS',
+				'whiteList' => [ 'TAGS' ],
 				'options' => [ 'default' => true ]
 			],
 			'LOGIN' => [
-				'whiteList' => 'LOGIN'
+				'whiteList' => [ 'LOGIN' ]
 			],
 			'EMAIL' => [
-				'whiteList' => 'EMAIL'
+				'whiteList' => [ 'EMAIL' ]
 			],
 			'DATE_REGISTER' => [
-				'whiteList' => 'DATE_REGISTER',
+				'whiteList' => [ 'DATE_REGISTER' ],
 				'options' => [ 'type' => 'date' ]
 			],
 			'LAST_ACTIVITY_DATE' => [
-				'whiteList' => 'LAST_ACTIVITY_DATE',
+				'whiteList' => [ 'LAST_ACTIVITY_DATE' ],
 				'options' => [ 'type' => 'date' ]
 			],
 			'BIRTHDAY' => [
-				'whiteList' => 'PERSONAL_BIRTHDAY',
+				'whiteList' => [ 'PERSONAL_BIRTHDAY' ],
 				'options' => [ 'type' => 'date' ]
 			],
 			'GENDER' => [
-				'whiteList' => 'PERSONAL_GENDER',
+				'whiteList' => [ 'PERSONAL_GENDER' ],
 				'options' => [ 'type' => 'list', 'partial' => true ]
 			],
 			'PHONE_MOBILE' => [
-				'whiteList' => 'PERSONAL_MOBILE'
+				'whiteList' => [ 'PERSONAL_MOBILE' ]
 			],
 			'PERSONAL_CITY' => [
-				'whiteList' => 'PERSONAL_CITY'
+				'whiteList' => [ 'PERSONAL_CITY' ]
 			],
 			'PERSONAL_STREET' => [
-				'whiteList' => 'PERSONAL_STREET'
+				'whiteList' => [ 'PERSONAL_STREET' ]
 			],
 			'PERSONAL_STATE' => [
-				'whiteList' => 'PERSONAL_STATE'
+				'whiteList' => [ 'PERSONAL_STATE' ]
 			],
 			'PERSONAL_ZIP' => [
-				'whiteList' => 'PERSONAL_ZIP'
+				'whiteList' => [ 'PERSONAL_ZIP' ]
 			],
 			'PERSONAL_MAILBOX' => [
-				'whiteList' => 'PERSONAL_MAILBOX'
+				'whiteList' => [ 'PERSONAL_MAILBOX' ]
 			],
 			'PERSONAL_COUNTRY' => [
-				'whiteList' => 'PERSONAL_COUNTRY',
+				'whiteList' => [ 'PERSONAL_COUNTRY' ],
 				'options' => [ 'type' => 'list', 'partial' => true ]
 			],
 			'WORK_CITY' => [
-				'whiteList' => 'WORK_CITY'
+				'whiteList' => [ 'WORK_CITY' ]
 			],
 			'WORK_STREET' => [
-				'whiteList' => 'WORK_STREET'
+				'whiteList' => [ 'WORK_STREET' ]
 			],
 			'WORK_STATE' => [
-				'whiteList' => 'WORK_STATE'
+				'whiteList' => [ 'WORK_STATE' ]
 			],
 			'WORK_ZIP' => [
-				'whiteList' => 'WORK_ZIP'
+				'whiteList' => [ 'WORK_ZIP' ]
 			],
 			'WORK_MAILBOX' => [
-				'whiteList' => 'WORK_MAILBOX'
+				'whiteList' => [ 'WORK_MAILBOX' ]
 			],
 			'WORK_COUNTRY' => [
-				'whiteList' => 'WORK_COUNTRY',
+				'whiteList' => [ 'WORK_COUNTRY' ],
 				'options' => [ 'type' => 'list', 'partial' => true ]
 			],
 			'WORK_PHONE' => [
-				'whiteList' => 'WORK_PHONE'
+				'whiteList' => [ 'WORK_PHONE' ]
 			],
 			'POSITION' => [
-				'whiteList' => 'WORK_POSITION'
+				'whiteList' => [ 'WORK_POSITION' ]
 			],
 			'COMPANY' => [
-				'whiteList' => 'WORK_COMPANY'
+				'whiteList' => [ 'WORK_COMPANY' ]
 			],
 			'WORK_DEPARTMENT' => [
-				'whiteList' => 'WORK_DEPARTMENT'
+				'whiteList' => [ 'WORK_DEPARTMENT' ]
 			],
 		];
 
@@ -380,7 +378,6 @@ class UserDataProvider extends EntityDataProvider
 			elseif (
 				!empty($whiteList)
 				&& !empty($field['whiteList'])
-				&& is_array($field['whiteList'])
 			)
 			{
 				foreach($field['whiteList'] as $whiteListField)
@@ -390,17 +387,6 @@ class UserDataProvider extends EntityDataProvider
 						$whiteListPassed = true;
 						break;
 					}
-				}
-			}
-			elseif (
-				!empty($whiteList)
-				&& !empty($field['whiteList'])
-				&& !is_array($field['whiteList'])
-			)
-			{
-				if (in_array($field['whiteList'], $whiteList))
-				{
-					$whiteListPassed = true;
 				}
 			}
 

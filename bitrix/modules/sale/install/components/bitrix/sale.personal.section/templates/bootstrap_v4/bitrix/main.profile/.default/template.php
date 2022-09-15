@@ -26,7 +26,7 @@ use Bitrix\Main\Localization\Loc;
 				<?
 				if($arResult["ID"]>0)
 				{
-					if (strlen($arResult["arUser"]["TIMESTAMP_X"])>0)
+					if ($arResult["arUser"]["TIMESTAMP_X"] <> '')
 					{
 						?>
 						<div class="col-12">
@@ -36,7 +36,7 @@ use Bitrix\Main\Localization\Loc;
 						<?
 					}
 
-					if (strlen($arResult["arUser"]["LAST_LOGIN"])>0)
+					if ($arResult["arUser"]["LAST_LOGIN"] <> '')
 					{
 						?>
 						<div class="col-12">
@@ -125,19 +125,31 @@ use Bitrix\Main\Localization\Loc;
 		</div>
 
 	</form>
-	<div class="col-sm-12 main-profile-social-block">
-		<?
-		if ($arResult["SOCSERV_ENABLED"])
-		{
-			$APPLICATION->IncludeComponent("bitrix:socserv.auth.split", ".default", array(
-				"SHOW_PROFILES" => "Y",
-				"ALLOW_DELETE" => "Y"
-			),
-				false
-			);
-		}
+	<?
+	$disabledSocServices = isset($arParams['DISABLE_SOCSERV_AUTH']) && $arParams['DISABLE_SOCSERV_AUTH'] === 'Y';
+
+	if (!$disabledSocServices)
+	{
 		?>
-	</div>
+		<div class="col-sm-12 main-profile-social-block">
+			<?
+			if ($arResult["SOCSERV_ENABLED"])
+			{
+				$APPLICATION->IncludeComponent(
+					"bitrix:socserv.auth.split",
+					".default",
+					[
+						"SHOW_PROFILES" => "Y",
+						"ALLOW_DELETE" => "Y",
+					],
+					false
+				);
+			}
+			?>
+		</div>
+		<?
+	}
+	?>
 	<div class="clearfix"></div>
 	<script>
 		BX.Sale.PrivateProfileComponent.init();

@@ -3,7 +3,7 @@
 use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
 
-\Bitrix\Main\UI\Extension::load("ui.fonts.ruble");
+\Bitrix\Main\UI\Extension::load(["ui.fonts.ruble", "ui.fonts.opensans"]);
 
 /**
  * @var array $arParams
@@ -110,10 +110,10 @@ if ($arParams['USE_GIFTS'] === 'Y')
 }
 
 \CJSCore::Init(array('fx', 'popup', 'ajax'));
+Main\UI\Extension::load(['ui.mustache']);
 
 //$this->addExternalCss($templateFolder.'/themes/'.$arParams['TEMPLATE_THEME'].'/style.css');
 
-$this->addExternalJs($templateFolder.'/js/mustache.js');
 $this->addExternalJs($templateFolder.'/js/action-pool.js');
 $this->addExternalJs($templateFolder.'/js/filter.js');
 $this->addExternalJs($templateFolder.'/js/component.js');

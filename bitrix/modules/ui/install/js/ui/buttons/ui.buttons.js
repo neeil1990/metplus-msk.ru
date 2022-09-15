@@ -685,6 +685,7 @@ BX.UI.Button.Color = {
 	DANGER_DARK: "ui-btn-danger-dark",
 	DANGER_LIGHT: "ui-btn-danger-light",
 	SUCCESS: "ui-btn-success",
+	SUCCESS_DARK: "ui-btn-success-dark",
 	SUCCESS_LIGHT: "ui-btn-success-light",
 	PRIMARY_DARK: "ui-btn-primary-dark",
 	PRIMARY: "ui-btn-primary",
@@ -716,8 +717,8 @@ BX.UI.Button.Icon = {
 	ADD: "ui-btn-icon-add",
 	STOP: "ui-btn-icon-stop",
 	START: "ui-btn-icon-start",
-	ADD_FOLDER: "ui-btn-icon-add-folder",
 	PAUSE: "ui-btn-icon-pause",
+	ADD_FOLDER: "ui-btn-icon-add-folder",
 	SETTING: "ui-btn-icon-setting",
 	TASK: "ui-btn-icon-task",
 	INFO: "ui-btn-icon-info",
@@ -730,10 +731,19 @@ BX.UI.Button.Icon = {
 	CAMERA: "ui-btn-icon-camera",
 	PHONE_UP: "ui-btn-icon-phone-up",
 	PHONE_DOWN: "ui-btn-icon-phone-down",
+	PHONE_CALL: "ui-btn-icon-phone-call",
 	BACK: "ui-btn-icon-back",
 	REMOVE: "ui-btn-icon-remove",
+	DOWNLOAD: "ui-btn-icon-download",
 	DONE: "ui-btn-icon-done",
-	DISK: "ui-btn-icon-disk"
+	DISK: "ui-btn-icon-disk",
+	LOCK: "ui-btn-icon-lock",
+	MAIL: "ui-btn-icon-mail",
+	CHAT: "ui-btn-icon-chat",
+	PAGE: "ui-btn-icon-page",
+	CLOUD: "ui-btn-icon-cloud",
+	EDIT: "ui-btn-icon-edit",
+	SHARE: "ui-btn-icon-share",
 };
 
 /**
@@ -754,7 +764,7 @@ BX.UI.Button.Tag = {
 BX.UI.Button.Style = {
 	NO_CAPS: "ui-btn-no-caps",
 	ROUND: "ui-btn-round",
-	DROPDOWN: "ui-btn-dropdown",
+	DROPDOWN: "ui-btn-dropdown"
 };
 
 BX.UI.Button.prototype =

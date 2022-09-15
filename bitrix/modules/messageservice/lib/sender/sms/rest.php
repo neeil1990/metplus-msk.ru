@@ -16,7 +16,10 @@ Loc::loadMessages(__FILE__);
 
 class Rest extends Sender\Base
 {
+	public const ID = 'rest';
+
 	static $langFields;
+	static $countRestApps;
 
 	public static function isSupported()
 	{
@@ -25,7 +28,7 @@ class Rest extends Sender\Base
 
 	public function getId()
 	{
-		return 'rest';
+		return static::ID;
 	}
 
 	public function getName()
@@ -42,7 +45,12 @@ class Rest extends Sender\Base
 	{
 		if (Loader::includeModule('rest') && \Bitrix\Rest\OAuthService::getEngine()->isRegistered())
 		{
-			return RestAppTable::getCount() > 0;
+			if (static::$countRestApps === null)
+			{
+				static::$countRestApps = RestAppTable::getCount();
+			}
+
+			return static::$countRestApps > 0;
 		}
 		return false;
 	}
@@ -141,7 +149,7 @@ class Rest extends Sender\Base
 
 		$auth = $messageFields['AUTHOR_ID'] > 0 ? array(
 			'CODE' => $restSender['CODE'],
-			\Bitrix\Rest\Event\Session::PARAM_SESSION => $session,
+			\Bitrix\Rest\Event\Session::PARAM_SESSION => \Bitrix\Rest\Event\Session::get(),
 			\Bitrix\Rest\OAuth\Auth::PARAM_LOCAL_USER => $messageFields['AUTHOR_ID'],
 			"application_token" => \CRestUtil::getApplicationToken($application),
 		) : array();
@@ -178,6 +186,22 @@ class Rest extends Sender\Base
 		\Bitrix\Rest\OAuthService::getEngine()->getClient()->sendEvent($queryItems);
 		$sendResult->setExternalId($messageId);
 		$sendResult->setStatus(MessageService\MessageStatus::SENT);
+
+		if ($application['CODE'])
+		{
+			AddEventToStatFile(
+				'messageservice',
+				'sendRest' . $restSender['TYPE'],
+				uniqid($application['CODE'], true),
+				$application['CODE']
+			);
+		}
+
+		if (is_callable(['\Bitrix\Rest\UsageStatTable', 'logMessage']))
+		{
+			\Bitrix\Rest\UsageStatTable::logMessage($application['CLIENT_ID'], $restSender['TYPE']);
+			\Bitrix\Rest\UsageStatTable::finalize();
+		}
 
 		return $sendResult;
 	}

@@ -23,7 +23,20 @@ Loc::loadMessages(__FILE__);
  * </ul>
  *
  * @package Bitrix\Iblock
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_SectionProperty_Query query()
+ * @method static EO_SectionProperty_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_SectionProperty_Result getById($id)
+ * @method static EO_SectionProperty_Result getList(array $parameters = array())
+ * @method static EO_SectionProperty_Entity getEntity()
+ * @method static \Bitrix\Iblock\EO_SectionProperty createObject($setDefaultValues = true)
+ * @method static \Bitrix\Iblock\EO_SectionProperty_Collection createCollection()
+ * @method static \Bitrix\Iblock\EO_SectionProperty wakeUpObject($row)
+ * @method static \Bitrix\Iblock\EO_SectionProperty_Collection wakeUpCollection($rows)
+ */
 
 class SectionPropertyTable extends Entity\DataManager
 {
@@ -82,7 +95,17 @@ class SectionPropertyTable extends Entity\DataManager
 			),
 			'DISPLAY_TYPE' => array(
 				'data_type' => 'enum',
-				'values' => array('A', 'B', 'F', 'G', 'H', 'K', 'P', 'R'),
+				'values' => array(
+					self::NUMBERS_WITH_SLIDER,
+					self::NUMBERS,
+					self::CHECKBOXES,
+					self::CHECKBOXES_WITH_PICTURES,
+					self::CHECKBOXES_WITH_PICTURES_AND_LABELS,
+					self::RADIO_BUTTONS,
+					self::DROPDOWN,
+					self::DROPDOWN_WITH_PICTURES_AND_LABELS,
+					self::CALENDAR
+				),
 				'title' => Loc::getMessage('IBLOCK_SECTION_PROPERTY_ENTITY_DISPLAY_TYPE_FIELD'),
 			),
 			'DISPLAY_EXPANDED' => array(

@@ -45,7 +45,8 @@ BX.UI.Selector.Search.prototype.beforeSearchHandler = function(params)
 		event.stopPropagation();
 		return event.preventDefault();
 	}
-	else if (
+	else if
+	(
 		event.keyCode == 17 // ctrl
 		|| event.keyCode == 224 // cmd
 		|| event.keyCode == 91 // left cmd
@@ -58,6 +59,22 @@ BX.UI.Selector.Search.prototype.beforeSearchHandler = function(params)
 
 	this.selectorManager.statuses.searchStarted = true;
 
+	var navigationKeys = this.selectorInstance.getNavigationInstance().keys;
+
+	if (
+		this.selectorInstance.isSearchOpen() &&
+		(
+			event.keyCode == navigationKeys.up
+			|| event.keyCode == navigationKeys.down
+			|| event.keyCode == navigationKeys.left
+			|| event.keyCode == navigationKeys.right
+		)
+	)
+	{
+		event.stopPropagation();
+		event.preventDefault();
+		return false;
+	}
 	return true;
 };
 
@@ -139,13 +156,10 @@ BX.UI.Selector.Search.prototype.searchHandler = function(params)
 			event.preventDefault();
 			return true;
 		}
-		else if (keyboardNavigation == 'move')
-		{
-			event.stopPropagation();
-			event.preventDefault();
-			return false;
-		}
-		else if (keyboardNavigation == 'enter')
+		else if (
+			keyboardNavigation == 'move'
+			|| keyboardNavigation == 'enter'
+		)
 		{
 			event.stopPropagation();
 			event.preventDefault();
@@ -836,6 +850,7 @@ BX.UI.Selector.Search.prototype.runSearch = function(params)
 				{
 					if (this.selectorInstance.getOption('allowSearchNetwork', 'USERS') != 'Y')
 					{
+						this.selectorInstance.closeByEmptySearchResult = true;
 						this.selectorInstance.popups.search.destroy();
 					}
 				}
@@ -851,7 +866,7 @@ BX.UI.Selector.Search.prototype.runSearch = function(params)
 			{
 				if (
 					this.selectorInstance.popups.search != null
-					&& this.selectorInstance.popups.isShown
+					&& this.selectorInstance.popups.search.isShown()
 				)
 				{
 					if (BX(this.selectorInstance.nodes.searchContent))
@@ -869,7 +884,10 @@ BX.UI.Selector.Search.prototype.runSearch = function(params)
 				}
 				else
 				{
-					this.selectorInstance.popups.search.destroy();
+					if (this.selectorInstance.popups.search != null)
+					{
+						this.selectorInstance.popups.search.destroy();
+					}
 					this.selectorInstance.openSearch({
 						itemsList: itemsList
 					});
@@ -1012,6 +1030,36 @@ BX.UI.Selector.Search.prototype.searchRequestCallbackSuccess = function(response
 
 			if (BX.type.isNotEmptyObject(responseData.ENTITIES))
 			{
+				for (var entityType in responseData.ENTITIES)
+				{
+					if (!responseData.ENTITIES.hasOwnProperty(entityType))
+					{
+						continue;
+					}
+
+					if (
+						BX.type.isNotEmptyObject(responseData.ENTITIES[entityType])
+						&& BX.type.isNotEmptyObject(responseData.ENTITIES[entityType].ITEMS)
+					)
+					{
+						for (itemCode in responseData.ENTITIES[entityType].ITEMS)
+						{
+							if (!responseData.ENTITIES[entityType].ITEMS.hasOwnProperty(itemCode))
+							{
+								continue;
+							}
+
+							found = true;
+							break;
+						}
+					}
+
+					if (found)
+					{
+						break;
+					}
+				}
+
 				if (
 					BX.type.isNotEmptyObject(responseData.ENTITIES.USERS)
 					&& BX.type.isNotEmptyObject(responseData.ENTITIES.USERS.ITEMS)
@@ -1024,7 +1072,6 @@ BX.UI.Selector.Search.prototype.searchRequestCallbackSuccess = function(response
 							continue;
 						}
 
-						found = true;
 						this.selectorInstance.ajaxSearchResult.users[searchStringAjax.toLowerCase()].push(itemCode);
 						if (
 							typeof responseData.ENTITIES.USERS.ITEMS[itemCode].isNetwork != 'undefined'
@@ -1074,8 +1121,6 @@ BX.UI.Selector.Search.prototype.searchRequestCallbackSuccess = function(response
 							continue;
 						}
 
-						found = true;
-
 						this.selectorInstance.entities.CRMEMAILUSERS.items[itemCode] = responseData.ENTITIES.CRMEMAILUSERS.ITEMS[itemCode];
 						this.selectorInstance.tmpSearchResult.ajax.push(itemCode);
 					}
@@ -1092,8 +1137,6 @@ BX.UI.Selector.Search.prototype.searchRequestCallbackSuccess = function(response
 						{
 							continue;
 						}
-
-						found = true;
 
 						if (!this.selectorInstance.entities.SONETGROUPS.items.hasOwnProperty(itemCode))
 						{
@@ -1235,7 +1278,6 @@ BX.UI.Selector.Search.prototype.searchRequestCallbackSuccess = function(response
 
 BX.UI.Selector.Search.prototype.searchRequestCallbackFailure = function(data)
 {
-//console.log('failure');
 	this.hideSearchWaiter();
 };
 

@@ -735,7 +735,7 @@
 			{
 				itemText = BX.create('div', {props: {
 					className: this.classMenuMultiItemText
-				}, html: BX.util.htmlspecialchars(itemData.NAME)});
+				}, html: (itemData.HTML) ? itemData.HTML : BX.util.htmlspecialchars(itemData.NAME)});
 			}
 
 			BX.append(itemText, itemContainer);
@@ -769,7 +769,7 @@
 				props: {
 					className: this.classSquareText
 				},
-				html: BX.util.htmlspecialchars(data.NAME)
+				html: (data.HTML) ? data.HTML : BX.util.htmlspecialchars(data.NAME)
 			});
 
 			var squareRemove = BX.create('span', {
@@ -970,26 +970,24 @@
 			if (BX.type.isArray(items) && !this.popup)
 			{
 				nodeRect = BX.pos(this.getNode());
-				this.popup = new BX.PopupWindow(
-					'main-filter-control-popup',
-					this.getNode(),
-					{
-						autoHide : false,
-						offsetTop : 2,
-						offsetLeft : 0,
-						lightShadow : true,
-						closeIcon : false,
-						closeByEsc : false,
-						noAllPaddings: true,
-						zIndex: 2000
-					}
-				);
+				this.popup = new BX.Main.Popup({
+					bindElement: this.getNode(),
+					autoHide : false,
+					offsetTop : 2,
+					offsetLeft : 0,
+					lightShadow : true,
+					closeIcon : false,
+					closeByEsc : false,
+					noAllPaddings: true,
+					zIndex: 2000
+				});
 
 				BX.style(this.popup.popupContainer, 'width', nodeRect.width + 'px');
 				BX.addClass(this.popup.popupContainer, this.classPopup);
 
 				popupItems = this.createPopupItems(items);
 				this.popup.setContent(popupItems);
+				BX.onCustomEvent(window, 'UiSelect::onCreatePopup', [this.popup, items])
 			}
 
 			return this.popup;
@@ -1028,6 +1026,19 @@
 
 	BX.Main.ui.block['main-ui-square'] = function(data)
 	{
+		var content = '';
+		var isHtmlContent = false;
+
+		if ('html' in data)
+		{
+			content = data.html;
+			isHtmlContent = true;
+		}
+		else if ('name' in data)
+		{
+			content = data.name;
+		}
+
 		return {
 			block: 'main-ui-square',
 			attrs: {
@@ -1036,7 +1047,8 @@
 			content: [
 				{
 					block: 'main-ui-square-item',
-					content: 'name' in data ? data.name : ''
+					content: content,
+					isHtmlContent: isHtmlContent
 				},
 				{
 					block: 'main-ui-square-delete',
@@ -1063,11 +1075,21 @@
 		if ('value' in data && BX.type.isArray(data.value))
 		{
 			squares = data.value.map(function(current) {
-				return {
+				var square = {
 					block: 'main-ui-square',
-					name: 'NAME' in current ? current.NAME : '',
 					item: current
 				};
+
+				if ('HTML' in current)
+				{
+					square.html = current.HTML;
+				}
+				else if ('NAME' in current)
+				{
+					square.name = current.NAME;
+				}
+
+				return square;
 			}, this);
 		}
 

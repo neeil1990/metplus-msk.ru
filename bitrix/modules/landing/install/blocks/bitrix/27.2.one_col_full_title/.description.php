@@ -10,6 +10,7 @@ return [
 	'block' => [
 		'name' => Loc::getMessage('LANDING_BLOCK_27_3_ONE_COL_FULL_TITLE_AND_TEXT_2_NAME_NEW'),
 		'section' => ['title'],
+		'type' => 'null',
 	],
 	'cards' => [],
 	'nodes' => [
@@ -20,12 +21,12 @@ return [
 	],
 	'style' => [
 		'block' => [
-			'type' => ['block-default', 'animation', 'container', 'block-border'],
+			'type' => ['block-default', 'animation', 'block-border'],
 		],
 		'nodes' => [
 			'.landing-block-node-title' => [
 				'name' => Loc::getMessage('LANDING_BLOCK_27_3_ONE_COL_FULL_TITLE_AND_TEXT_2_STYLE_LANDINGBLOCKNODETITLE'),
-				'type' => ['typo'],
+				'type' => ['typo', 'container'],
 			],
 		],
 	],

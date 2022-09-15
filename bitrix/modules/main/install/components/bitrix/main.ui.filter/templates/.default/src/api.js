@@ -4,6 +4,9 @@ export class Api
 {
 	constructor(parent)
 	{
+		/**
+		 * @var {BX.Main.Filter}
+		 */
 		this.parent = parent;
 	}
 
@@ -20,8 +23,10 @@ export class Api
 		}
 	}
 
-	setFilter(filter)
+	setFilter(filter, analyticsLabel = null)
 	{
+		this.setAnalyticsLabel(analyticsLabel);
+
 		if (Type.isObject(filter))
 		{
 			this.parent.updateParams(filter);
@@ -31,7 +36,8 @@ export class Api
 
 			if (!filter.checkFields || !this.parent.getPreset().isPresetValuesModified(filter.preset_id))
 			{
-				this.parent.applyFilter(false, filter.preset_id);
+				const isSetOutside = true;
+				this.parent.applyFilter(false, filter.preset_id, isSetOutside);
 			}
 			else
 			{
@@ -60,8 +66,10 @@ export class Api
 	 * @param {Object.<String, *>} fields
 	 * @param {boolean} [force = false]
 	 */
-	extendFilter(fields, force = false)
+	extendFilter(fields, force = false, analyticsLabel= null)
 	{
+		this.setAnalyticsLabel(analyticsLabel);
+
 		if (Type.isObject(fields))
 		{
 			Object.keys(fields).forEach((key) => {
@@ -103,13 +111,18 @@ export class Api
 		}
 	}
 
-	apply()
+	apply(analyticsLabel= null)
 	{
+		this.setAnalyticsLabel(analyticsLabel);
+
 		if (!this.parent.isEditEnabled())
 		{
 			if (!this.parent.isEditEnabled())
 			{
-				this.parent.applyFilter();
+				const clear = false;
+				const applyPreset = false;
+				const isSetOutside = true;
+				this.parent.applyFilter(clear, applyPreset, isSetOutside);
 			}
 
 			this.parent.closePopup();
@@ -124,5 +137,13 @@ export class Api
 	getEmitter(): Event.EventEmitter
 	{
 		return this.parent.emitter;
+	}
+
+	setAnalyticsLabel(analyticsLabel = null)
+	{
+		if (Type.isObject(analyticsLabel))
+		{
+			this.parent.analyticsLabel = analyticsLabel;
+		}
 	}
 }

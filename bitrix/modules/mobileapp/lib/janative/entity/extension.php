@@ -3,6 +3,7 @@
 namespace Bitrix\MobileApp\Janative\Entity;
 
 use Bitrix\Main\IO\File;
+use Bitrix\Main\SystemException;
 use Bitrix\MobileApp\Janative\Manager;
 use Bitrix\MobileApp\Janative\Utils;
 
@@ -10,49 +11,93 @@ class Extension extends Base
 {
 	protected static $modificationDates = [];
 	protected static $dependencies = [];
+
 	/**
 	 * Extension constructor.
+	 *
 	 * @param $identifier
 	 * @throws \Exception
 	 */
 	public function __construct($identifier)
 	{
 		$this->path = Manager::getExtensionPath($identifier);
-		$this->baseFileName = "extension";
+		$this->baseFileName = 'extension';
 		$desc = Utils::extractEntityDescription($identifier);
-		$this->name = $desc["name"];
-		$this->namespace = $desc["namespace"];
+		$this->name = $desc['name'];
+		$this->namespace = $desc['namespace'];
 		if (!$this->path)
 		{
-			throw new \Exception("Extension '{$desc["fullname"]}' doesn't exists");
+			throw new SystemException("Extension '{$desc['fullname']}' doesn't exists");
 		}
 	}
 
-	/**
-	 * Returns content of extension without depending extensions
-	 * @return string
-	 * @throws \Bitrix\Main\IO\FileNotFoundException
-	 */
-	public function getContent()
+	private function getBundleContent(): string
 	{
+		$files = $this->getBundleFiles();
 		$content = "";
-		$extensionFile = new File($this->path . "/extension.js");
-		if ($extensionFile->isExists() && $extensionContent = $extensionFile->getContents())
+		foreach ($files as $path)
 		{
-			$localizationPhrases = $this->getLangDefinitionExpression();
-			$content .= "\n//extension '{$this->name}'\n";
-
-			$content .= $localizationPhrases;
-			$content .= $extensionContent;
-			$content .= "\n\n";
+			$file = new File($path);
+			if ($file->isExists())
+			{
+				$content .= "\n".$file->getContents()."\n";
+			}
 		}
 
 		return $content;
 	}
 
-	public function getIncludeExpression($callbackName = "onExtensionsLoaded")
+	/**
+	 * Returns content of extension without depending extensions
+	 *
+	 * @return string
+	 * @throws \Bitrix\Main\IO\FileNotFoundException
+	 */
+	public function getContent(): string
 	{
-		$relativePath = $this->getPath() . "extension.js";
+		$content = "";
+		$extensionFile = new File($this->path . '/' . $this->baseFileName . '.js');
+		if ($extensionData = $this->getResult())
+		{
+			if ($extensionData !== '')
+			{
+				$content .= <<<JS
+this.jnExtensionData.set("{$this->name}", {$extensionData});
+JS;
+			}
+		}
+
+		if ($extensionFile->isExists() && $extensionContent = $extensionFile->getContents())
+		{
+			$content .= $this->getBundleContent();
+			$content .= $extensionContent;
+		}
+
+		$content .= "\n\n";
+
+		return $content;
+	}
+
+	private function getResult(): ?string
+	{
+		$file = new File($this->path . '/extension.php');
+		$result = null;
+		if ($file->isExists())
+		{
+			$result = include($file->getPath());
+		}
+
+		if (is_array($result) && count($result) > 0)
+		{
+			return json_encode($result);
+		}
+
+		return null;
+	}
+
+	public function getIncludeExpression($callbackName = 'onExtensionsLoaded'): string
+	{
+		$relativePath = $this->getPath() . 'extension.js';
 		$localizationPhrases = $this->getLangDefinitionExpression();
 		$content = "\n//extension '{$this->name}'\n";
 		$content .= "{$localizationPhrases}\n";
@@ -61,16 +106,16 @@ class Extension extends Base
 		return $content;
 	}
 
-
 	/**
 	 * Returns list of dependencies by name of extensions
+	 *
 	 * @param $name
 	 * @param array $list
 	 * @param array $alreadyResolved
 	 * @return array
 	 * @throws \Exception
 	 */
-	public static function getResolvedDependencyList($name, &$list = [], &$alreadyResolved = [])
+	public static function getResolvedDependencyList($name, &$list = [], &$alreadyResolved = []): array
 	{
 		$baseExtension = new Extension($name);
 		$depsList = $baseExtension->getDependencyList();
@@ -106,8 +151,9 @@ class Extension extends Base
 	 * @return array
 	 * @throws \Exception
 	 */
-	protected function resolveDependencies()
+	protected function resolveDependencies(): array
 	{
-		return self::getResolvedDependencyList($this->name);
+		$name = ($this->namespace !== "bitrix" ? $this->namespace . ":" : "") . $this->name;
+		return self::getResolvedDependencyList($name);
 	}
 }

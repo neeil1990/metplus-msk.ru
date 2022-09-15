@@ -15,9 +15,6 @@ class SaleAdminPageStub extends \CBitrixComponent
 	/** @var string */
 	const CRM_WIZARD_SITE_ID = "~CRM_WIZARD_SITE_ID";
 
-	/** @var string */
-	const IS_SALE_BSM_SITE_MASTER_FINISH = "~IS_SALE_BSM_SITE_MASTER_FINISH";
-
 	/**
 	 * @return array
 	 */
@@ -147,7 +144,7 @@ class SaleAdminPageStub extends \CBitrixComponent
 		$uri = new Main\Web\Uri(Main\Application::getInstance()->getContext()->getRequest()->getRequestUri());
 		foreach ($this->getMap() as $adminPage => $crmPage)
 		{
-			if (strpos($uri->getUri(), $adminPage) !== false)
+			if (mb_strpos($uri->getUri(), $adminPage) !== false)
 			{
 				$this->arResult["admin_page"] = $adminPage;
 				$this->arResult["crm"] = $crmPage;
@@ -189,7 +186,7 @@ class SaleAdminPageStub extends \CBitrixComponent
 		$crmSiteId = Main\Config\Option::get("sale", self::CRM_WIZARD_SITE_ID, null);
 		if ($crmSiteId)
 		{
-			$site = \Bitrix\Main\SiteTable::getList([
+			$site = Main\SiteTable::getList([
 				"select" => ["SERVER_NAME"],
 				"filter" => ["LID" => $crmSiteId]
 			])->fetch();
@@ -199,9 +196,9 @@ class SaleAdminPageStub extends \CBitrixComponent
 				return $site["SERVER_NAME"];
 			}
 		}
-		elseif ((Main\Config\Option::get("sale", self::IS_SALE_BSM_SITE_MASTER_FINISH, "N") === "Y"))
+		else
 		{
-			$site = \Bitrix\Main\SiteTable::getList([
+			$site = Main\SiteTable::getList([
 				"select" => ["SERVER_NAME"],
 				"filter" => ["=DEF" => "Y"]
 			])->fetch();
@@ -210,9 +207,9 @@ class SaleAdminPageStub extends \CBitrixComponent
 			{
 				return $site["SERVER_NAME"];
 			}
-			elseif (\Bitrix\Main\Config\Option::get("main", "server_name"))
+			elseif (Main\Config\Option::get("main", "server_name"))
 			{
-				return \Bitrix\Main\Config\Option::get("main", "server_name");
+				return Main\Config\Option::get("main", "server_name");
 			}
 		}
 

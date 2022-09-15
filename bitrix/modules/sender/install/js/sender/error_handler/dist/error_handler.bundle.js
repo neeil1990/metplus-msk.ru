@@ -1,5 +1,5 @@
 this.BX = this.BX || {};
-(function (exports,main_core) {
+(function (exports,main_core,main_core_events) {
 	'use strict';
 
 	function _templateObject() {
@@ -32,7 +32,8 @@ this.BX = this.BX || {};
 	    value: function getHandlers(callbackSuccess, callbackFailure, extraData) {
 	      return {
 	        'WRONG_EMAIL_FROM': this.getWrongEmailFromHandler.bind(this, callbackSuccess, callbackFailure, extraData),
-	        'FEATURE_NOT_AVAILABLE': this.getFeatureUnavailableHandler.bind(this, callbackSuccess, callbackFailure, extraData)
+	        'FEATURE_NOT_AVAILABLE': this.getFeatureUnavailableHandler.bind(this, callbackSuccess, callbackFailure, extraData),
+	        'NEED_ACCEPT_AGREEMENT': this.needAcceptAgreementHandler.bind(this, callbackSuccess, callbackFailure, extraData)
 	      };
 	    }
 	  }, {
@@ -98,11 +99,26 @@ this.BX = this.BX || {};
 
 	      callbackFailure(data);
 	    }
+	  }, {
+	    key: "needAcceptAgreementHandler",
+	    value: function needAcceptAgreementHandler(callbackSuccess, callbackFailure, extraData, data) {
+	      if (extraData) {
+	        Object.assign(data, extraData);
+	      }
+
+	      main_core.Runtime.loadExtension('sender_agreement').then(function () {
+	        main_core_events.EventEmitter.subscribe('BX.Sender.Agreement:onAccept', function () {
+	          callbackSuccess();
+	        });
+	        BX.Sender.Agreement.isAccepted = false;
+	        BX.Sender.Agreement.showPopup();
+	      });
+	    }
 	  }]);
 	  return ErrorHandler;
 	}();
 
 	exports.ErrorHandler = ErrorHandler;
 
-}((this.BX.Sender = this.BX.Sender || {}),BX));
+}((this.BX.Sender = this.BX.Sender || {}),BX,BX.Event));
 //# sourceMappingURL=error_handler.bundle.js.map

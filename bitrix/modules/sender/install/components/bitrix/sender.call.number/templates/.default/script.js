@@ -175,10 +175,6 @@
 				{
 					position: "top",
 					offset: 42
-				},
-				events:
-				{
-					onPopupClose : BX.delegate(this.onPopupClose, this)
 				}
 			}
 		);

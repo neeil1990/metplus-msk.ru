@@ -1,5 +1,3 @@
-<section class="landing-block js-animation fadeInUp container g-max-width-100x">
-
-	<h2 class="landing-block-node-title g-font-weight-400 g-my-0">The title</h2>
-
+<section class="landing-block js-animation fadeInUp g-pt-30 g-pb-30">
+	<h2 class="landing-block-node-title landing-semantic-title-medium g-my-0 container g-max-width-container g-pl-0 g-pr-0">The title</h2>
 </section>

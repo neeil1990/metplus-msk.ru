@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["IBLOCK_XML2_AMOUNT"] = "Amount";
 $MESS["IBLOCK_XML2_ANONS"] = "Anons";
 $MESS["IBLOCK_XML2_ARTICLE"] = "Article";
@@ -88,7 +88,9 @@ $MESS["IBLOCK_XML2_FULL_TITLE2"] = "Full title";
 $MESS["IBLOCK_XML2_GROUP"] = "Section";
 $MESS["IBLOCK_XML2_GROUPS"] = "Sections";
 $MESS["IBLOCK_XML2_GROUPS_PROPERTIES"] = "GroupProperties";
+$MESS["IBLOCK_XML2_HBLOCK_ABSENT"] = "Dictionary for property [#ID#] #NAME# was not found. Please check the property settings.";
 $MESS["IBLOCK_XML2_HBLOCK_NAME_IS_INVALID"] = "A dictionary name must start with an alphabetical character and can include only letters and digits.";
+$MESS["IBLOCK_XML2_HEIGHT"] = "Height";
 $MESS["IBLOCK_XML2_HTML_DESCRIPTION"] = "HTMLDescription";
 $MESS["IBLOCK_XML2_IBLOCK_CACHE_MODE_FINAL"] = "reset after import";
 $MESS["IBLOCK_XML2_IBLOCK_CACHE_MODE_FREEZE"] = "don't reset";
@@ -104,8 +106,10 @@ $MESS["IBLOCK_XML2_ITEM_ATTRIBUTE"] = "ItemAttribute";
 $MESS["IBLOCK_XML2_ITEM_ATTRIBUTES"] = "ItemAttributes";
 $MESS["IBLOCK_XML2_LABEL"] = "BitrixLabel";
 $MESS["IBLOCK_XML2_LABELS"] = "BitrixLabels";
+$MESS["IBLOCK_XML2_LENGTH"] = "Length";
 $MESS["IBLOCK_XML2_LINK"] = "Link";
 $MESS["IBLOCK_XML2_MANUFACTURER"] = "Manufacturer";
+$MESS["IBLOCK_XML2_MARKING_CODE_GROUP"] = "ProductGroupCode";
 $MESS["IBLOCK_XML2_MEASURE"] = "Measure";
 $MESS["IBLOCK_XML2_METADATA"] = "Metadata";
 $MESS["IBLOCK_XML2_METADATA_ID"] = "MetadataId";
@@ -135,6 +139,7 @@ $MESS["IBLOCK_XML2_PRICE_TYPE"] = "PriceType";
 $MESS["IBLOCK_XML2_PRICE_TYPES"] = "PriceTypes";
 $MESS["IBLOCK_XML2_PRICE_TYPE_ID"] = "PriceTypeId";
 $MESS["IBLOCK_XML2_PRODUCTS_SETS"] = "ProductsSets";
+$MESS["IBLOCK_XML2_PRODUCT_MAPPING"] = "ProductVisibility";
 $MESS["IBLOCK_XML2_PRODUCT_SET"] = "Set";
 $MESS["IBLOCK_XML2_PRODUCT_SETS"] = "ProductSets";
 $MESS["IBLOCK_XML2_PRODUCT_SET_ITEM"] = "SetElement";
@@ -200,4 +205,4 @@ $MESS["IBLOCK_XML2_VALUE_ID"] = "ValueId";
 $MESS["IBLOCK_XML2_VERSION"] = "VersionNumber";
 $MESS["IBLOCK_XML2_VIEW"] = "View";
 $MESS["IBLOCK_XML2_WEIGHT"] = "Weight";
-?>
+$MESS["IBLOCK_XML2_WIDTH"] = "Width";

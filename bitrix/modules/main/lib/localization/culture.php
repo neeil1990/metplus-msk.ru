@@ -7,9 +7,27 @@
  */
 namespace Bitrix\Main\Localization;
 
+use Bitrix\Main;
 use Bitrix\Main\ORM;
 use Bitrix\Main\ORM\Data;
+use Bitrix\Translate\IO\Directory;
 
+/**
+ * Class CultureTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Culture_Query query()
+ * @method static EO_Culture_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_Culture_Result getById($id)
+ * @method static EO_Culture_Result getList(array $parameters = [])
+ * @method static EO_Culture_Entity getEntity()
+ * @method static \Bitrix\Main\Context\Culture createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\Localization\EO_Culture_Collection createCollection()
+ * @method static \Bitrix\Main\Context\Culture wakeUpObject($row)
+ * @method static \Bitrix\Main\Localization\EO_Culture_Collection wakeUpCollection($rows)
+ */
 class CultureTable extends Data\DataManager
 {
 	const LEFT_TO_RIGHT = 'Y';
@@ -92,7 +110,23 @@ class CultureTable extends Data\DataManager
 			),
 			'DAY_MONTH_FORMAT' => array(
 				'data_type' => 'string',
+				'default_value' => "F j",
+			),
+			'DAY_SHORT_MONTH_FORMAT' => array(
+				'data_type' => 'string',
 				'default_value' => "M j",
+			),
+			'DAY_OF_WEEK_MONTH_FORMAT' => array(
+				'data_type' => 'string',
+				'default_value' => "l, F j",
+			),
+			'SHORT_DAY_OF_WEEK_MONTH_FORMAT' => array(
+				'data_type' => 'string',
+				'default_value' => "D, F j",
+			),
+			'SHORT_DAY_OF_WEEK_SHORT_MONTH_FORMAT' => array(
+				'data_type' => 'string',
+				'default_value' => "D, M j",
 			),
 			'SHORT_TIME_FORMAT' => array(
 				'data_type' => 'string',
@@ -128,11 +162,13 @@ class CultureTable extends Data\DataManager
 	public static function update($primary, array $data)
 	{
 		$result = parent::update($primary, $data);
+
 		if(CACHED_b_lang !== false && $result->isSuccess())
 		{
 			$cache = \Bitrix\Main\Application::getInstance()->getManagedCache();
 			$cache->cleanDir("b_lang");
 		}
+
 		return $result;
 	}
 

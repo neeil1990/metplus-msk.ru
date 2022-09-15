@@ -261,8 +261,8 @@ endif;
 <br>
 <br>
 
-<?
-$arCurFormat = CCurrencyLang::GetCurrencyFormat($params['CURRENCY']);
+<?php
+$arCurFormat = CCurrencyLang::GetFormatDescription($params['CURRENCY']);
 $currency = preg_replace('/(^|[^&])#/', '${1}', $arCurFormat['FORMAT_STRING']);
 
 $cells = array();
@@ -281,8 +281,11 @@ foreach ($columnList as $column)
 	if ($params['BILL_COLUMN_'.$column.'_SHOW'] == 'Y')
 	{
 		$caption = $params['BILL_COLUMN_'.$column.'_TITLE'];
-		if (in_array($column, array('PRICE', 'SUM')))
+		$caption = htmlspecialcharsbx($caption, ENT_COMPAT, false);
+		if (in_array($column, ['PRICE', 'SUM']))
+		{
 			$caption .= ', '.$currency;
+		}
 
 		$arCols[$column] = array(
 			'NAME' => $caption,
@@ -296,7 +299,7 @@ if ($params['USER_COLUMNS'])
 	foreach ($params['USER_COLUMNS'] as $id => $val)
 	{
 		$arCols[$id] = array(
-			'NAME' => $val['NAME'],
+			'NAME' => htmlspecialcharsbx($val['NAME'], ENT_COMPAT, false),
 			'SORT' => $val['SORT']
 		);
 	}
@@ -572,7 +575,7 @@ for ($n = 1; $n <= $rowsCnt; $n++):
 			'SALE_HPS_BILL_BASKET_TOTAL',
 			array(
 					'#BASKET_COUNT#' => $cntBasketItem,
-					'#BASKET_PRICE#' => SaleFormatCurrency($params['SUM'], $params['CURRENCY'], false)
+					'#BASKET_PRICE#' => SaleFormatCurrency($params['SUM'], $params['CURRENCY'], false),
 			)
 	);?>
 	<br>

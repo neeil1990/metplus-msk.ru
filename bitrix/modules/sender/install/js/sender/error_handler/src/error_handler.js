@@ -1,4 +1,5 @@
-import {Loc, Tag, Type} from "main.core";
+import {Loc, Tag, Type, Runtime} from "main.core";
+import {EventEmitter} from "main.core.events";
 import "./error_handler.css";
 
 export class ErrorHandler
@@ -21,6 +22,7 @@ export class ErrorHandler
 		return {
 			'WRONG_EMAIL_FROM': this.getWrongEmailFromHandler.bind(this, callbackSuccess, callbackFailure, extraData),
 			'FEATURE_NOT_AVAILABLE': this.getFeatureUnavailableHandler.bind(this, callbackSuccess, callbackFailure, extraData),
+			'NEED_ACCEPT_AGREEMENT': this.needAcceptAgreementHandler.bind(this, callbackSuccess, callbackFailure, extraData),
 		};
 	}
 
@@ -83,5 +85,18 @@ export class ErrorHandler
 			BX.Sender.B24License.showPopup('Ad');
 		}
 		callbackFailure(data);
+	}
+
+	needAcceptAgreementHandler(callbackSuccess, callbackFailure, extraData, data) {
+		if (extraData) {
+			Object.assign(data, extraData);
+		}
+		Runtime.loadExtension('sender_agreement').then(() => {
+			EventEmitter.subscribe('BX.Sender.Agreement:onAccept', () => {
+				callbackSuccess();
+			});
+			BX.Sender.Agreement.isAccepted = false;
+			BX.Sender.Agreement.showPopup();
+		});
 	}
 }

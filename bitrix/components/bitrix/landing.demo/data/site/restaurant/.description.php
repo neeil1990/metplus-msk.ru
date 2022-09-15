@@ -7,8 +7,6 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Main\Localization\Loc;
 Loc::loadLanguageFile(__FILE__);
 
-$buttons = \Bitrix\Landing\Hook\Page\B24button::getButtons();
-$buttons = array_keys($buttons);
 
 
 return array(
@@ -17,8 +15,10 @@ return array(
 	'fields' => array(
 		'ADDITIONAL_FIELDS' => array(
 			'THEME_CODE' => 'restaurant',
-			'THEME_CODE_TYPO' => 'restaurant',
-			'B24BUTTON_CODE' => $buttons[0],
+			'THEMEFONTS_CODE' => 'Montserrat',
+			'THEMEFONTS_CODE_H' => 'Montserrat',
+			'THEMEFONTS_SIZE' => '0.92857',
+			'THEMEFONTS_USE' => 'Y',
 			'UP_SHOW' => 'Y',
 		)
 	),

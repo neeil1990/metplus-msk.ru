@@ -3,6 +3,7 @@
 namespace Bitrix\Sale\TradingPlatform\Vk\Feed\Data\Converters;
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Text\Encoding;
 
 Loc::loadMessages(__FILE__);
 
@@ -10,50 +11,22 @@ abstract class DataConverter
 {
 	const PAD_STRING = '_';
 	const END_STRING = ' ...';
-	
+
 	protected $exportId;
-	
+
 	abstract public function convert($data);
-	
-	/**
-	 * VK don't understand specialchars-quotes. Change them to the yolochki
-	 *
-	 * @param $str
-	 * @return mixed
-	 */
-	protected static function convertQuotes($str)
+
+	protected static function convertToUtf8($value): string
 	{
-		if (strlen($str) > 0)
-		{
-//			check quotes
-			$str = preg_replace(
-				array('/"([^\s].*?[^\s])"/', '/&quot;([^\s].*?[^\s])&quot;/'),
-				Loc::getMessage("SALE_VK_PRODUCT_LAQUO") . '$1' . Loc::getMessage("SALE_VK_PRODUCT_RAQUO"), $str
-			);
-
-//			check single quotes
-			$str = preg_replace(
-				array("/'([^\s].*?[^\s])'/", "/&apos;([^\s].*?[^\s])&apos;/"),
-				Loc::getMessage("SALE_VK_PRODUCT_LAQUO_SINGLE") . '$1' . Loc::getMessage("SALE_VK_PRODUCT_RAQUO_SINGLE"),
-				$str
-			);
-
-//			check inches
-			$str = preg_replace(
-				['/(\d+\s*)(")/', '/(\d+\s*)(&quot;)/'],
-				'$1' . Loc::getMessage('SALE_VK_INCH_NEW'), $str
-			);
-		}
-		
-		return $str;
+		return Encoding::convertEncoding($value, SITE_CHARSET, 'UTF-8');
 	}
-	
+
 	private static $specialCharsLength = [
 //		commented chars has no effect on the length
-//		'"' => [
-//			'count' => 5,
-//			'regexp' => '"',
-//		],
+		'"' => [
+			'count' => 5,
+			'regexp' => '"',
+		],
 		'&' => [
 			'count' => 5,
 			'regexp' => '&',
@@ -62,10 +35,10 @@ abstract class DataConverter
 			'count' => 6,
 			'regexp' => '\\\\',
 		],
-//		'\'' => [
-//			'count' => 5,
-//			'regexp' => '\\\'',
-//		],
+		'\'' => [
+			'count' => 5,
+			'regexp' => '\\\'',
+		],
 		'>' => [
 			'count' => 4,
 			'regexp' => '>',
@@ -91,11 +64,11 @@ abstract class DataConverter
 //			'regexp' => '¹',
 //		],
 	];
-	
+
 	protected static function matchLength($string)
 	{
 //		base length
-		$length = strlen($string);
+		$length = mb_strlen($string);
 
 //		construct regexp for find all special chars
 		$regexp = '';
@@ -111,10 +84,10 @@ abstract class DataConverter
 		{
 			$length += self::$specialCharsLength[$m]['count'] - 1; //once already matches
 		}
-		
+
 		return $length;
 	}
-	
+
 	/**
 	 * Add placeholders to the string
 	 *
@@ -129,10 +102,10 @@ abstract class DataConverter
 		{
 			return $string;
 		}
-		
+
 		return self::mb_str_pad($string, $needLength, self::PAD_STRING);
 	}
-	
+
 	protected static function mb_str_pad($string, $padLength, $padString = " ", $padType = STR_PAD_RIGHT)
 	{
 		if (method_exists("\Bitrix\Main\Text\UtfSafeString", "pad"))
@@ -141,12 +114,12 @@ abstract class DataConverter
 		}
 		else
 		{
-			$newPadLength = \Bitrix\Main\Text\BinaryString::getLength($string) - strlen($string) + $padLength;
-			
+			$newPadLength = \Bitrix\Main\Text\BinaryString::getLength($string) - mb_strlen($string) + $padLength;
+
 			return str_pad($string, $newPadLength, $padString, $padType);
 		}
 	}
-	
+
 	/**
 	 * Crop string by special chars length
 	 *
@@ -161,10 +134,10 @@ abstract class DataConverter
 		{
 			return $string;
 		}
-		
-		$cropLength = $currLength - $needLength + strlen(self::END_STRING);
-		$substrLength = strlen($string) - $cropLength;
-		
+
+		$cropLength = $currLength - $needLength + mb_strlen(self::END_STRING);
+		$substrLength = mb_strlen($string) - $cropLength;
+
 //		if so more spechialchars, can't match correct new length.
 //		Use hack and find minimal 100% correct length
 		if($substrLength <= 0 )
@@ -174,11 +147,11 @@ abstract class DataConverter
 			{
 				$maxSpecialCharLength = max($maxSpecialCharLength, $char['count']);
 			}
-			
+
 			$substrLength = floor($needLength / $maxSpecialCharLength);
 		}
-		
-		return substr($string, 0, $substrLength) . self::END_STRING;
+
+		return mb_substr($string, 0, $substrLength).self::END_STRING;
 	}
 }
 

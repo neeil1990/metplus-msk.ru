@@ -5,7 +5,7 @@ define('NO_AGENT_CHECK', true);
 define('PUBLIC_AJAX_MODE', true);
 define('DisableEventsCheck', true);
 
-$siteID = isset($_REQUEST['site']) ? substr(preg_replace('/[^a-z0-9_]/i', '', $_REQUEST['site']), 0, 2) : '';
+$siteID = isset($_REQUEST['site'])? mb_substr(preg_replace('/[^a-z0-9_]/i', '', $_REQUEST['site']), 0, 2) : '';
 if($siteID !== '')
 {
 	define('SITE_ID', $siteID);
@@ -32,7 +32,9 @@ $componentParams = isset($componentData['params']) && is_array($componentData['p
 $APPLICATION->IncludeComponent(
 	'bitrix:rest.marketplace',
 	'',
-	$componentParams,
+	[
+		'SEF_MODE' => $componentParams['SEF_MODE'] ?? null,
+	],
 	false,
 	array('HIDE_ICONS' => 'Y')
 );

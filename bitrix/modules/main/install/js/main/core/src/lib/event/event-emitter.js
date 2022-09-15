@@ -1,5 +1,6 @@
 import Type from '../type';
 import Runtime from '../runtime';
+import Reflection from '../reflection';
 import BaseEvent from './base-event';
 import EventStore from './event-emitter/eventstore';
 import WarningStore from './event-emitter/warningstore';
@@ -13,8 +14,9 @@ const globalTarget = {
 };
 eventStore.add(globalTarget, { maxListeners: 25 });
 
-const isEmitter = Symbol.for('BX.Event.EventEmitter.isEmitter');
-const eventNamespace = Symbol('eventNamespace');
+const isEmitterProperty = Symbol.for('BX.Event.EventEmitter.isEmitter');
+const namespaceProperty = Symbol('namespaceProperty');
+const targetProperty = Symbol('targetProperty');
 
 export default class EventEmitter
 {
@@ -24,35 +26,81 @@ export default class EventEmitter
 	/** @private */
 	static sequenceValue = 1;
 
-	constructor()
+	constructor(...args)
 	{
-		this[eventNamespace] = null;
-		this[isEmitter] = true;
+		this[targetProperty] = null;
+		this[namespaceProperty] = null;
+		this[isEmitterProperty] = true;
 
-		eventStore.add(this);
-
-		setTimeout(() => {
-			if (this.getEventNamespace() === null)
+		let target = this;
+		if (Object.getPrototypeOf(this) === EventEmitter.prototype && args.length > 0) //new EventEmitter(obj) case
+		{
+			if (!Type.isObject(args[0]))
 			{
-				console.warn(
-					'The instance of BX.Event.EventEmitter is supposed to have an event namespace. ' +
-					'Use emitter.setEventNamespace() to make events more unique.'
-				);
+				throw new TypeError(`The "target" argument must be an object.`);
 			}
-		}, 500);
+
+			target = args[0];
+
+			this.setEventNamespace(args[1]);
+		}
+
+		this[targetProperty] = target;
+	}
+
+	/**
+	 * Makes a target observable
+	 * @param {object} target
+	 * @param {string} namespace
+	 */
+	static makeObservable(target: Object, namespace: string): void
+	{
+		if (!Type.isObject(target))
+		{
+			throw new TypeError('The "target" argument must be an object.');
+		}
+
+		if (!Type.isStringFilled(namespace))
+		{
+			throw new TypeError('The "namespace" must be an non-empty string.');
+		}
+
+		if (EventEmitter.isEventEmitter(target))
+		{
+			throw new TypeError('The "target" is an event emitter already.');
+		}
+
+		const targetProto = Object.getPrototypeOf(target);
+		const emitter = new EventEmitter();
+		emitter.setEventNamespace(namespace);
+
+		Object.setPrototypeOf(emitter, targetProto);
+		Object.setPrototypeOf(target, emitter);
+
+		Object.getOwnPropertyNames(EventEmitter.prototype).forEach(method => {
+
+			if (['constructor'].includes(method))
+			{
+				return;
+			}
+
+			emitter[method] = function(...args) {
+				return EventEmitter.prototype[method].apply(target, args);
+			}
+		});
 	}
 
 	setEventNamespace(namespace)
 	{
 		if (Type.isStringFilled(namespace))
 		{
-			this[eventNamespace] = namespace;
+			this[namespaceProperty] = namespace;
 		}
 	}
 
 	getEventNamespace()
 	{
-		return this[eventNamespace];
+		return this[namespaceProperty];
 	}
 
 	/**
@@ -68,6 +116,7 @@ export default class EventEmitter
 		listener: (event: BaseEvent) => void,
 		options?: {
 			compatMode?: boolean,
+			useGlobalNaming?: boolean
 		}
 	): void
 	{
@@ -90,13 +139,10 @@ export default class EventEmitter
 			throw new TypeError(`The "eventName" argument must be a string.`);
 		}
 
-		if (!Type.isFunction(listener))
-		{
-			throw new TypeError(`The "listener" argument must be of type Function. Received type ${typeof listener}.`);
-		}
+		listener = this.normalizeListener(listener);
 
 		options = Type.isPlainObject(options) ? options : {};
-		const fullEventName = this.resolveEventName(eventName, target);
+		const fullEventName = this.resolveEventName(eventName, target, options.useGlobalNaming === true);
 		const { eventsMap, onceMap } = eventStore.getOrAdd(target);
 		const onceListeners = onceMap.get(fullEventName);
 		let listeners = eventsMap.get(fullEventName);
@@ -175,12 +221,7 @@ export default class EventEmitter
 
 		Object.keys(options).forEach((eventName) => {
 
-			const listener = options[eventName];
-			if (!Type.isFunction(listener))
-			{
-				throw new TypeError(`The "listener" argument must be of type Function. Received type ${typeof listener}.`);
-			}
-
+			const listener = EventEmitter.normalizeListener(options[eventName]);
 			eventName = EventEmitter.normalizeEventName(eventName);
 
 			if (aliases[eventName])
@@ -226,10 +267,7 @@ export default class EventEmitter
 			throw new TypeError(`The "eventName" argument must be a string.`);
 		}
 
-		if (!Type.isFunction(listener))
-		{
-			throw new TypeError(`The "listener" argument must be of type Function. Received type ${typeof listener}.`);
-		}
+		listener = this.normalizeListener(listener);
 
 		const fullEventName = this.resolveEventName(eventName, target);
 		const { eventsMap, onceMap } = eventStore.getOrAdd(target);
@@ -280,8 +318,16 @@ export default class EventEmitter
 	 * @param {object} target
 	 * @param {string} eventName
 	 * @param {Function<BaseEvent>} listener
+	 * @param options
 	 */
-	static unsubscribe(target: Object, eventName: string, listener: (event: BaseEvent) => void): void
+	static unsubscribe(
+		target: Object,
+		eventName: string,
+		listener: (event: BaseEvent) => void,
+		options?: {
+			useGlobalNaming?: boolean
+		}
+	): void
 	{
 		if (Type.isString(target))
 		{
@@ -296,14 +342,10 @@ export default class EventEmitter
 			throw new TypeError(`The "eventName" argument must be a string.`);
 		}
 
-		if (!Type.isFunction(listener))
-		{
-			throw new TypeError(
-				`The "listener" argument must be of type Function. Received type ${typeof event}.`
-			);
-		}
+		listener = this.normalizeListener(listener);
+		options = Type.isPlainObject(options) ? options : {};
 
-		const fullEventName = this.resolveEventName(eventName, target);
+		const fullEventName = this.resolveEventName(eventName, target, options.useGlobalNaming === true);
 		const targetInfo = eventStore.get(target);
 		const listeners = targetInfo && targetInfo.eventsMap.get(fullEventName);
 		const onceListeners = targetInfo && targetInfo.onceMap.get(fullEventName);
@@ -341,8 +383,15 @@ export default class EventEmitter
 	 * Unsubscribes all event listeners
 	 * @param {object} target
 	 * @param {string} eventName
+	 * @param options
 	 */
-	static unsubscribeAll(target: Object, eventName?: string): void
+	static unsubscribeAll(
+		target: Object,
+		eventName?: string,
+		options?: {
+			useGlobalNaming?: boolean
+		}
+	): void
 	{
 		if (Type.isString(target))
 		{
@@ -355,7 +404,8 @@ export default class EventEmitter
 			const targetInfo = eventStore.get(target);
 			if (targetInfo)
 			{
-				const fullEventName = this.resolveEventName(eventName, target);
+				options = Type.isPlainObject(options) ? options : {};
+				const fullEventName = this.resolveEventName(eventName, target, options.useGlobalNaming === true);
 				targetInfo.eventsMap.delete(fullEventName);
 				targetInfo.onceMap.delete(fullEventName)
 			}
@@ -396,7 +446,8 @@ export default class EventEmitter
 		event?: BaseEvent | {[key: string]: any},
 		options?: {
 			cloneData?: boolean,
-			thisArg?: Object
+			thisArg?: Object,
+			useGlobalNaming?: boolean
 		}
 	): this
 	{
@@ -419,7 +470,9 @@ export default class EventEmitter
 			throw new TypeError(`The "eventName" argument must be a string.`);
 		}
 
-		const fullEventName = this.resolveEventName(eventName, target);
+		options = Type.isPlainObject(options) ? options : {};
+
+		const fullEventName = this.resolveEventName(eventName, target, options.useGlobalNaming === true);
 		const globalEvents = eventStore.get(this.GLOBAL_TARGET);
 		const globalListeners = (globalEvents && globalEvents.eventsMap.get(fullEventName)) || new Map();
 
@@ -429,8 +482,6 @@ export default class EventEmitter
 			const targetEvents = eventStore.get(target);
 			targetListeners = (targetEvents && targetEvents.eventsMap.get(fullEventName)) || new Map();
 		}
-
-		options = Type.isPlainObject(options) ? options : {};
 
 		const listeners = [...globalListeners.values(), ...targetListeners.values()];
 		listeners.sort(function(a, b) {
@@ -493,6 +544,14 @@ export default class EventEmitter
 	 */
 	emit(eventName: string, event?: BaseEvent | {[key: string]: any}): this
 	{
+		if (this.getEventNamespace() === null)
+		{
+			console.warn(
+				'The instance of BX.Event.EventEmitter is supposed to have an event namespace. ' +
+				'Use emitter.setEventNamespace() to make events more unique.'
+			);
+		}
+
 		EventEmitter.emit(this, eventName, event);
 
 		return this;
@@ -531,6 +590,14 @@ export default class EventEmitter
 	 */
 	emitAsync(eventName: string, event?: BaseEvent | {[key: string]: any}): Promise<Array>
 	{
+		if (this.getEventNamespace() === null)
+		{
+			console.warn(
+				'The instance of BX.Event.EventEmitter is supposed to have an event namespace. ' +
+				'Use emitter.setEventNamespace() to make events more unique.'
+			);
+		}
+
 		return EventEmitter.emitAsync(this, eventName, event);
 	}
 
@@ -554,7 +621,7 @@ export default class EventEmitter
 			preparedEvent.setData(event);
 		}
 
-		preparedEvent.setTarget(target);
+		preparedEvent.setTarget(this.isEventEmitter(target) ? target[targetProperty] : target);
 		preparedEvent.setType(eventName);
 
 		return preparedEvent;
@@ -1019,7 +1086,7 @@ export default class EventEmitter
 	 */
 	static isEventEmitter(target: Object)
 	{
-		return Type.isObject(target) && target[isEmitter] === true;
+		return Type.isObject(target) && target[isEmitterProperty] === true;
 	}
 
 	/**
@@ -1027,7 +1094,7 @@ export default class EventEmitter
 	 * @param {string} eventName
 	 * @returns {string}
 	 */
-	static normalizeEventName(eventName: string)
+	static normalizeEventName(eventName: string): string
 	{
 		if (!Type.isStringFilled(eventName))
 		{
@@ -1039,11 +1106,32 @@ export default class EventEmitter
 
 	/**
 	 * @private
+	 */
+	static normalizeListener(listener: Function | string): Function
+	{
+		if (Type.isString(listener))
+		{
+			listener = Reflection.getClass(listener);
+		}
+
+		if (!Type.isFunction(listener))
+		{
+			throw new TypeError(
+				`The "listener" argument must be of type Function. Received type ${typeof listener}.`
+			);
+		}
+
+		return listener;
+	}
+
+	/**
+	 * @private
 	 * @param eventName
 	 * @param target
+	 * @param useGlobalNaming
 	 * @returns {string}
 	 */
-	static resolveEventName(eventName: string, target: Object)
+	static resolveEventName(eventName: string, target: Object, useGlobalNaming: boolean = false)
 	{
 		eventName = this.normalizeEventName(eventName);
 		if (!Type.isStringFilled(eventName))
@@ -1051,7 +1139,7 @@ export default class EventEmitter
 			return '';
 		}
 
-		if (this.isEventEmitter(target))
+		if (this.isEventEmitter(target) && useGlobalNaming !== true)
 		{
 			if (target.getEventNamespace() !== null && eventName.includes('.'))
 			{

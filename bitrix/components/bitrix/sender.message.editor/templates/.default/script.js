@@ -32,10 +32,28 @@
 		this.templateId = params.templateId;
 
 		this.moreButton = Helper.getNode('more-btn', this.context);
+		this.blockToCopy = Helper.getNode('consent-block-to-copy', this.context);
+
+		if (this.blockToCopy)
+		{
+			this.blockToCopy.hidden = false;
+
+			if (this.templateId !== 'empty')
+			{
+				this.blockToCopy.hidden = true;
+			}
+		}
+
+		this.copyBtn = document.getElementById('ui-button-copy');
 		this.moreFields = Helper.getNode('more-fields', this.context);
 		if (this.moreButton && this.moreFields)
 		{
 			BX.bind(this.moreButton, 'click', this.onMoreClick.bind(this));
+		}
+
+		if (this.copyBtn)
+		{
+			BX.bind(this.copyBtn, 'click', this.onCopyClick.bind(this));
 		}
 
 		this.configuration = new Configuration(this);
@@ -44,7 +62,9 @@
 
 		this.bindNodes();
 		this.initFields();
+		this.loadFrame();
 	};
+
 	Editor.prototype.initFields = function ()
 	{
 		var fieldNodes = this.context.querySelectorAll('[data-bx-field]');
@@ -55,10 +75,52 @@
 			Helper.tag.init(fieldNode, node);
 		}, this);
 	};
+
+	Editor.prototype.loadFrame = function()
+	{
+		var frameNode = Helper.getNode('bx-sender-template-iframe', this.context);
+
+
+		if(frameNode)
+		{
+			frameNode.src = this.ajaxAction.getRequestingUri('prepareHtml', {
+				'lang': '',
+				'messageId': this.messageId
+			});
+
+			frameNode.onload = function()
+			{
+				var loader = Helper.getNode('bx-sender-view-loader',  BX.Sender.Message.Editor.context);
+				loader.style.display = 'none';
+				frameNode.style.display = 'block';
+			};
+		}
+	};
+
 	Editor.prototype.onMoreClick = function ()
 	{
 		Helper.display.toggle(this.moreFields);
 		BX.toggleClass(this.moreButton, this.classNameMoreActive);
+	};
+	Editor.prototype.onCopyClick = function ()
+	{
+		var textArea = document.createElement("textarea");
+		textArea.value = document.querySelector('.sender-footer-to-copy').textContent;
+
+		// Avoid scrolling to bottom
+		textArea.style.top = "0";
+		textArea.style.left = "0";
+		textArea.style.position = "fixed";
+
+		document.body.appendChild(textArea);
+		textArea.focus();
+		textArea.select();
+
+		try {
+			document.execCommand('copy');
+			textArea.remove();
+		} catch (err) {
+		}
 	};
 	Editor.prototype.setAdaptedInstance = function (editor)
 	{
@@ -86,6 +148,16 @@
 	};
 	Editor.prototype.onTemplateSelect = function (template)
 	{
+		if (this.blockToCopy)
+		{
+			this.blockToCopy.hidden = false;
+
+			if (template.code !== 'empty')
+			{
+				this.blockToCopy.hidden = true;
+			}
+		}
+
 		this.setTemplate(template);
 	};
 	Editor.prototype.setTemplate = function(template)
@@ -109,7 +181,10 @@
 		if(this.getMessageId()) {
 			message.id = this.getMessageId();
 		}
-		message.data = this.getConfiguration();
+		if (!message.data)
+			message.data = {};
+
+		message.data = Object.assign(message.data, this.getConfiguration());
 	};
 
 	Editor.prototype.getMessageId = function ()

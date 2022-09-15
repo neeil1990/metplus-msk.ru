@@ -42,7 +42,20 @@ Loc::loadMessages(__FILE__);
  * </ul>
  *
  * @package Bitrix\Iblock
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Property_Query query()
+ * @method static EO_Property_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Property_Result getById($id)
+ * @method static EO_Property_Result getList(array $parameters = array())
+ * @method static EO_Property_Entity getEntity()
+ * @method static \Bitrix\Iblock\Property createObject($setDefaultValues = true)
+ * @method static \Bitrix\Iblock\EO_Property_Collection createCollection()
+ * @method static \Bitrix\Iblock\Property wakeUpObject($row)
+ * @method static \Bitrix\Iblock\EO_Property_Collection wakeUpCollection($rows)
+ */
 
 class PropertyTable extends ORM\Data\DataManager
 {
@@ -354,10 +367,19 @@ class PropertyTable extends ORM\Data\DataManager
 	{
 		if (!isset($data['USER_TYPE_SETTINGS_LIST']) && isset($data['USER_TYPE_SETTINGS']))
 		{
-			$result['USER_TYPE_SETTINGS_LIST'] = (is_array($data['USER_TYPE_SETTINGS'])
-				? $data['USER_TYPE_SETTINGS']
-				: unserialize($data['USER_TYPE_SETTINGS'])
-			);
+			$settings = $data['USER_TYPE_SETTINGS'];
+			if (
+				is_string($settings)
+				&& $settings !== ''
+			)
+			{
+				$settings = unserialize($settings, ['allowed_classes' => false]);
+			}
+			if (is_array($settings))
+			{
+				$result['USER_TYPE_SETTINGS_LIST'] = $settings;
+			}
+			unset($settings);
 		}
 	}
 }

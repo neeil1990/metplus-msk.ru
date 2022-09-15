@@ -11,7 +11,7 @@ return array(
 		'name' => Loc::getMessage('LANDING_BLOCK_49_2_TWO_COLS_TEXT_VIDEO_FIX--NAME'),
 		'section' => array('video'),
 		'dynamic' => false,
-		'version' => '18.5.0',
+		'version' => '18.5.0', // old param for backward compatibility. Can used for old versions of module via repo. Do not delete!
 	),
 	'cards' => array(),
 	'nodes' => array(
@@ -35,7 +35,7 @@ return array(
 		),
 		'.landing-block-node-title' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_49_2_TWO_COLS_TEXT_VIDEO_FIX--LANDINGBLOCKNODETITLE'),
-			'type' => array('typo'),
+			'type' => array('typo', 'heading'),
 		),
 		'.landing-block-node-text' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_49_2_TWO_COLS_TEXT_VIDEO_FIX--LANDINGBLOCKNODETEXT'),
@@ -43,7 +43,7 @@ return array(
 		),
 		'.landing-block-node-video-col' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_49_2_TWO_COLS_TEXT_VIDEO_FIX--LANDINGBLOCKNODEVIDEO'),
-			'type' => 'animation',
+			'type' => array('align-self', 'animation'),
 		),
 	),
 	'assets' => array(

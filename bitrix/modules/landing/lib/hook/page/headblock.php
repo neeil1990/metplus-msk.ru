@@ -11,6 +11,12 @@ Loc::loadMessages(__FILE__);
 class HeadBlock extends \Bitrix\Landing\Hook\Page
 {
 	/**
+	 * Last inserted code to the site or to the page.
+	 * @var string
+	 */
+	protected static $lastInsertedCode = null;
+
+	/**
 	 * Map of the field.
 	 * @return array
 	 */
@@ -18,17 +24,26 @@ class HeadBlock extends \Bitrix\Landing\Hook\Page
 	{
 		return array(
 			'USE' => new Field\Checkbox('USE', array(
-				'title' => Loc::getMessage('LANDING_HOOK_HEADBLOCK_USE')
+				'title' => Loc::getMessage('LANDING_HOOK_HEADBLOCK_USE2')
 			)),
 			'CODE' => new Field\Textarea('CODE', array(
 				'title' => Loc::getMessage('LANDING_HOOK_HEADBLOCK_CODE'),
-				'help' => Loc::getMessage('LANDING_HOOK_HEADBLOCK_CODE_HELP2'),
+				'help' => Loc::getMessage('LANDING_HOOK_HEADBLOCK_CODE_HELP3'),
 				'placeholder' => '<script>
 	var googletag = googletag || {};
 	googletag.cmd = googletag.cmd || [];
 </script>'
 			))
 		);
+	}
+
+	/**
+	 * Gets last inserted code.
+	 * @return string
+	 */
+	public static function getLastInsertedCode()
+	{
+		return self::$lastInsertedCode;
 	}
 
 	/**
@@ -57,9 +72,8 @@ class HeadBlock extends \Bitrix\Landing\Hook\Page
 	{
 		if (ModuleManager::isModuleInstalled('bitrix24'))
 		{
-			$checkFeature = Manager::checkFeature(
-				Manager::FEATURE_ENABLE_ALL_HOOKS,
-				['hook' => 'headblock']
+			$checkFeature = \Bitrix\Landing\Restriction\Manager::isAllowed(
+				'limit_sites_html_js'
 			);
 			if ($checkFeature)
 			{
@@ -81,15 +95,6 @@ class HeadBlock extends \Bitrix\Landing\Hook\Page
 		}
 
 		return false;
-	}
-
-	/**
-	 * Gets message for locked state.
-	 * @return string
-	 */
-	public function getLockedMessage()
-	{
-		return Loc::getMessage('LANDING_HOOK_HEADBLOCK_LOCKED');
 	}
 
 	/**
@@ -139,15 +144,6 @@ class HeadBlock extends \Bitrix\Landing\Hook\Page
 	}
 
 	/**
-	 * Exec or not hook in intranet mode.
-	 * @return boolean
-	 */
-	public function enabledInIntranetMode()
-	{
-		return false;
-	}
-
-	/**
 	 * Exec hook.
 	 * @return void
 	 */
@@ -167,6 +163,7 @@ class HeadBlock extends \Bitrix\Landing\Hook\Page
 
 		if ($code != '')
 		{
+			self::$lastInsertedCode = $code;
 			$code = str_replace(
 				'<script',
 				'<script data-skip-moving="true"', $code

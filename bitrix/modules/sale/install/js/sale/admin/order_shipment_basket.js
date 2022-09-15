@@ -407,7 +407,7 @@ BX.Sale.Admin.ShipmentBasket.prototype.isProductSupportedMarkingCode = function(
 
 BX.Sale.Admin.ShipmentBasket.prototype.createBlockBarcode = function(basketCode, product, index)
 {
-	if (!!product.IS_SET_PARENT && product.IS_SET_PARENT !== 'Y' && !!product.MODULE)
+	if (!product.IS_SET_PARENT || product.IS_SET_PARENT !== 'Y')
 	{
 		var type = parseInt(product.QUANTITY) === 1 ? BX.Sale.Admin.Order.ShipmentBasketBarcodeView.TYPE_INPUT : BX.Sale.Admin.Order.ShipmentBasketBarcodeView.TYPE_LINK;
 
@@ -1192,7 +1192,7 @@ BX.Sale.Admin.ShipmentBasketEdit.prototype.createBlockStore = function(basketCod
 
 		divWrapper.appendChild(selectStore);
 
-		if (Object.keys(product.STORES).length > 1)
+		if (Object.keys(product.STORES).length > 1 && !this.isShipped)
 		{
 			var delDiv = BX.create('div', {
 				props: {
@@ -1413,7 +1413,7 @@ BX.Sale.Admin.ShipmentBasketEdit.prototype.getActualStoreIdByIndex = function(ba
 
 BX.Sale.Admin.ShipmentBasketEdit.prototype.createBlockBarcode = function(basketCode, product, index)
 {
-	if (!!product.IS_SET_PARENT && product.IS_SET_PARENT !== 'Y' && !!product.MODULE)
+	if (!product.IS_SET_PARENT || product.IS_SET_PARENT !== 'Y')
 	{
 		var type = parseInt(product.QUANTITY) === 1 ? BX.Sale.Admin.Order.ShipmentBasketBarcodeView.TYPE_INPUT : BX.Sale.Admin.Order.ShipmentBasketBarcodeView.TYPE_BUTTON;
 

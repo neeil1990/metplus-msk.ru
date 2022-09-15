@@ -248,4 +248,117 @@ if(typeof BX.UI.EditorFieldViewController === "undefined")
 		return self;
 	}
 }
+
+if (typeof BX.UI.EntityEditorController === 'undefined')
+{
+	BX.UI.EntityEditorController = function()
+	{
+		this._id = '';
+		this._settings = {};
+
+		this._editor = null;
+		this._model = null;
+		this._config = null;
+
+		this._isChanged = false;
+	};
+
+	BX.UI.EntityEditorController.prototype =
+	{
+		initialize: function(id, settings)
+		{
+			this._id = BX.type.isNotEmptyString(id) ? id : BX.util.getRandomString(4);
+			this._settings = settings ? settings : {};
+
+			this._editor = BX.prop.get(this._settings, 'editor', null);
+			this._model = BX.prop.get(this._settings, 'model', null);
+			this._config = BX.prop.getObject(this._settings, 'config', {});
+
+			this.doInitialize();
+		},
+
+		doInitialize: function()
+		{
+		},
+
+		getConfig: function()
+		{
+			return this._config;
+		},
+
+		getConfigStringParam: function(name, defaultValue)
+		{
+			return BX.prop.getString(this._config, name, defaultValue);
+		},
+
+		isChanged: function()
+		{
+			return this._isChanged;
+		},
+
+		markAsChanged: function()
+		{
+			if (this._isChanged)
+			{
+				return;
+			}
+
+			this._isChanged = true;
+			if (this._editor)
+			{
+				this._editor.processControllerChange(this);
+			}
+		},
+
+		release: function()
+		{
+		},
+		rollback: function()
+		{
+		},
+		validate: function()
+		{
+			return null;
+		},
+		innerCancel: function()
+		{
+		},
+
+		onBeforeSubmit: function()
+		{
+		},
+
+		onAfterSave: function()
+		{
+			if (this._isChanged)
+			{
+				this._isChanged = false;
+			}
+		},
+
+		onReload: function()
+		{
+			if (!this._isChanged)
+			{
+				this.onAfterSave();
+			}
+		},
+
+		onBeforeSaveControl: function(data)
+		{
+			return this.onBeforeSaveControl(data);
+		},
+
+		/**
+		 * @deprecated Use onBeforeSaveControl instead
+		 *
+		 * This method with misprint left for backward compatibility and
+		 * will be removed in future
+		 */
+		onBeforesSaveControl: function(data)
+		{
+			return data;
+		}
+	};
+}
 //endregion

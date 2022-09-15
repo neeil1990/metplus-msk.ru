@@ -80,11 +80,8 @@
 			this.innerBlock = tile.querySelector('.landing-item-desc-inner');
 
 			var descHeightBlock = tile.querySelector('.landing-item-desc-height');
-			var offset = this.innerBlock.offsetTop;
 
 			tile.classList.add('landing-tile-title-show');
-			this.innerBlock.style.paddingTop = offset + 'px';
-			this.innerBlock.style.marginBottom = offset + 'px';
 			this.startHeight = BX.style(this.innerBlock, 'height');
 			this.innerBlock.style.height = descHeightBlock.offsetHeight + 'px';
 
@@ -132,7 +129,7 @@ BX.ready(function()
 		{
 			BX.bind(item, 'click', function(event) {
 
-				if(event.target.classList.contains('landing-item-desc-open'))
+				if(event.target.classList.contains('landing-item-desc-open') || event.target.classList.contains('landing-item-designed'))
 				{
 					return;
 				}
@@ -142,12 +139,15 @@ BX.ready(function()
 				BX.SidePanel.Instance.open(sliderHref, {
 					allowChangeHistory: false,
 					width: BX.data(item, 'slider-width') ? parseInt(BX.data(item, 'slider-width')) : null,
+					data: {
+						rightBoundary: 0
+					},
 					events: {
 						onClose: function(eventClosed)
 						{
 							var openerSliderPath = sliderHref.split('?')[0];
 							var currentSliderPath = eventClosed.slider.iframeSrc.split('?')[0];
-							if (openerSliderPath !== currentSliderPath)
+							if (openerSliderPath !== currentSliderPath && sliderHref.indexOf('frameMode=Y') < 0)
 							{
 								top.location.reload();
 							}

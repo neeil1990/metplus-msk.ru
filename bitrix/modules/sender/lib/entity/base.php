@@ -7,15 +7,14 @@
  */
 namespace Bitrix\Sender\Entity;
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Error;
-use Bitrix\Main\SystemException;
 use Bitrix\Main\Entity\Base as MainEntityBase;
 use Bitrix\Main\Entity\DataManager as MainDataManager;
-
-use Bitrix\Sender\Security;
+use Bitrix\Main\Error;
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\SystemException;
 use Bitrix\Sender\Search;
+use Bitrix\Sender\Security;
 
 Loc::loadMessages(__FILE__);
 
@@ -207,32 +206,35 @@ abstract class Base
 		unset($loadedData['ID']);
 		$data = $data + $loadedData;
 
-		foreach ($data['FIELDS'] as $index => $field)
+		if (isset($data['FIELDS']))
 		{
-			if ($field['TYPE'] !== 'file')
+			foreach ($data['FIELDS'] as $index => $field)
 			{
-				continue;
-			}
-
-			if (empty($field['VALUE']))
-			{
-				continue;
-			}
-
-			$values = is_array($field['VALUE']) ? $field['VALUE'] : explode(',', $field['VALUE']);
-			$field['VALUE'] = array();
-			foreach ($values as $fileId)
-			{
-				$copiedFileId = \CFile::copyFile($fileId);
-				if (!$copiedFileId)
+				if ($field['TYPE'] !== 'file')
 				{
 					continue;
 				}
 
-				$field['VALUE'][] = $copiedFileId;
+				if (empty($field['VALUE']))
+				{
+					continue;
+				}
+
+				$values = is_array($field['VALUE']) ? $field['VALUE'] : explode(',', $field['VALUE']);
+				$field['VALUE'] = array();
+				foreach ($values as $fileId)
+				{
+					$copiedFileId = \CFile::copyFile($fileId);
+					if (!$copiedFileId)
+					{
+						continue;
+					}
+
+					$field['VALUE'][] = $copiedFileId;
+				}
+				$field['VALUE'] = implode(',', $field['VALUE']);
+				$data['FIELDS'][$index] = $field;
 			}
-			$field['VALUE'] = implode(',', $field['VALUE']);
-			$data['FIELDS'][$index] = $field;
 		}
 
 		return $this->saveData(null, $data);

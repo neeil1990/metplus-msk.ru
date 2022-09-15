@@ -68,7 +68,7 @@ if (!$fCriticalError)
 	$siteList = CBaseSaleReportHelper::getSiteList();
 	if (isset($_REQUEST['F_SALE_SITE']))
 	{
-		$siteId = substr($_REQUEST['F_SALE_SITE'],0,2);
+		$siteId = mb_substr($_REQUEST['F_SALE_SITE'], 0, 2);
 		if (array_key_exists($siteId, $siteList))
 		{
 			$siteCookieId = CBaseSaleReportHelper::getSiteCookieId();
@@ -83,7 +83,7 @@ if (!$fCriticalError)
 		$siteCookieId = CBaseSaleReportHelper::getSiteCookieId();
 		if (isset($_COOKIE[$siteCookieId]))
 		{
-			$siteId = substr($_COOKIE[$siteCookieId],0,2);
+			$siteId = mb_substr($_COOKIE[$siteCookieId], 0, 2);
 			if (array_key_exists($siteId, $siteList)) $arParams['F_SALE_SITE'] = $siteId;
 			CBaseSaleReportHelper::setDefaultSiteId($siteId);
 			unset($siteId);
@@ -195,7 +195,7 @@ if (!$fCriticalError)
 		}
 
 		// Product custom "types of prices" filter (set report setting to helper)
-		$arRepSetting = unserialize($arRepParams['SETTINGS']);
+		$arRepSetting = unserialize($arRepParams['SETTINGS'], ['allowed_classes' => false]);
 		if ($arRepSetting['helper_spec']['ucspt'] === true)
 		{
 			call_user_func(array($arParams['REPORT_HELPER_CLASS'], 'enablePriceTypesColumns'), true);

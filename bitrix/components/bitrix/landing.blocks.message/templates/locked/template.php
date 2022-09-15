@@ -4,6 +4,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
 ?>
 
 <div class="landing-html-lock landing-html-lock-partner">
@@ -15,7 +16,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 			<div class="landing-html-lock-text"><?= $arParams['~MESSAGE'];?></div>
 		</div>
 		<?if ($arParams['~BUTTON'] && $arParams['~LINK']):?>
-			<a href="<?= $arParams['~LINK'];?>" target="_top" class="ui-btn ui-btn-md ui-btn-primary landing-required-link landing-ui-button">
+			<a href="<?= $arParams['~LINK'];?>" target="_top" class="ui-btn ui-btn-md ui-btn-primary landing-required-link">
 				<?= $arParams['~BUTTON'];?>
 			</a>
 		<?endif;?>

@@ -1,15 +1,13 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\UI\Filter\Options as FilterOptions;
-use Bitrix\Main\Grid\Options as GridOptions;
-use Bitrix\Main\Loader;
 use Bitrix\Main\Error;
-
-use Bitrix\Sender\GroupTable;
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Grid\Options as GridOptions;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Filter\Options as FilterOptions;
+use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\Security;
+use Bitrix\Sender\GroupTable;
 use Bitrix\Sender\UI\PageNavigation;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
@@ -17,16 +15,22 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderSegmentListComponent extends CBitrixComponent
+class SenderSegmentListComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
 
 	protected function checkRequiredParams()
 	{
-		if (!Loader::includeModule('sender'))
+		if (!Bitrix\Main\Loader::includeModule('sender'))
 		{
 			$this->errors->setError(new Error('Module `sender` is not installed.'));
 			return false;
@@ -36,22 +40,27 @@ class SenderSegmentListComponent extends CBitrixComponent
 
 	protected function initParams()
 	{
-		$this->arParams['PATH_TO_LIST'] = isset($this->arParams['PATH_TO_LIST']) ? $this->arParams['PATH_TO_LIST'] : '';
-		$this->arParams['PATH_TO_USER_PROFILE'] = isset($this->arParams['PATH_TO_USER_PROFILE']) ? $this->arParams['PATH_TO_USER_PROFILE'] : '';
-		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
+		$this->arParams['GRID_ID'] =
+			isset($this->arParams['GRID_ID']) ? $this->arParams['GRID_ID'] : 'SENDER_SEGMENT_GRID';
 
-		$this->arParams['GRID_ID'] = isset($this->arParams['GRID_ID']) ? $this->arParams['GRID_ID'] : 'SENDER_SEGMENT_GRID';
-		$this->arParams['FILTER_ID'] = isset($this->arParams['FILTER_ID']) ? $this->arParams['FILTER_ID'] : $this->arParams['GRID_ID'] . '_FILTER';
+		if (
+			\COption::GetOptionInt("sender", "group_agent_added") === 0
+			|| \COption::GetOptionInt("sender", "group_agent_added") === 1
+		)
+		{
+			\CAgent::AddAgent(
+				'\\Bitrix\Sender\\Posting\\SegmentDataBuilder::checkNotCompleted();',
+				"sender",
+				"Y",
+				60*60,
+				"",
+				"Y",
+				\ConvertTimeStamp(time()+\CTimeZone::GetOffset()+450, "FULL"));
 
-		$this->arParams['RENDER_FILTER_INTO_VIEW'] = isset($this->arParams['RENDER_FILTER_INTO_VIEW']) ? $this->arParams['RENDER_FILTER_INTO_VIEW'] : '';
-		$this->arParams['RENDER_FILTER_INTO_VIEW_SORT'] = isset($this->arParams['RENDER_FILTER_INTO_VIEW_SORT']) ? $this->arParams['RENDER_FILTER_INTO_VIEW_SORT'] : 10;
+				\COption::SetOptionInt("sender", "group_agent_added", 2);
+		}
 
-		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifySegments();
+		parent::initParams();
 	}
 
 	protected function preparePost()
@@ -83,12 +92,6 @@ class SenderSegmentListComponent extends CBitrixComponent
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_SEGMENT_LIST_COMP_TITLE'));
 		}
 
-		if (!Security\Access::current()->canViewSegments())
-		{
-			Security\AccessChecker::addError($this->errors);
-			return false;
-		}
-
 		$this->arResult['ERRORS'] = array();
 		$this->arResult['ROWS'] = array();
 
@@ -112,14 +115,27 @@ class SenderSegmentListComponent extends CBitrixComponent
 		// get rows
 		$list = GroupTable::getList(array(
 			'select' => array(
-				'ID', 'DATE_INSERT', 'NAME', 'ADDRESS_COUNT', 'USE_COUNT',
+				'CNT',
+				'ID',
+				'DATE_INSERT',
+				'NAME',
+				'ADDRESS_COUNT',
+				'USE_COUNT',
+				'STATUS',
 			),
 			'filter' => $this->getDataFilter(),
 			'offset' => $nav->getOffset(),
 			'limit' => $nav->getLimit(),
 			'count_total' => true,
+			'runtime' => array(
+				new \Bitrix\Main\Entity\ExpressionField(
+					'CNT',
+					'COUNT(ID)'
+				)
+			),
 			'order' => $this->getGridOrder()
 		));
+
 		foreach ($list as $item)
 		{
 			// format user name
@@ -128,6 +144,8 @@ class SenderSegmentListComponent extends CBitrixComponent
 			$item['URLS'] = array(
 				'EDIT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_EDIT']),
 			);
+
+			$item['STATUS'] = Loc::getMessage('SENDER_SEGMENT_LIST_COMP_UI_COLUMN_STATUS_' . $item['STATUS']);
 
 			$item['ADDRESS_COUNTER'] = Entity\Segment::getAddressCounter($item['ID'])->getArray();
 			$this->arResult['ROWS'][] = $item;
@@ -159,7 +177,7 @@ class SenderSegmentListComponent extends CBitrixComponent
 		}
 		if (isset($requestFilter['SYSTEM']) && $requestFilter['SYSTEM'])
 		{
-			$filter['=IS_SYSTEM'] = true;
+			$filter['=IS_SYSTEM'] = $requestFilter['SYSTEM'];
 		}
 
 		if (!isset($requestFilter['HIDDEN']) || !$requestFilter['HIDDEN'])
@@ -169,6 +187,16 @@ class SenderSegmentListComponent extends CBitrixComponent
 		elseif (in_array($requestFilter['HIDDEN'], ['Y', 'N']))
 		{
 			$filter['=HIDDEN'] = $requestFilter['HIDDEN'] === 'Y';
+		}
+
+		if (isset($requestFilter['STATUS']) && $requestFilter['STATUS'])
+		{
+			$filterValues = [];
+			foreach ($requestFilter['STATUS'] as $value)
+			{
+				$filterValues = array_merge($filterValues, explode(",", $value));
+			}
+			$filter['@STATUS'] = $filterValues;
 		}
 
 		return $filter;
@@ -182,7 +210,7 @@ class SenderSegmentListComponent extends CBitrixComponent
 		$sorting = $gridOptions->getSorting(array('sort' => $defaultSort));
 
 		$by = key($sorting['sort']);
-		$order = strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
+		$order = mb_strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
 
 		$list = array();
 		foreach ($this->getUiGridColumns() as $column)
@@ -241,6 +269,12 @@ class SenderSegmentListComponent extends CBitrixComponent
 				"sort" => "ADDRESS_COUNT",
 				"default" => true
 			),
+			array(
+				"id" => "STATUS",
+				"name" => Loc::getMessage('SENDER_SEGMENT_LIST_COMP_UI_COLUMN_STATUS'),
+				"sort" => "STATUS",
+				"default" => true
+			),
 		);
 	}
 
@@ -263,6 +297,17 @@ class SenderSegmentListComponent extends CBitrixComponent
 				"name" => Loc::getMessage('SENDER_SEGMENT_LIST_COMP_UI_COLUMN_HIDDEN'),
 				"type" => "checkbox",
 				"default" => true
+			],
+			[
+				"id" => "STATUS",
+				"name" => Loc::getMessage('SENDER_SEGMENT_LIST_COMP_UI_COLUMN_STATUS'),
+				"type" => "list",
+				"default" => true,
+				'params' => array('multiple' => 'Y'),
+				"items" => [
+					'N,P' => Loc::getMessage('SENDER_SEGMENT_LIST_COMP_UI_COLUMN_STATUS_P'),
+					'R,D' => Loc::getMessage('SENDER_SEGMENT_LIST_COMP_UI_COLUMN_STATUS_R'),
+				]
 			],
 		];
 	}
@@ -299,20 +344,17 @@ class SenderSegmentListComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
+		$this->prepareResultAndTemplate();
+	}
 
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
+	public function getEditAction()
+	{
+		return ActionDictionary::ACTION_SEGMENT_EDIT;
+	}
 
-		$this->includeComponentTemplate();
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_SEGMENT_VIEW;
 	}
 }

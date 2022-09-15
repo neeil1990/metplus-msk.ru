@@ -9,26 +9,24 @@ use \Bitrix\Main\Localization\Loc;
 return [
 	'block' => [
 		'name' => Loc::getMessage('LANDING_BLOCK_59_2-NAME'),
-		'section' => array('sidebar', 'other'),
+		'dynamic' => false,
+		'section' => array('sidebar', 'other', 'recommended'),
 		'type' => ['knowledge', 'group'],
 		'subtype' => 'search',
 		'subtype_params' => [
 			'type' => 'form',
 			'resultPage' => 'search-result2'
 		],
-		'version' => '20.0.0',
-	],
-	'nodes' => [
-		// todo: need for style hover. If not exist nodes elemtent - button will be pointer-events:none
-		// '.landing-block-node-button' => [
-		// 	'name' => Loc::getMessage('LANDING_BLOCK_59_2-BUTTON'),
-		// 	'type' => 'link',
-		// ],
+		'version' => '20.0.0', // old param for backward compatibility. Can used for old versions of module via repo. Do not delete!
 	],
 	'style' => [
-		'.landing-block-node-button' => [
+		'.landing-block-node-button-container' => [
 			'name' => Loc::getMessage('LANDING_BLOCK_59_2-BUTTON'),
-			'type' => ['background-color', 'color'],
+			'type' => ['background-color', 'background-hover', 'color', 'color-hover'],
+		],
+		'.landing-block-node-input-container' => [
+			'name' => Loc::getMessage('LANDING_BLOCK_59_2-INPUT'),
+			'type' => ['color', 'background-color', 'border-colors'],
 		],
 	],
 	'attrs' => [

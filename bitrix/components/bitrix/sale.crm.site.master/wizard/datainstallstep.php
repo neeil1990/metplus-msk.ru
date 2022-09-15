@@ -1,5 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\CrmSiteMaster\Steps;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main,
 	Bitrix\Main\Config\Option,
@@ -8,14 +14,7 @@ use Bitrix\Main,
 
 Loc::loadMessages(__FILE__);
 
-if (Main\IO\File::isFileExists($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/intranet/install/wizards/bitrix/portal/wizard.php"))
-{
-	include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/intranet/install/wizards/bitrix/portal/wizard.php");
-}
-elseif (Main\IO\File::isFileExists($_SERVER["DOCUMENT_ROOT"]."/bitrix/wizards/bitrix/portal/wizard.php"))
-{
-	include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/wizards/bitrix/portal/wizard.php");
-}
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/wizards/bitrix/portal/wizard.php");
 
 /** @noinspection PhpUndefinedClassInspection */
 /**
@@ -202,7 +201,7 @@ class DataInstallStep extends \DataInstallStep
 
 		$firstStep = Option::get(
 			"main",
-			"wizard_first".substr($wizard->GetID(), 7)."_".$siteId,
+			"wizard_first".mb_substr($wizard->GetID(), 7)."_".$siteId,
 			false,
 			$siteId
 		);
@@ -220,7 +219,7 @@ class DataInstallStep extends \DataInstallStep
 
 		define("WIZARD_NEW_2011", false);
 
-		$dbGroupUsers = \CGroup::GetList($by="id", $order="asc", Array("ACTIVE" => "Y"));
+		$dbGroupUsers = \CGroup::GetList("id", "asc", Array("ACTIVE" => "Y"));
 		$arGroupsId = Array("ADMIN_SECTION", "SUPPORT", "CREATE_GROUPS", "PERSONNEL_DEPARTMENT", "DIRECTION", "MARKETING_AND_SALES", "RATING_VOTE", "RATING_VOTE_AUTHORITY");
 
 		while ($arGroupUser = $dbGroupUsers->Fetch())
@@ -231,9 +230,9 @@ class DataInstallStep extends \DataInstallStep
 			}
 			else
 			{
-				if(substr($arGroupUser["STRING_ID"], -2) == $siteId)
+				if(mb_substr($arGroupUser["STRING_ID"], -2) == $siteId)
 				{
-					define("WIZARD_".substr($arGroupUser["STRING_ID"], 0, -3)."_GROUP", $arGroupUser["ID"]);
+					define("WIZARD_".mb_substr($arGroupUser["STRING_ID"], 0, -3)."_GROUP", $arGroupUser["ID"]);
 				}
 			}
 		}
@@ -297,7 +296,6 @@ class DataInstallStep extends \DataInstallStep
 	 * @throws Main\ArgumentException
 	 * @throws Main\ArgumentNullException
 	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\LoaderException
 	 * @throws Main\ObjectPropertyException
 	 * @throws Main\SystemException
 	 */
@@ -305,7 +303,7 @@ class DataInstallStep extends \DataInstallStep
 	{
 		$sitePatcher = SitePatcher::getInstance();
 
-		$sitePatcher->updateSiteTemplateConditions();
+		SitePatcher::updateSiteTemplateConditions();
 		$sitePatcher->addUrlRewrite();
 		$sitePatcher->deleteFiles();
 

@@ -6,8 +6,6 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use \Bitrix\Main\Localization\Loc;
 
-$buttons = \Bitrix\Landing\Hook\Page\B24button::getButtons();
-$buttons = array_keys($buttons);
 
 return array(
 //	'code' => 'holiday.halloween',
@@ -20,15 +18,16 @@ return array(
 	'show_in_list' => 'Y',
 //	'type' => 'page',
 	'version' => 2,
-	'sort' => \LandingSiteDemoComponent::checkActivePeriod(10,10,10,31) ? 51 : -161,
 	'fields' => array(
 		'ADDITIONAL_FIELDS' => array(
-			'B24BUTTON_CODE' => $buttons[0],
 			'UP_SHOW' => 'Y',
 			'VIEW_USE' => 'N',
 			'VIEW_TYPE' => 'no',
 			'THEME_CODE' => 'shipping',
-			'THEME_CODE_TYPO' => 'shipping',
+			'THEMEFONTS_CODE' => 'Open Sans',
+			'THEMEFONTS_CODE_H' => 'Roboto Slab',
+			'THEMEFONTS_SIZE' => '1',
+			'THEMEFONTS_USE' => 'Y',
 			'SETTINGS_HIDE_NOT_AVAILABLE' => 'L',
 			'SETTINGS_HIDE_NOT_AVAILABLE_OFFERS' => 'N',
 			'SETTINGS_PRODUCT_SUBSCRIPTION' => 'Y',

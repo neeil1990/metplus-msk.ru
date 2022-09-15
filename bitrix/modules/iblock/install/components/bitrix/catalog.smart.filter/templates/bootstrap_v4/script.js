@@ -235,6 +235,7 @@ JCSmartFilter.prototype.postHandler = function (result, fromCache)
 	{
 		var set_filter = BX('set_filter');
 		set_filter.disabled = false;
+		set_filter.focus();
 	}
 
 	if (!fromCache && this.cacheKey !== '')
@@ -284,6 +285,9 @@ JCSmartFilter.prototype.gatherInputsValues = function (values, elements)
 				case 'textarea':
 				case 'password':
 				case 'hidden':
+				case 'number':
+				case 'phone':
+				case 'email':
 				case 'select-one':
 					if(el.value.length)
 						values[values.length] = {name : el.name, value : el.value};

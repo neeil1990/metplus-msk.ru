@@ -10,6 +10,10 @@ if(typeof BX.UI.EntityEditorValidatorFactory === "undefined")
 			{
 				return BX.UI.EntityPersonValidator.create(settings);
 			}
+			else if(type === "trackingSource")
+			{
+				return BX.UI.EntityTrackingSourceValidator.create(settings);
+			}
 
 			return null;
 		}
@@ -65,13 +69,21 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 				this.initialize();
 			}
 
-			if(type === "section")
+			if(type === "column")
+			{
+				return BX.UI.EntityEditorColumn.create(controlId, settings);
+			}
+			else if(type === "section")
 			{
 				return BX.UI.EntityEditorSection.create(controlId, settings);
 			}
 			else if(type === "text")
 			{
 				return BX.UI.EntityEditorText.create(controlId, settings);
+			}
+			else if(type === "multitext")
+			{
+				return BX.UI.EntityEditorMultiText.create(controlId, settings);
 			}
 			else if(type === "textarea")
 			{
@@ -81,9 +93,17 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			{
 				return BX.UI.EntityEditorNumber.create(controlId, settings);
 			}
+			else if(type === "multinumber")
+			{
+				return BX.UI.EntityEditorMultiNumber.create(controlId, settings);
+			}
 			else if(type === "datetime")
 			{
 				return BX.UI.EntityEditorDatetime.create(controlId, settings);
+			}
+			else if(type === "multidatetime")
+			{
+				return BX.UI.EntityEditorMultiDatetime.create(controlId, settings);
 			}
 			else if(type === "boolean")
 			{
@@ -97,6 +117,10 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			{
 				return BX.UI.EntityEditorMultiList.create(controlId, settings);
 			}
+			else if(type === "html")
+			{
+				return BX.UI.EntityEditorHtml.create(controlId, settings);
+			}
 			else if(type === "link")
 			{
 				return BX.UI.EntityEditorLink.create(controlId, settings);
@@ -104,6 +128,30 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 			else if(type === "image")
 			{
 				return BX.UI.EntityEditorImage.create(controlId, settings);
+			}
+			else if(type === "file")
+			{
+				return BX.UI.EntityEditorFile.create(controlId, settings);
+			}
+			else if(type === "custom")
+			{
+				return BX.UI.EntityEditorCustom.create(controlId, settings);
+			}
+			else if(type === "money")
+			{
+				return BX.UI.EntityEditorMoney.create(controlId, settings);
+			}
+			else if(type === "multimoney")
+			{
+				return BX.UI.EntityEditorMultiMoney.create(controlId, settings);
+			}
+			else if(type === "user")
+			{
+				return BX.UI.EntityEditorUser.create(controlId, settings);
+			}
+			else if(type === "included_area")
+			{
+				return BX.UI.EntityEditorIncludedArea.create(controlId, settings);
 			}
 
 			for(var name in this.methods)
@@ -125,15 +173,69 @@ if(typeof BX.UI.EntityEditorControlFactory === "undefined")
 	};
 }
 
-if(typeof BX.UI.EntityEditorControllerFactory === "undefined")
+if (typeof BX.UI.EntityEditorControllerFactory === 'undefined')
 {
 	BX.UI.EntityEditorControllerFactory =
-	{
-		create: function(type, controllerId, settings)
 		{
-			return null;
-		}
-	};
+			methods: null,
+
+			create: function(type, controllerId, settings)
+			{
+				if (this.methods === null)
+				{
+					this.registerEventFactories();
+				}
+
+				return this.findEventController(type, controllerId, settings);
+			},
+
+			registerEventFactories: function()
+			{
+				var eventArgs = {methods: {}};
+				BX.onCustomEvent(
+					window,
+					'BX.UI.EntityEditorControllerFactory:onInitialize',
+					[this, eventArgs]
+				);
+
+				this.methods = {};
+
+				for (var name in eventArgs.methods)
+				{
+					if (eventArgs.methods.hasOwnProperty(name))
+					{
+						this.registerEventFactory(name, eventArgs.methods[name]);
+					}
+				}
+			},
+
+			registerEventFactory: function(name, method)
+			{
+				if (BX.type.isFunction(method))
+				{
+					this.methods[name] = method;
+				}
+			},
+
+			findEventController: function(type, controllerId, settings)
+			{
+				for (var name in this.methods)
+				{
+					if (!this.methods.hasOwnProperty(name))
+					{
+						continue;
+					}
+
+					var controller = this.methods[name](type, controllerId, settings);
+					if (controller)
+					{
+						return controller;
+					}
+				}
+
+				return null;
+			}
+		};
 }
 
 if(typeof BX.UI.EntityEditorModelFactory === "undefined")

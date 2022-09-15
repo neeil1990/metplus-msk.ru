@@ -1,5 +1,5 @@
-<?
-$catalog_default_option = array(
+<?php
+$catalog_default_option = [
 	'export_default_path' => '/bitrix/catalog_export/',
 	'default_catalog_1c' => '',
 	'deactivate_1c_no_price' => 'N',
@@ -48,7 +48,6 @@ $catalog_default_option = array(
 	'activate_file_data' => 'Y',
 	'get_discount_percent_from_base_price' => 'N',
 	'discsave_apply' => 'R',
-	'discount_vat' => 'Y',
 	'default_quantity_trace' => 'N',
 	'default_can_buy_zero' => 'N',
 	'allow_negative_amount' => 'N',
@@ -65,11 +64,23 @@ $catalog_default_option = array(
 	'product_form_show_offers_iblock' => 'N',
 	'product_form_simple_search' => 'Y',
 	'product_form_show_offer_name' => 'N',
+	'enable_viewed_products' => 'Y',
 	'viewed_time' => 10,
 	'viewed_count' => 10,
 	'viewed_period' => 5,
 	'default_product_vat_included' => 'N',
 	'subscribe_repeated_notify' => 'Y',
 	'enable_processing_deprecated_events' => 'N',
-	'landing_product_limit' => 0
-);
+	'landing_product_limit' => 0,
+	'product_card_slider_enabled' => 'N',
+	'once_inventory_management' => 'N', // system option, internal, only for 1c rest
+	'show_store_reserve' => 'N', // system option, can't set from options page
+	'catalog_common_product_processing' => 'N', // system option, can't set from options page
+	'use_offer_marking_code_group' => 'N', // system option, can't set from options page
+	'store_document_numbers_A' => 0, // used for create store document name (arrival)
+	'store_document_numbers_S' => 0, // used for create store document name (store adjustment)
+	'store_document_numbers_M' => 0, // used for create store document name (moving)
+	'store_document_numbers_R' => 0, // used for create store document name (return)
+	'store_document_numbers_D' => 0, // used for create store document name (deduct)
+	'store_document_numbers_U' => 0, // used for create store document name (undo reserve)
+];

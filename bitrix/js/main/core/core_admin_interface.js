@@ -62,7 +62,10 @@ BX.adminPanel.prototype.setButtonMenu = function(button)
 
 BX.adminPanel.prototype.isFixed = function()
 {
-	return BX.hasClass(document.documentElement, 'adm-header-fixed');
+	return (
+		BX.type.isDomNode(this.panel)
+		&& BX.hasClass(document.documentElement, 'adm-header-fixed')
+	);
 };
 
 BX.adminPanel.prototype.Fix = function(el)
@@ -2524,7 +2527,10 @@ BX.adminUiList.prototype.onShowTotalCount = function(event)
 
 BX.adminUiList.prototype.onMessage = function(SidePanelEvent)
 {
-	if (!(SidePanelEvent instanceof BX.SidePanel.MessageEvent))
+	if (
+		!(SidePanelEvent instanceof BX.SidePanel.MessageEvent)
+		&& !(SidePanelEvent instanceof top.BX.SidePanel.MessageEvent)
+	)
 	{
 		return;
 	}
@@ -2564,7 +2570,18 @@ BX.adminUiList.prototype.onMessage = function(SidePanelEvent)
 BX.adminUiList.prototype.onReloadGrid = function()
 {
 	var reloadParams = { apply_filter: 'Y'};
-	var gridObject = top.BX.Main.gridManager.getById(this.gridId);
+	var gridObject;
+
+	if (BX.Reflection.getClass('top.BX.Main.gridManager.getById'))
+	{
+		gridObject = top.BX.Main.gridManager.getById(this.gridId);
+	}
+
+	if (gridObject === null && BX.Reflection.getClass('BX.Main.gridManager.getById'))
+	{
+		gridObject = BX.Main.gridManager.getById(this.gridId);
+	}
+
 	if (gridObject && gridObject.hasOwnProperty('instance'))
 	{
 		gridObject.instance.reloadTable('POST', reloadParams, false, this.gridUrl);
@@ -2823,17 +2840,30 @@ BX.adminSidePanel.prototype.onMessage = function(SidePanelEvent)
 	}
 };
 
-BX.adminSidePanel.onOpenPage = BX.adminSidePanel.prototype.onOpenPage = function(url)
+BX.adminSidePanel.onOpenPage = BX.adminSidePanel.prototype.onOpenPage = function(url, skipModification)
 {
+	if (top.BX.admin && top.BX.admin.dynamic_mode_show_borders)
+	{
+		return;
+	}
+
 	if (top.BX.SidePanel.Instance)
 	{
-		var adminSidePanel = top.window["adminSidePanel"], optionsOpen = {};
-		if (adminSidePanel.publicMode)
+		if (skipModification)
 		{
-			url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
-			optionsOpen.allowChangeHistory = false;
+			top.BX.SidePanel.Instance.open(url);
 		}
-		top.BX.SidePanel.Instance.open(url, optionsOpen);
+		else
+		{
+			var adminSidePanel = top.window["adminSidePanel"], optionsOpen = {};
+			if (adminSidePanel.publicMode)
+			{
+				url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
+				optionsOpen.allowChangeHistory = false;
+			}
+
+			top.BX.SidePanel.Instance.open(url, optionsOpen);
+		}
 	}
 };
 
@@ -2850,7 +2880,7 @@ BX.adminSidePanel.setDefaultQueryParams = BX.adminSidePanel.prototype.setDefault
 	}
 
 	var adminSidePanel = top.window["adminSidePanel"];
-	if (adminSidePanel.publicMode)
+	if (adminSidePanel && adminSidePanel.publicMode)
 	{
 		url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
 	}
@@ -3086,17 +3116,25 @@ BX.adminTabControl.prototype.Init = function()
 
 BX.adminTabControl.prototype.setFormDataForSidePanel = function()
 {
-	if (!BX.SidePanel.Instance)
+	var sidePanel = top.BX.SidePanel ? top.BX.SidePanel : BX.SidePanel,
+		slider,
+		dictionary;
+	if (typeof sidePanel === 'undefined')
+	{
+		return;
+	}
+	if (!sidePanel.Instance)
 	{
 		return;
 	}
 
-	var slider = BX.SidePanel.Instance.getSliderByWindow(window);
+	slider = sidePanel.Instance.getSliderByWindow(window);
 	if (slider)
 	{
-		var dictionary = slider.getData();
+		dictionary = slider.getData();
 		dictionary.set("adminTabControlInstance", this);
 	}
+	sidePanel = null;
 };
 
 BX.adminTabControl.prototype.onClickSidePanelButtons = function(event)
@@ -3164,7 +3202,7 @@ BX.adminTabControl.prototype.submitAjax = function(buttonType, button)
 					if (button && button.dataset.url)
 						params['addUrl'] = button.dataset.url;
 
-					var listApplyTypes = ["apply", "save_document"];
+					var listApplyTypes = ["apply", "save_document", "save_and_conduct"];
 					if (BX.util.in_array(buttonType, listApplyTypes))
 					{
 						if (result.hasOwnProperty('formParams'))
@@ -3282,10 +3320,14 @@ BX.adminTabControl.prototype.setPublicMode = function(v)
 	this.bPublicMode = !!v;
 	if (this.bPublicMode)
 	{
-		var name = this.name;
-		BX.addCustomEvent(BX.WindowManager.Get(), 'onWindowClose', function(){
-			window[name] = null;
-		});
+		var currentWindow = BX.WindowManager.Get();
+		if (currentWindow)
+		{
+			var name = this.name;
+			BX.addCustomEvent(currentWindow, 'onWindowClose', function(){
+				window[name] = null;
+			});
+		}
 	}
 };
 
@@ -4956,7 +4998,7 @@ BX.AdminFilter = function(filter_id, aRows)
 
 		tab.id = "adm-filter-tab-"+this.filter_id+"-"+newId;
 
-		if(this.url)
+		if(this.url && BX.adminMenu && BX.adminMenu.registerItem)
 		{
 			var registerUrl = BX.util.remove_url_param(this.url,["adm_filter_applied","adm_filter_preset"]);
 			registerUrl += "&adm_filter_applied" + '=' + BX.util.urlencode(newId);
@@ -6221,8 +6263,15 @@ BX.admFltTab.prototype = {
 
 	_RegisterDD: function(tabId, url, name)
 	{
+		if(!BX.adminMenu || !BX.adminMenu.registerItem)
+		{
+			return;
+		}
+
 		if(!url)
-			return false;
+		{
+			return;
+		}
 
 		var registerUrl = BX.util.remove_url_param(url, ["adm_filter_applied","adm_filter_preset"]);
 		registerUrl += "&adm_filter_applied" + '=' + BX.util.urlencode(this.id);

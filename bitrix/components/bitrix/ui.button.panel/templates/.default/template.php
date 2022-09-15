@@ -12,6 +12,8 @@ Extension::load("ui.pinner");
 Extension::load("ui.buttons");
 Extension::load("ui.buttons.icons");
 
+//?><!--<pre style="outline: 1px dashed #f00; padding: 10px;font-size: 10px;">--><?// var_dump($arResult);?><!--</pre>--><?php
+
 if ($arResult['HAS_HINTS'])
 {
 	Extension::load("ui.hint");
@@ -34,18 +36,20 @@ switch ($arParams['ALIGN'])
 
 $containerId = $arParams['ID'];
 ?>
-<script type="text/javascript">
-	BX.ready(function () {
-		BX.UI.ButtonPanel.init(<?=Json::encode([
-			'containerId' => $containerId,
-			'isFrame' => $arParams['FRAME'],
-			'hasHints' => $arResult['HAS_HINTS'],
-			'buttons' => $arResult['LIST']
-		])?>);
-	});
+<script>
+BX.ready(function () {
+
+	BX.UI.ButtonPanel.init(<?=Json::encode([
+		'containerId' => $containerId,
+		'isFrame' => $arParams['FRAME'],
+		'hasHints' => $arResult['HAS_HINTS'],
+		'buttons' => $arResult['LIST'],
+		'pinnerContainer' => $arResult['STICKY_CONTAINER']
+	])?>);
+});
 </script>
 
-<div id="<?=htmlspecialcharsbx($containerId)?>" class="ui-button-panel-wrapper ui-pinner ui-pinner-bottom <?=($arParams['FRAME'] ? 'ui-pinner-full-width' : '')?>">
+<div id="<?=htmlspecialcharsbx($containerId)?>" class="ui-button-panel-wrapper ui-pinner ui-pinner-bottom<?=($arParams['FRAME'] ? ' ui-pinner-full-width' : '')?><?=($arParams['HIDE'] ? ' ui-button-panel-wrapper-hide' : '')?>">
 	<div class="ui-button-panel <?=htmlspecialcharsbx($alignClass)?> <?=$arParams['CLASS_NAME']?>">
 		<?foreach ($arResult['LIST'] as $item)
 		{

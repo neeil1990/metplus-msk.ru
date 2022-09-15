@@ -29,7 +29,6 @@ $MESS["TR_EXPORT_CSV_PARAM_CONVERT_UTF8"] = "In UTF-8 konvertieren";
 $MESS["TR_EXPORT_CSV_PARAM_LANGUAGES"] = "Exportsprache auswählen";
 $MESS["TR_EXPORT_CSV_PARAM_LANGUAGES_ALL"] = "Alle";
 $MESS["TR_EXPORT_CSV_PARAM_UNTRANSLATED"] = "Nur nicht übersetzte Nachrichten exportieren";
-$MESS["TR_EXPORT_CSV_PROGRESS"] = "Ordner verarbeitet";
 $MESS["TR_EXPORT_DLG_CLEAR"] = "Exportdatei löschen";
 $MESS["TR_EXPORT_DLG_DOWNLOAD"] = "Exportdatei herunterladen";
 $MESS["TR_FILENAME"] = "Dateiname:";

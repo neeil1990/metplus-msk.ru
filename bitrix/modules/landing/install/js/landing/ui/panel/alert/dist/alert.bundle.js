@@ -49,11 +49,10 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	 *
 	 * Implements singleton design pattern. Don't use it as constructor
 	 * use BX.Landing.UI.Panel.Alert.getInstance() for get instance of module
+	 * @memberOf BX.Landing.UI.Panel
 	 */
 
-	var Alert =
-	/*#__PURE__*/
-	function (_BasePanel) {
+	var Alert = /*#__PURE__*/function (_BasePanel) {
 	  babelHelpers.inherits(Alert, _BasePanel);
 	  babelHelpers.createClass(Alert, null, [{
 	    key: "getInstance",
@@ -113,6 +112,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    value: function show(type, text) {
 	      var _this4 = this;
 
+	      var hideSupportLink = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
 	      var promise = Promise.resolve(this);
 
 	      if (this.isShown()) {
@@ -131,7 +131,11 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	        }
 
 	        _this4.text.innerHTML = "".concat(text || type, " ");
-	        main_core.Dom.append(_this4.getSupportLink(), _this4.text);
+
+	        if (!hideSupportLink) {
+	          main_core.Dom.append(_this4.getSupportLink(), _this4.text);
+	        }
+
 	        return _this4;
 	      });
 	    }

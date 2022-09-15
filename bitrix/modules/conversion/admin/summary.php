@@ -43,7 +43,8 @@ $site = $_GET['site'] ?: $userOptions['site'];
 
 if (! $siteName = $sites[$site])
 {
-	list ($site, $siteName) = each($sites);
+	$site = key($sites);
+	$siteName = current($sites);
 }
 
 // SPLITS
@@ -55,7 +56,8 @@ $attributeGroupName = $_GET['split'] ?: $userOptions['split']; // $splitGroupKey
 
 if (! $attributeTypes = $groupedAttributeTypes[$attributeGroupName]) // $splitGroup
 {
-	list ($attributeGroupName, $attributeTypes) = each($groupedAttributeTypes);
+	$attributeGroupName = key($groupedAttributeTypes);
+	$attributeTypes = current($groupedAttributeTypes);
 }
 
 $attributeGroupTypes = \Bitrix\Conversion\AttributeGroupManager::getTypes();
@@ -97,7 +99,8 @@ if ($rateTypes = RateManager::getTypes(array('ACTIVE' => true)))
 	}
 	else
 	{
-		list ($topRateName, $topRateType) = each($rateTypes);
+		$topRateName = key($rateTypes);
+		$topRateType = current($rateTypes);
 	}
 
 	if (is_array($topRateType['SCALE']) && count($topRateType['SCALE']) === 5)
@@ -164,15 +167,6 @@ CJSCore::Init(array('amcharts', 'amcharts_serial'));
 
 function conversion_renderRate(array $rate, array $rateType)
 {
-	if (isset($rateType['UNITS']['SUM']))
-	{
-		$sanitizer = new \CBXSanitizer();
-		$sanitizer->delAllTags();
-		$sanitizer->addTags(array(array()));
-
-		$rateType['UNITS']['SUM'] = $sanitizer->sanitizeHtml($rateType['UNITS']['SUM']);
-	}
-
 	?>
 	<div class="stat-item">
 		<span class="stat-item-subtitle"><?=$rateType['NAME']?></span>

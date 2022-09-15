@@ -85,6 +85,7 @@ $MESS["IB_E_DESCRIPTION_TYPE_HTML"] = "html";
 $MESS["IB_E_ID"] = "ID";
 $MESS["IB_E_CODE"] = "Символьный код";
 $MESS["IB_E_API_CODE"] = "Символьный код API";
+$MESS["IB_E_REST_ON"] = "Включен доступ через REST";
 $MESS["IB_E_NAME"] = "Название";
 $MESS["IB_E_SORT"] = "Сортировка";
 $MESS["IB_E_XML_ID"] = "Внешний код";
@@ -270,6 +271,4 @@ $MESS["IB_E_PROP_BASE_TYPE_GROUP"] = "Базовые типы";
 $MESS["IB_E_PROP_USER_TYPE_GROUP"] = "Пользовательские типы";
 $MESS["IBLOCK_BACK_TO_ADMIN"] = "Вернуться в список информационных блоков";
 $MESS["IB_E_FIELD_TEXT_TYPE_ALLOW_CHANGE"] = "Разрешить переключаться между text и html.";
-$MESS["IB_E_API_CODE_FORMAT_ERROR"] = "Символьный код API может состоять максимум из 50 латинских букв и цифр и должен начинаться с буквы";
-$MESS["IB_E_API_CODE_UNIQUE_ERROR"] = "Символьный код API должен быть уникальным, инфоблок с таким кодом уже есть";
 ?>

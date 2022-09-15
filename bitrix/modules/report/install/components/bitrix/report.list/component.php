@@ -1,4 +1,4 @@
-<?
+<?php
 /** @global CUser $USER */
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
@@ -27,12 +27,23 @@ if($isPost && isset($_POST['HELPER_CLASS']))
 }
 
 if (!is_string($helperClassName)
-	|| strlen($helperClassName) < 1
+	|| mb_strlen($helperClassName) < 1
 	|| !class_exists($helperClassName)
 	|| !is_subclass_of($helperClassName, 'CReportHelper'))
 {
 	ShowError(GetMessage("REPORT_HELPER_NOT_DEFINED"));
 	return 0;
+}
+
+$arResult['IS_RESTRICTED'] = false;
+if (
+	\Bitrix\Main\Loader::includeModule('bitrix24')
+	&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('report')
+)
+{
+	$arResult['IS_RESTRICTED'] = true;
+	$this->IncludeComponentTemplate('restrict');
+	return 1;
 }
 
 $ownerId = $arResult['OWNER_ID'] = call_user_func(array($helperClassName, 'getOwnerId'));
@@ -212,7 +223,7 @@ while ($report = $queryObject->fetch())
 	if($userId == $report['CREATED_BY'])
 		continue;
 
-	$users = CUser::getList($by='id', $order='asc', array('ID' => $report['CREATED_BY']),
+	$users = CUser::getList('id', 'asc', array('ID' => $report['CREATED_BY']),
 		array('FIELDS' => array('ID', 'NAME', 'LAST_NAME')));
 	if($user = $users->fetch())
 	{
@@ -234,5 +245,5 @@ global $DB;
 $arResult['dateFormat'] = $DB->DateFormatToPHP(CSite::GetDateFormat("SHORT"));
 $arResult['randomString'] = $this->randString();
 
-$this->IncludeComponentTemplate();
+$this->IncludeComponentTemplate('template');
 

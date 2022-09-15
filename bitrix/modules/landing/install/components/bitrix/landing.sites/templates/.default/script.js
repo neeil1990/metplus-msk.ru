@@ -10,6 +10,7 @@
 
 		if (typeof params === 'object')
 		{
+			this.siteType = params.siteType;
 			this.wrapper = params.wrapper;
 			this.inner = params.inner;
 			this.tiles = params.tiles;
@@ -35,14 +36,14 @@
 
 			this.tileRatio = params.tileRatio || 1.48;
 			this.maxTileHeight = this.maxTileWidth / this.tileRatio;
+
+			this.setTileWidth();
+			BX.bind(window, 'resize', this.setTileWidth.bind(this));
+
+			requestAnimationFrame(function() {
+			    this.wrapper.classList.add('landing-ui-show');
+			}.bind(this));
 		}
-
-		this.setTileWidth();
-		BX.bind(window, 'resize', this.setTileWidth.bind(this));
-
-		requestAnimationFrame(function() {
-		    this.wrapper.classList.add('landing-ui-show');
-		}.bind(this));
 	};
 
 	BX.Landing.TileGrid.prototype =
@@ -69,7 +70,7 @@
 					this.tiles[i].style.marginTop = obj.margin + 'px';
 				}
 				this.inner.style.marginLeft = (obj.margin * -1) + 'px';
-				this.inner.style.marginTop = (obj.margin * -1) + 'px';
+				this.inner.style.marginTop = (obj.margin * -1) + 7 + 'px';
 			}.bind(this));
 		},
 
@@ -138,7 +139,6 @@
 				{
 					loader.hide();
 					loaderContainer.classList.add('landing-filter-loading-hide');
-
 					if (
 						typeof data.type !== 'undefined' &&
 						typeof data.result !== 'undefined'
@@ -148,6 +148,48 @@
 						{
 							var msg = BX.Landing.UI.Tool.ActionDialog.getInstance();
 							if (
+								data.error_type === 'payment' &&
+								(
+									data.result[0].error === 'PUBLIC_SITE_REACHED' ||
+									data.result[0].error === 'TOTAL_SITE_REACHED' ||
+									data.result[0].error === 'PUBLIC_PAGE_REACHED' ||
+									data.result[0].error === 'PUBLIC_SITE_REACHED_FREE'
+								)
+							)
+							{
+								if (data.result[0].error === 'PUBLIC_PAGE_REACHED')
+								{
+									top.BX.UI.InfoHelper.show('limit_sites_number_page');
+								}
+								else if (data.result[0].error === 'PUBLIC_SITE_REACHED_FREE')
+								{
+									top.BX.UI.InfoHelper.show('limit_sites_free');
+								}
+								else
+								{
+									if (this.siteType === 'STORE')
+									{
+										top.BX.UI.InfoHelper.show('limit_shop_number');
+									}
+									else if (this.siteType === 'KNOWLEDGE')
+									{
+										top.BX.UI.InfoHelper.show('limit_knowledge_base_number_page');
+									}
+									else
+									{
+										top.BX.UI.InfoHelper.show('limit_sites_number');
+									}
+								}
+							}
+							else if (data.result[0].error === 'FREE_DOMAIN_IS_NOT_ALLOWED')
+							{
+								top.BX.UI.InfoHelper.show('limit_free_domen');
+							}
+							else if (data.result[0].error === 'EMAIL_NOT_CONFIRMED')
+							{
+								top.BX.UI.InfoHelper.show('limit_sites_confirm_email');
+							}
+							else if (
 								typeof BX.Landing.PaymentAlertShow !== 'undefined' &&
 								data.error_type === 'payment'
 							)
@@ -187,120 +229,7 @@
 					}
 				}.bind(this)
 			});
-		},
-
-		/**
-		 * Transfer the site to the another type.
-		 * @param id Site id.
-		 * @param params Some params.
-		 */
-		transfer: function(id, params)
-		{
-			if (!BX.type.isPlainObject(params))
-			{
-				params = {};
-			}
-
-			// base popup create
-			if (!this.transferPopup)
-			{
-				this.transferPopup = new BX.PopupWindow('landing-domain-popup', null, {
-					titleBar: BX.message('LANDING_ACTION_DIALOG_CONTENT'),
-					content : BX('landing_domain_popup'),
-					contentBackground: '#eef2f4',
-					overlay: true,
-					closeByEsc: true,
-					zIndexAbsolute: 1050,
-					buttons: [
-						new BX.PopupWindowButton({
-							id: 'landing-popup-window-button-accept',
-							text : BX.message('BLOCK_CONTINUE'),
-							className: 'popup-window-button-accept',
-							events: {
-								click : function()
-								{
-									this.action(
-										'Site::update',
-										{
-											id: id,
-											fields: {
-												DOMAIN_ID: BX('new_domain_name').value,
-												TYPE: params.type
-														? params.type.toUpperCase()
-														: null
-											}
-										},
-										function()
-										{
-											this.transferPopup.close();
-											BX.onCustomEvent('BX.Landing.Filter:apply');
-										}.bind(this)
-									);
-								}.bind(this)
-							}
-						}),
-						new BX.PopupWindowButton({
-							text : BX.message('BLOCK_CANCEL'),
-							className: 'popup-window-button-link',
-							events: {
-								click : function()
-								{
-									this.transferPopup.close();
-								}.bind(this)
-							}
-						})
-					],
-				});
-			}
-
-			// set dynamic parts popup
-			BX('new_domain_name').value = params.domainName;
-			BX('new_domain_name_title').textContent = params.domainName;
-			BX('new_domain_name_id').value = params.domainId;
-			BX('landing_domain_address_allow').style.display = 'none';
-			BX('landing_domain_address_disallow').style.display = 'none';
-
-			// custom or b24 domain
-			if (params.domainB24Name)
-			{
-				BX('new_domain_name_own').value = '';
-				BX('new_domain_name_b24').value = params.domainB24Name;
-			}
-			else
-			{
-				BX('new_domain_name_b24').value = '';
-				BX('new_domain_name_own').value = params.domainName;
-			}
-
-			// show
-			this.transferPopup.show();
-
-			// check domain available
-			this.action(
-				'Domain::check',
-				{
-					domain: params.domainName,
-					filter: {
-						'!ID': params.domainId
-					}
-				},
-				function(data)
-				{
-					if (
-						data.result &&
-						data.result.available === true
-					)
-					{
-						BX('landing_domain_address_allow').style.display = 'block';
-					}
-					else
-					{
-						BX('landing_domain_address_disallow').style.display = 'block';
-					}
-				}.bind(this)
-			);
 		}
-
 	}
 
 })();

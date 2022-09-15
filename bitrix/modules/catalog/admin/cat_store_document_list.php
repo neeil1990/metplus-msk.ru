@@ -1,16 +1,28 @@
-<?
+<?php
+
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog;
+
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
 global $APPLICATION;
 global $DB;
 global $USER;
 
+Loc::loadMessages(__FILE__);
+
+/** @global CAdminPage $adminPage */
+global $adminPage;
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+global $adminSidePanelHelper;
+
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if(!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_store')))
-	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
-CModule::IncludeModule("catalog");
+if(!$USER->CanDoOperation('catalog_store'))
+	$APPLICATION->AuthForm(Loc::getMessage('ACCESS_DENIED'));
+Loader::includeModule('catalog');
 $bReadOnly = !$USER->CanDoOperation('catalog_store');
 
 if($ex = $APPLICATION->GetException())
@@ -24,22 +36,15 @@ if($ex = $APPLICATION->GetException())
 	die();
 }
 
-IncludeModuleLangFile(__FILE__);
-
-ClearVars();
-
 $sTableID = "b_catalog_store_docs";
 
 $oSort = new CAdminUiSorting($sTableID, "ID", "DESC");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
 
 $errorMessage = "";
-$bVarsFromForm = false;
 
-$ID = (isset($_REQUEST["ID"]) ? (int)$_REQUEST["ID"] : 0);
-$TAB_TITLE = (isset($TAB_TITLE)) ? GetMessage("CAT_DOC_$TAB_TITLE") : GetMessage("CAT_DOC_NEW");
+$ID = (int)($_REQUEST['ID'] ?? 0);
 
-$str_ACTIVE = "Y";
 $userId = $USER->GetID();
 
 /** For a given contractor ID, issues generated title.
@@ -70,42 +75,48 @@ function getContractorTitle($contractorId)
 }
 
 /** For a given site ID, issues generated site title.
- * @param $siteId
+ * @param string|null $siteId
  * @return string
  */
-function getSiteTitle($siteId)
+
+function getSiteTitle(?string $siteId): string
 {
-	static $rsSites = '';
-	static $arSitesShop = array();
+	static $arSitesShop = null;
+
+	$siteId = (string)$siteId;
 	$siteTitle = $siteId;
 
-	if($rsSites === '')
+	if ($arSitesShop === null)
 	{
-		$rsSites = CSite::GetList($b="id", $o="asc", Array("ACTIVE" => "Y"));
+		$arSitesShop = [];
+		$rsSites = CSite::GetList("id", "asc", ["ACTIVE" => "Y"]);
 		while($arSite = $rsSites->GetNext())
-			$arSitesShop[] = array("ID" => $arSite["ID"], "NAME" => $arSite["NAME"]);
+		{
+			$arSitesShop[] = [
+				"ID" => $arSite["ID"],
+				"NAME" => $arSite["NAME"],
+			];
+		}
+		unset($rsSites);
 	}
 
 	foreach($arSitesShop as $arSite)
 	{
-		if($arSite["ID"] == $siteId)
+		if($arSite["ID"] === $siteId)
 		{
 			$siteTitle = $arSite["NAME"]." (".$arSite["ID"].")";
 		}
 	}
+
 	return $siteTitle;
 }
 
-if($bVarsFromForm)
-	$DB->InitTableVarsForEdit("b_catalog_store_docs", "", "str_");
-
-$documentTypes = CCatalogDocs::$types;
 $arSiteMenu = array();
-$listDocType = array();
-foreach($documentTypes as $type => $class)
+
+$listDocType = Catalog\StoreDocumentTable::getTypeList(true);
+foreach ($listDocType as $type => $title)
 {
-	$listDocType[$type] = GetMessage("CAT_DOC_".$type);
-	$addUrl = $selfFolderUrl."cat_store_document_edit.php?lang=".LANGUAGE_ID."&DOCUMENT_TYPE=".$type."";
+	$addUrl = $selfFolderUrl."cat_store_document_edit.php?lang=".LANGUAGE_ID."&DOCUMENT_TYPE=".$type;
 	$addUrl = $adminSidePanelHelper->editUrlToPublicPage($addUrl);
 	if ($publicMode)
 	{
@@ -116,16 +127,16 @@ foreach($documentTypes as $type => $class)
 		$action = "window.location = '".$addUrl."';";
 	}
 	$arSiteMenu[] = array(
-		"TEXT" => GetMessage("CAT_DOC_".$type),
+		"TEXT" => $title,
 		"ACTION" => $action
 	);
 }
 
 $aContext = array(
 	array(
-		"TEXT" => GetMessage("CAT_DOC_ADD"),
+		"TEXT" => Loc::getMessage("CAT_DOC_ADD"),
 		"ICON" => "btn_new",
-		"TITLE" =>  GetMessage("CAT_DOC_ADD_TITLE"),
+		"TITLE" =>  Loc::getMessage("CAT_DOC_ADD_TITLE"),
 		"DISABLE" => true,
 		"MENU" => $arSiteMenu
 	),
@@ -135,7 +146,7 @@ $lAdmin->setContextSettings(array("pagePath" => $selfFolderUrl."cat_store_docume
 $lAdmin->AddAdminContextMenu($aContext);
 
 $listSite = array();
-$sitesQueryObject = CSite::getList($bySite = "sort", $orderSite = "asc", array("ACTIVE" => "Y"));
+$sitesQueryObject = CSite::getList("sort", "asc", array("ACTIVE" => "Y"));
 while ($site = $sitesQueryObject->fetch())
 {
 	$listSite[$site["LID"]] = "[".$site["LID"]."] ".$site["NAME"];
@@ -147,74 +158,123 @@ while($arContractorRes = $dbContractors->fetch())
 	$listContractors[$arContractorRes["ID"]] = getContractorTitle($arContractorRes["ID"]);
 }
 
-$filterFields = array(
-	array(
+$statusList = Catalog\StoreDocumentTable::getStatusList();
+$filterFields = [
+	[
 		"id" => "ID",
 		"name" => "ID",
 		"filterable" => "",
 		"quickSearch" => ""
-	),
-	array(
+	],
+	[
 		"id" => "SITE_ID",
-		"name" => GetMessage("CAT_DOC_SITE_ID"),
+		"name" => Loc::getMessage("CAT_DOC_SITE_ID"),
 		"type" => "list",
 		"items" => $listSite,
 		"filterable" => "",
 		"default" => true
-	),
-	array(
+	],
+	[
 		"id" => "DOC_TYPE",
-		"name" => GetMessage("CAT_DOC_TYPE"),
+		"name" => Loc::getMessage("CAT_DOC_TYPE"),
 		"type" => "list",
 		"items" => $listDocType,
 		"filterable" => ""
-	),
-	array(
+	],
+	[
 		"id" => "DATE_DOCUMENT",
-		"name" => GetMessage("CAT_DOC_DATE"),
+		"name" => Loc::getMessage("CAT_DOC_DATE"),
 		"type" => "date",
 		"filterable" => ""
-	),
-	array(
+	],
+	[
 		"id" => "CONTRACTOR_ID",
-		"name" => GetMessage("CAT_DOC_CONTRACTOR"),
+		"name" => Loc::getMessage("CAT_DOC_CONTRACTOR"),
 		"type" => "list",
 		"items" => $listContractors,
 		"filterable" => ""
-	),
-	array(
+	],
+	[
 		"id" => "STATUS",
-		"name" => GetMessage("CAT_DOC_STATUS"),
+		"name" => Loc::getMessage("CAT_DOC_STATUS"),
 		"type" => "list",
-		"items" => array(
-			"Y" => GetMessage("CAT_DOC_EXECUTION_Y"),
-			"N" => GetMessage("CAT_DOC_EXECUTION_N")
-		),
+		"items" => Catalog\StoreDocumentTable::getStatusList(),
 		"filterable" => "",
-	),
-);
+	],
+	[
+		"id" => "PRODUCT",
+		"name" => Loc::getMessage('CAT_DOC_PRODUCT'),
+		"type" => "custom_entity",
+		"selector" => ["type" => "product"],
+	],
+];
 
-$arFilter = array();
+$arFilter = [];
 
 $lAdmin->AddFilter($filterFields, $arFilter);
+if (isset($arFilter['STATUS']))
+{
+	$statusFilter = Catalog\StoreDocumentTable::getOrmFilterByStatus($arFilter['STATUS']);
+	unset($arFilter['STATUS']);
+	if (!empty($statusFilter))
+	{
+		$arFilter = array_merge(
+			$arFilter,
+			$statusFilter
+		);
+	}
+	unset($statusFilter);
+}
 
 global $by, $order;
 if (!isset($by))
-	$by = 'ID';
-$by = strtoupper($by);
+{
+	$by = 'DATE_MODIFY';
+}
+$by = mb_strtoupper($by);
 
 if (!isset($order))
+{
 	$order = 'DESC';
-$order = strtoupper($order);
-$docsOrder = array($by => $order);
+}
+$order = mb_strtoupper($order);
+
+switch ($by)
+{
+	case 'STATUS':
+		$docsOrder = [
+			'STATUS' => $order,
+			'WAS_CANCELLED' => $order,
+			'ID' => 'DESC',
+		];
+		break;
+	default:
+		$docsOrder = [
+			$by => $order,
+			'ID' => 'DESC',
+		];
+}
 
 if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 {
 	if ($_REQUEST['action_target'] == 'selected')
 	{
 		$arID = array();
-		$docsIterator = CCatalogDocs::getList($docsOrder, $arFilter, false, false, array('ID'));
-		while($arResult = $docsIterator->Fetch())
+		$filteredProduct = 0;
+		if (isset($arFilter['PRODUCT']))
+		{
+			$filteredProduct = (int)$arFilter['PRODUCT'];
+			unset($arFilter['PRODUCT']);
+		}
+		$query = Catalog\StoreDocumentTable::query()
+			->setFilter($arFilter)
+			->setOrder($docsOrder)
+			->setSelect(['ID']);
+		if ($filteredProduct > 0)
+		{
+			$query->withProduct($filteredProduct);
+		}
+		while($arResult = $query->fetch())
 		{
 			$arID[] = $arResult['ID'];
 		}
@@ -262,7 +322,7 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 						if($ex = $APPLICATION->GetException())
 							$lAdmin->AddGroupError($ex->GetString(), $ID);
 						else
-							$lAdmin->AddGroupError(GetMessage("ERROR_DELETING_TYPE"), $ID);
+							$lAdmin->AddGroupError(Loc::getMessage("ERROR_DELETING_TYPE"), $ID);
 					}
 					else
 					{
@@ -308,7 +368,7 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 				case "copy":
 					$arResult = array();
 					$DB->StartTransaction();
-					$dbDocument = CCatalogDocs::getList(array(), array("ID" => $ID), false, false, array("DOC_TYPE", "SITE_ID", "CONTRACTOR_ID", "CURRENCY", "TOTAL"));
+					$dbDocument = CCatalogDocs::getList(array(), array("ID" => $ID), false, false, array("DOC_TYPE", "SITE_ID", "CONTRACTOR_ID", "CURRENCY", "TOTAL", "RESPONSIBLE_ID"));
 					if($arDocument = $dbDocument->Fetch())
 					{
 						foreach($arDocument as $key => $value)
@@ -317,6 +377,10 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 						}
 						$arResult["DATE_DOCUMENT"] = 'now';
 						$arResult["CREATED_BY"] = $arResult["MODIFIED_BY"] = $USER->GetID();
+						if (empty($arResult["RESPONSIBLE_ID"]))
+						{
+							$arResult["RESPONSIBLE_ID"] = $USER->GetID();
+						}
 						$dbDocumentElement = CCatalogStoreDocsElement::getList(
 							array('ID' => 'ASC'),
 							array("DOC_ID" => $ID),
@@ -366,13 +430,13 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 		switch($_REQUEST['action'])
 		{
 			case 'delete':
-				$strError = GetMessage('CAT_DOC_GROUP_ERR_DELETE');
+				$strError = Loc::getMessage('CAT_DOC_GROUP_ERR_DELETE');
 				break;
 			case 'conduct':
-				$strError = GetMessage('CAT_DOC_GROUP_ERR_CONDUCT');
+				$strError = Loc::getMessage('CAT_DOC_GROUP_ERR_CONDUCT');
 				break;
 			case 'cancellation':
-				$strError = GetMessage('CAT_DOC_GROUP_ERR_CANCEL');
+				$strError = Loc::getMessage('CAT_DOC_GROUP_ERR_CANCEL');
 				break;
 		}
 		foreach ($blockedList as &$ID)
@@ -393,47 +457,141 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 	}
 }
 
-$lAdmin->AddHeaders(array(
-	array("id"=>"ID", "content"=>"ID", "sort"=>"ID", "default"=>true),
-	array("id"=>"DOC_TYPE", "content"=>GetMessage("CAT_DOC_TYPE"), "sort"=>"DOC_TYPE", "default"=>true),
-	array("id"=>"STATUS", "content"=>GetMessage("CAT_DOC_STATUS"), "sort"=>"STATUS", "default"=>true),
-	array("id"=>"DATE_DOCUMENT","content"=>GetMessage("CAT_DOC_DATE_DOCUMENT"), "sort"=>"DATE_DOCUMENT", "default"=>true),
-	array("id"=>"CREATED_BY", "content"=>GetMessage("CAT_DOC_CREATOR"),  "sort"=>"CREATED_BY", "default"=>true),
-	array("id"=>"DATE_CREATE","content"=>GetMessage("CAT_DOC_DATE_CREATE"), "sort"=>"DATE_CREATE", "default"=>false),
-	array("id"=>"MODIFIED_BY", "content"=>GetMessage("CAT_DOC_MODIFIER"),  "sort"=>"MODIFIED_BY", "default"=>true),
-	array("id"=>"DATE_MODIFY","content"=>GetMessage("CAT_DOC_DATE_MODIFY"), "sort"=>"DATE_MODIFY", "default"=>true),
-	array("id"=>"CONTRACTOR_ID", "content"=>GetMessage("CAT_DOC_CONTRACTOR"),  "sort"=>"CONTRACTOR_ID", "default"=>true),
-	array("id"=>"SITE_ID", "content"=>GetMessage("CAT_DOC_SITE_ID"),  "sort"=>"SITE_ID", "default"=>true),
-	array("id"=>"CURRENCY", "content"=>GetMessage("CAT_DOC_CURRENCY"),  "sort"=>"CURRENCY", "default"=>true),
-	array("id"=>"TOTAL", "content"=>GetMessage("CAT_DOC_TOTAL"),  "sort"=>"TOTAL", "default"=>true),
-	array("id"=>"COMMENTARY", "content"=>GetMessage("CAT_DOC_COMMENT"),  "sort"=>"COMMENTARY", "default"=>false),
-));
-$arSelectFieldsMap = array(
-	"ID" => false,
-	"DOC_TYPE" => false,
-	"STATUS" => false,
-	"DATE_DOCUMENT" => false,
-	"CREATED_BY" => false,
-	"DATE_CREATE" => false,
-	"MODIFIED_BY" => false,
-	"DATE_MODIFY" => false,
-	"CONTRACTOR_ID" => false,
-	"SITE_ID" => false,
-	"CURRENCY" => false,
-	"TOTAL" => false,
-	"COMMENTARY" => false,
-);
+$headers = [];
+
+$headers[] = [
+	'id' => 'ID',
+	'content' => 'ID',
+	'sort' => 'ID',
+	'default' => true,
+];
+$headers[] = [
+	"id" => "DOC_TYPE",
+	"content" => Loc::getMessage("CAT_DOC_TYPE"),
+	"sort" => "DOC_TYPE",
+	"default" => true,
+];
+$headers[] = [
+	'id' => 'TITLE',
+	'content' => Loc::getMessage('CAT_DOC_TITLE'),
+	'sort' => 'TITLE',
+	'default' => true,
+];
+$headers[] = [
+	"id" => "STATUS",
+	"content" => Loc::getMessage("CAT_DOC_STATUS"),
+	"sort" => "STATUS",
+	"default" => true,
+];
+$headers[] = [
+	'id' => 'DOC_NUMBER',
+	'content' => Loc::getMessage('CAT_DOC_DOC_NUMBER'),
+	'sort' => 'DOC_NUMBER',
+	'default' => true,
+];
+$headers[] = [
+	"id" => "DATE_DOCUMENT",
+	"content" => Loc::getMessage("CAT_DOC_DATE_DOCUMENT_EXT"),
+	"sort" => "DATE_DOCUMENT",
+	"default" => true,
+];
+$headers[] = [
+	'id' => 'ITEMS_ORDER_DATE',
+	'content' => Loc::getMessage('CAT_DOC_ITEMS_ORDER_DATE'),
+	'sort' => 'ITEMS_ORDER_DATE',
+	'default' => false,
+];
+$headers[] = [
+	'id' => 'ITEMS_RECEIVED_DATE',
+	'content' => Loc::getMessage('CAT_DOC_ITEMS_RECEIVED_DATE'),
+	'sort' => 'ITEMS_RECEIVED_DATE',
+	'default' => false,
+];
+$headers[] = [
+	"id" => "CREATED_BY",
+	"content" => Loc::getMessage("CAT_DOC_CREATOR"),
+	"sort" => "CREATED_BY",
+	"default" => true,
+];
+$headers[] = [
+	"id" => "DATE_CREATE",
+	"content" => Loc::getMessage("CAT_DOC_DATE_CREATE"),
+	"sort" => "DATE_CREATE",
+	"default" => false,
+];
+$headers[] = [
+	"id" => "MODIFIED_BY",
+	"content" => Loc::getMessage("CAT_DOC_MODIFIER"),
+	"sort" => "MODIFIED_BY",
+	"default" => true,
+];
+$headers[] = [
+	"id" => "DATE_MODIFY",
+	"content" => Loc::getMessage("CAT_DOC_DATE_MODIFY"),
+	"sort" => "DATE_MODIFY",
+	"default" => true,
+];
+$headers[] = [
+	'id' => 'RESPONSIBLE_ID',
+	'content' => Loc::getMessage('CAT_DOC_RESPONSIBLE_ID'),
+	'sort' => 'RESPONSIBLE_ID',
+	'default' => false,
+];
+$headers[] = [
+	"id" => "CONTRACTOR_ID",
+	"content" => Loc::getMessage("CAT_DOC_CONTRACTOR"),
+	"sort" => "CONTRACTOR_ID",
+	"default" => true,
+];
+$headers[] = [
+	"id" => "SITE_ID",
+	"content" => Loc::getMessage("CAT_DOC_SITE_ID"),
+	"sort" => "SITE_ID",
+	"default" => true,
+];
+$headers[] = [
+	"id" => "CURRENCY",
+	"content" => Loc::getMessage("CAT_DOC_CURRENCY"),
+	"sort" => "CURRENCY",
+	"default" => true,
+];
+$headers[] = [
+	"id" => "TOTAL",
+	"content" => Loc::getMessage("CAT_DOC_TOTAL"),
+	"default" => true,
+];
+$headers[] = [
+	"id" => "COMMENTARY",
+	"content" => Loc::getMessage("CAT_DOC_COMMENT"),
+	"default" => false,
+];
+
+$lAdmin->AddHeaders($headers);
+
+$arSelectFieldsMap = [];
+foreach ($headers as $item)
+{
+	$arSelectFieldsMap[$item['id']] = false;
+}
+unset($item, $headers);
 
 $arSelectFields = $lAdmin->GetVisibleHeaderColumns();
 
 $arSelectFieldsMap = array_merge($arSelectFieldsMap, array_fill_keys($arSelectFields, true));
 
-if(in_array('TOTAL', $arSelectFields))
+if (in_array('TOTAL', $arSelectFields))
+{
 	$arSelectFields[] = 'CURRENCY';
-$arReqFileds = array(
+}
+if (in_array('TITLE', $arSelectFields))
+{
+	$arSelectFields[] = 'DATE_CREATE';
+}
+$arReqFileds = [
 	'ID',
-	'STATUS'
-);
+	'STATUS',
+	'WAS_CANCELLED',
+];
 $arSelectFields = array_unique(array_merge($arSelectFields, $arReqFileds));
 
 $arUserList = array();
@@ -444,7 +602,22 @@ $showCancel = false;
 $showConduct = false;
 $showDelete = false;
 
-$dbResultList = CCatalogDocs::getList($docsOrder, $arFilter, false, false, $arSelectFields);
+$filteredProduct = 0;
+if (isset($arFilter['PRODUCT']))
+{
+	$filteredProduct = (int)$arFilter['PRODUCT'];
+	unset($arFilter['PRODUCT']);
+}
+
+$dbResultList = $query = Catalog\StoreDocumentTable::query()
+	->setFilter($arFilter)
+	->setOrder($docsOrder)
+	->setSelect($arSelectFields);
+if ($filteredProduct)
+{
+	$query->withProduct($filteredProduct);
+}
+$dbResultList = $dbResultList->exec();
 $dbResultList = new CAdminUiResult($dbResultList, $sTableID);
 $dbResultList->NavStart();
 $lAdmin->SetNavigationParams($dbResultList, array("BASE_LINK" => $selfFolderUrl."cat_store_document_list.php"));
@@ -468,24 +641,42 @@ while($arRes = $dbResultList->Fetch())
 	$bAllowForEdit = true;
 	$strForAction = "EDIT";
 
-	if ($arRes['STATUS'] == 'Y')
+	if ($arRes['STATUS'] === 'Y')
 	{
+		$arRes['COMPILE_STATUS'] = Catalog\StoreDocumentTable::STATUS_CONDUCTED;
 		$strForAction = "VIEW";
 		$bAllowForEdit = false;
 		$showCancel = true;
 	}
-	if ($arRes['STATUS'] == 'N')
+	else
 	{
+		$arRes['COMPILE_STATUS'] = $arRes['WAS_CANCELLED'] === 'Y'
+			? Catalog\StoreDocumentTable::STATUS_CANCELLED
+			: Catalog\StoreDocumentTable::STATUS_DRAFT
+		;
 		$showConduct = true;
 		$showDelete = true;
 	}
 
-	$arRows[$arRes['ID']] = $row = &$lAdmin->AddRow($arRes['ID'], $arRes, "cat_store_document_edit.php?ID=".$arRes['ID']."&lang=".LANGUAGE_ID);
+	$arRows[$arRes['ID']] = $row = &$lAdmin->AddRow($arRes['ID'], $arRes, $selfFolderUrl."cat_store_document_edit.php?ID=".$arRes['ID']."&lang=".LANGUAGE_ID);
 	$row->AddField("ID", $arRes['ID']);
 	if($arSelectFieldsMap['DOC_TYPE'])
-		$row->AddViewField('DOC_TYPE', GetMessage("CAT_DOC_".$arRes['DOC_TYPE']));
-	if($arSelectFieldsMap['STATUS'])
-		$row->AddViewField("STATUS", GetMessage("CAT_DOC_EXECUTION_".$arRes['STATUS']));
+		$row->AddViewField('DOC_TYPE', $listDocType[$arRes['DOC_TYPE']]);
+	if ($arSelectFieldsMap['STATUS'])
+	{
+		$row->AddViewField('STATUS', $statusList[$arRes['COMPILE_STATUS']]);
+	}
+	if ($arSelectFieldsMap['TITLE'])
+	{
+		$title = $arRes['TITLE'];
+		$title .= '<div>' . Loc::getMessage(
+			'CAT_DOC_TITLE_DOCUMENT_DATE',
+			[
+				'#DATE#' => FormatDateFromDB($arRes['DATE_CREATE'], 'SHORT'),
+			]
+		) . '</div>';
+		$row->AddViewField('TITLE', $title);
+	}
 	if($arSelectFieldsMap['DATE_DOCUMENT'])
 		$row->AddCalendarField('DATE_DOCUMENT', false);
 	if($arSelectFieldsMap['DATE_CREATE'])
@@ -527,7 +718,7 @@ while($arRes = $dbResultList->Fetch())
 	$editUrl = $adminSidePanelHelper->editUrlToPublicPage($editUrl);
 	$arActions[] = array(
 		"ICON" => "edit",
-		"TEXT" => GetMessage("CAT_DOC_".$strForAction),
+		"TEXT" => Loc::getMessage("CAT_DOC_".$strForAction),
 		"LINK" => $editUrl,
 		"DEFAULT" => true
 	);
@@ -538,18 +729,18 @@ while($arRes = $dbResultList->Fetch())
 		{
 			$arActions[] = array(
 				"ICON" => "pack",
-				"TEXT" => GetMessage("CAT_DOC_CONDUCT"),
+				"TEXT" => Loc::getMessage("CAT_DOC_CONDUCT"),
 				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "conduct")
 			);
 			$arActions[] = array(
 				"ICON" => "copy",
-				"TEXT" => GetMessage("CAT_DOC_COPY"),
+				"TEXT" => Loc::getMessage("CAT_DOC_COPY"),
 				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "copy")
 			);
 			$arActions[] = array(
 				"ICON" => "delete",
-				"TEXT" => GetMessage("CAT_DOC_DELETE"),
-				"ACTION" => "if(confirm('".GetMessageJS('CAT_DOC_DELETE_CONFIRM')."')) ".
+				"TEXT" => Loc::getMessage("CAT_DOC_DELETE"),
+				"ACTION" => "if(confirm('".CUtil::JSEscape(Loc::getMessage('CAT_DOC_DELETE_CONFIRM'))."')) ".
 					$lAdmin->ActionDoGroup($arRes['ID'], "delete")
 			);
 		}
@@ -557,12 +748,12 @@ while($arRes = $dbResultList->Fetch())
 		{
 			$arActions[] = array(
 				"ICON" => "unpack",
-				"TEXT" => GetMessage("CAT_DOC_CANCELLATION"),
+				"TEXT" => Loc::getMessage("CAT_DOC_CANCELLATION"),
 				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "cancellation")
 			);
 			$arActions[] = array(
 				"ICON" => "copy",
-				"TEXT" => GetMessage("CAT_DOC_COPY"),
+				"TEXT" => Loc::getMessage("CAT_DOC_COPY"),
 				"ACTION" => $lAdmin->ActionDoGroup($arRes['ID'], "copy")
 			);
 		}
@@ -577,18 +768,16 @@ if($arSelectFieldsMap['CREATED_BY'] || $arSelectFieldsMap['MODIFIED_BY'])
 {
 	if(!empty($arUserID))
 	{
-		$byUser = 'ID';
-		$byOrder = 'ASC';
 		$rsUsers = CUser::GetList(
-			$byUser,
-			$byOrder,
+			'ID',
+			'ASC',
 			array('ID' => implode(' | ', array_keys($arUserID))),
 			array('FIELDS' => array('ID', 'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL'))
 		);
 		while($arOneUser = $rsUsers->Fetch())
 		{
 			$arOneUser['ID'] = (int)$arOneUser['ID'];
-			$urlToUser = $selfFolderUrl."user_edit.php?lang=".LANGUAGE_ID."&ID=".$arOneUser["ID"]."";
+			$urlToUser = $selfFolderUrl."user_edit.php?lang=".LANGUAGE_ID."&ID=".$arOneUser["ID"];
 			if ($publicMode)
 			{
 				$urlToUser = $selfFolderUrl."sale_buyers_profile.php?USER_ID=".$arOneUser["ID"]."&lang=".LANGUAGE_ID;
@@ -626,23 +815,23 @@ if (!$bReadOnly)
 {
 	$actionList = array();
 	if ($showConduct)
-		$actionList['conduct'] = GetMessage('CAT_DOC_CONDUCT');
+		$actionList['conduct'] = Loc::getMessage('CAT_DOC_CONDUCT');
 	if ($showCancel)
-		$actionList['cancellation'] = GetMessage('CAT_DOC_CANCELLATION');
-	$actionList['copy'] = GetMessage('CAT_DOC_COPY');
+		$actionList['cancellation'] = Loc::getMessage('CAT_DOC_CANCELLATION');
+	$actionList['copy'] = Loc::getMessage('CAT_DOC_COPY');
 	if ($showDelete)
-		$actionList['delete'] = GetMessage('MAIN_ADMIN_LIST_DELETE');
+		$actionList['delete'] = Loc::getMessage('MAIN_ADMIN_LIST_DELETE');
 	$lAdmin->AddGroupActionTable($actionList);
 }
 
 $lAdmin->CheckListMode();
 
-$APPLICATION->SetTitle(GetMessage("CAT_DOCS"));
+$APPLICATION->SetTitle(Loc::getMessage("CAT_DOCS"));
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 
 $lAdmin->DisplayFilter($filterFields);
 $lAdmin->DisplayList();
-if(strlen($errorMessage) > 0)
+if($errorMessage <> '')
 	CAdminMessage::ShowMessage($errorMessage);
 
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

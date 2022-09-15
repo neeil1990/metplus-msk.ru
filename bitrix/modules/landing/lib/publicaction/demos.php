@@ -21,7 +21,7 @@ class Demos
 		{
 			foreach ($item as $key => $value)
 			{
-				$key = strtoupper($key);
+				$key = mb_strtoupper($key);
 				if (isset($filter[$key]))
 				{
 					$value = (array)$value;
@@ -48,12 +48,17 @@ class Demos
 	{
 		$result = new PublicActionResult();
 
+		if (!is_string($type))
+		{
+			return $result;
+		}
+
 		$componentName = 'bitrix:landing.demo';
 		$className = \CBitrixComponent::includeComponentClass($componentName);
 		$demoCmp = new $className;
 		$demoCmp->initComponent($componentName);
 		$demoCmp->arParams = array(
-			'TYPE' => strtoupper($type)
+			'TYPE' => mb_strtoupper($type)
 		);
 
 		if ($page)
@@ -131,12 +136,17 @@ class Demos
 	{
 		$result = new PublicActionResult();
 
+		if (!is_string($code) || !is_string($type))
+		{
+			return $result;
+		}
+
 		$componentName = 'bitrix:landing.demo';
 		$className = \CBitrixComponent::includeComponentClass($componentName);
 		$demoCmp = new $className;
 		$demoCmp->initComponent($componentName);
 		$demoCmp->arParams = array(
-			'TYPE' => strtoupper($type)
+			'TYPE' => mb_strtoupper($type)
 		);
 
 		$result->setResult($demoCmp->getUrlPreview($code));
@@ -286,7 +296,7 @@ class Demos
 			}
 			foreach ($fieldCode as $code)
 			{
-				$codel = strtolower($code);
+				$codel = mb_strtolower($code);
 				if (isset($item[$codel]))
 				{
 					$fields[$code] = $item[$codel];
@@ -388,6 +398,11 @@ class Demos
 
 		$result->setResult(false);
 
+		if (!is_string($code))
+		{
+			return $result;
+		}
+
 		// search and delete
 		if ($code)
 		{
@@ -436,6 +451,7 @@ class Demos
 	public static function getList(array $params = array())
 	{
 		$result = new PublicActionResult();
+		$params = $result->sanitizeKeys($params);
 
 		if (!is_array($params))
 		{
@@ -448,14 +464,11 @@ class Demos
 		{
 			$params['filter'] = array();
 		}
+
 		// set app code
 		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
 		{
-			$params['filter']['APP_CODE'] = $app['CODE'];
-		}
-		else
-		{
-			$params['filter']['APP_CODE'] = false;
+			$params['filter']['=APP_CODE'] = $app['CODE'];
 		}
 
 		$data = array();
@@ -470,7 +483,11 @@ class Demos
 			{
 				$row['DATE_MODIFY'] = (string) $row['DATE_MODIFY'];
 			}
-			$row['MANIFEST'] = unserialize($row['MANIFEST']);
+			$row['MANIFEST'] = unserialize($row['MANIFEST'], ['allowed_classes' => false]);
+			if ($row['LANG'])
+			{
+				$row['LANG'] = unserialize($row['LANG'], ['allowed_classes' => false]);
+			}
 			$data[] = $row;
 		}
 		$result->setResult($data);

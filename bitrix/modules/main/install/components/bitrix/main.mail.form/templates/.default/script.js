@@ -63,7 +63,6 @@
 
 		if (!event.defaultPrevented && event.returnValue !== false)
 		{
-			this.hideError();
 			BX.addClass(button, 'ui-btn-wait');
 			button.disabled = true;
 			button.offsetHeight; // hack to show loader
@@ -110,12 +109,17 @@
 	BXMainMailForm.prototype.showError = function (html)
 	{
 		var errorNode = BX.findChildByClassName(this.formWrapper, 'main-mail-form-error', true);
-		BX.adjust(errorNode, {
-			html: html,
-			style: {
-				display: 'block'
-			}
+
+		var alert = new BX.UI.Alert({
+			text: html,
+			inline: true,
+			closeBtn: true,
+			animate: true,
+			color: BX.UI.Alert.Color.DANGER,
 		});
+
+		errorNode.innerHTML = '';
+		errorNode.append(alert.getContainer());
 
 		this.initScrollable();
 		if (this.__scrollable)
@@ -129,16 +133,6 @@
 			else if (pos0.bottom < pos1.bottom-10-this.__scrollable.scrollTop)
 				this.__scrollable.scrollTop = pos1.bottom-10-pos0.bottom;
 		}
-	};
-
-	BXMainMailForm.prototype.hideError = function ()
-	{
-		var errorNode = BX.findChildByClassName(this.formWrapper, 'main-mail-form-error', true);
-		BX.adjust(errorNode, {
-			style: {
-				display: 'none'
-			}
-		});
 	};
 
 	BXMainMailForm.prototype.init = function()
@@ -803,81 +797,91 @@
 			}
 		};
 
-		var selectorParams = {
-			name: field.selector,
-			searchInput: input,
-			bindMainPopup: {
-				node: wrapper,
-				offsetTop: '5px',
-				offsetLeft: '15px'
-			},
-			bindSearchPopup : {
-				node: wrapper,
-				offsetTop: '5px',
-				offsetLeft: '15px'
-			},
-			callback: {
-				select: select,
-				unSelect: unselect,
-				openDialog: BX.delegate(BX.SocNetLogDestination.BXfpOpenDialogCallback, {
-					inputBoxName: input.parentNode,
-					inputName: input,
-					tagInputName: link
-				}),
-				closeDialog: function()
-				{
-					BX.onCustomEvent(field.form, 'MailForm:field:rcptSelectorClose', [field.form, field]);
-					BX.SocNetLogDestination.BXfpCloseDialogCallback.apply({
+		if (field.form.options.version < 2)
+		{
+			var selectorParams = {
+				name: field.selector,
+				searchInput: input,
+				bindMainPopup: {
+					node: wrapper,
+					offsetTop: '5px',
+					offsetLeft: '15px'
+				},
+				bindSearchPopup : {
+					node: wrapper,
+					offsetTop: '5px',
+					offsetLeft: '15px'
+				},
+				callback: {
+					select: select,
+					unSelect: unselect,
+					openDialog: BX.delegate(BX.SocNetLogDestination.BXfpOpenDialogCallback, {
 						inputBoxName: input.parentNode,
 						inputName: input,
 						tagInputName: link
-					});
+					}),
+					closeDialog: function()
+					{
+						BX.onCustomEvent(field.form, 'MailForm:field:rcptSelectorClose', [field.form, field]);
+						BX.SocNetLogDestination.BXfpCloseDialogCallback.apply({
+							inputBoxName: input.parentNode,
+							inputName: input,
+							tagInputName: link
+						});
+					},
+					openSearch: BX.delegate(BX.SocNetLogDestination.BXfpOpenDialogCallback, {
+						inputBoxName: input.parentNode,
+						inputName: input,
+						tagInputName: link
+					})
 				},
-				openSearch: BX.delegate(BX.SocNetLogDestination.BXfpOpenDialogCallback, {
-					inputBoxName: input.parentNode,
-					inputName: input,
-					tagInputName: link
-				})
-			},
-			items: {},
-			itemsLast: {},
-			itemsSelected: {},
-			destSort: {}
-		};
+				items: {},
+				itemsLast: {},
+				itemsSelected: {},
+				destSort: {}
+			};
 
-		if (field.params.selector)
-		{
-			for (var i in field.params.selector)
-				selectorParams[i] = field.params.selector[i];
+			if (field.params.selector)
+			{
+				for (var i in field.params.selector)
+					selectorParams[i] = field.params.selector[i];
+			}
+
+			BX.SocNetLogDestination.init(selectorParams);
+
+			BX.bind(input, 'keydown', BX.delegate(BX.SocNetLogDestination.BXfpSearchBefore, {
+				formName: field.selector,
+				inputName: input
+			}));
+			BX.bind(input, 'keyup', BX.delegate(BX.SocNetLogDestination.BXfpSearch, {
+				formName: field.selector,
+				inputName: input,
+				tagInputName: link
+			}));
+			BX.bind(input, 'paste', BX.defer(BX.SocNetLogDestination.BXfpSearch, {
+				formName: field.selector,
+				inputName: input,
+				tagInputName: link,
+				onPasteEvent: true
+			}));
+			BX.bind(input, 'blur', BX.delegate(BX.SocNetLogDestination.BXfpBlurInput, {
+				inputBoxName: input.parentNode,
+				tagInputName: link
+			}));
+
+			BX.bind(wrapper, 'click', function(e)
+			{
+				BX.SocNetLogDestination.openDialog(field.selector);
+				BX.PreventDefault(e);
+			});
 		}
 
-		BX.SocNetLogDestination.init(selectorParams);
 
-		BX.bind(input, 'keydown', BX.delegate(BX.SocNetLogDestination.BXfpSearchBefore, {
-			formName: field.selector,
-			inputName: input
-		}));
-		BX.bind(input, 'keyup', BX.delegate(BX.SocNetLogDestination.BXfpSearch, {
-			formName: field.selector,
-			inputName: input,
-			tagInputName: link
-		}));
-		BX.bind(input, 'paste', BX.defer(BX.SocNetLogDestination.BXfpSearch, {
-			formName: field.selector,
-			inputName: input,
-			tagInputName: link,
-			onPasteEvent: true
-		}));
-		BX.bind(input, 'blur', BX.delegate(BX.SocNetLogDestination.BXfpBlurInput, {
-			inputBoxName: input.parentNode,
-			tagInputName: link
-		}));
 
-		BX.bind(wrapper, 'click', function(e)
-		{
-			BX.SocNetLogDestination.openDialog(field.selector);
-			BX.PreventDefault(e);
-		});
+
+
+
+
 
 		BX.bind(more, 'click', function(e)
 		{
@@ -917,30 +921,16 @@
 			editor, 'OnIframeClick',
 			function()
 			{
-				BX.SocNetLogDestination.abortSearchRequest();
-				BX.SocNetLogDestination.closeSearch();
-				BX.SocNetLogDestination.closeDialog();
+				if (field.form.options.version < 2)
+				{
+					BX.SocNetLogDestination.abortSearchRequest();
+					BX.SocNetLogDestination.closeSearch();
+					BX.SocNetLogDestination.closeDialog();
+				}
 
 				BX.onCustomEvent(field.form, 'MailForm::editor:click', []);
 			}
 		);
-
-		var toolbarButton = BX.findChildByClassName(field.params.__row, 'feed-add-post-form-editor-btn', true);
-
-		var toogleToolbar = function(show)
-		{
-			show = show ? true : false;
-
-			editor.toolbar[show?'Show':'Hide']();
-			BX[show?'addClass':'removeClass'](toolbarButton, 'feed-add-post-form-btn-active');
-			BX[show?'removeClass':'addClass'](field.params.__row, 'main-mail-form-editor-no-toolbar');
-		};
-
-		toogleToolbar(editor.toolbar.shown);
-		BX.bind(toolbarButton, 'click', function()
-		{
-			toogleToolbar(!editor.toolbar.shown);
-		});
 
 		// append original message quote
 		var quoteButton = BX.findChildByClassName(field.form.htmlForm, 'main-mail-form-quote-button', true);
@@ -953,13 +943,7 @@
 				field.setValue(editor.GetContent(), {quote: true, signature: false});
 				editor.Focus(false);
 
-				var height0, height1;
-
-				height0 = quoteButton.parentNode.offsetHeight;
-				BX.hide(quoteButton, 'inline-block');
-				height1 = quoteButton.parentNode.offsetHeight;
-
-				editor.ResizeSceleton(0, editor.config.height+height0-height1);
+				BX.hide(quoteButton.parentNode.parentNode || quoteButton.parentNode)
 			}
 		};
 		BX.bind(quoteButton, 'click', quoteHandler);
@@ -976,12 +960,17 @@
 		BX.addCustomEvent(editor, 'OnSetViewAfter', modeHandler);
 
 		// wysiwyg -> code inline-attachments parser
-		postForm.parser.disk_file.regexp = /(bxacid):(n?\d+)/ig;
-		editor.phpParser.AddBxNode('disk_file', {
+		if (postForm.parser)
+		{
+			postForm.parser.disk_file.regexp = /(bxacid):(n?\d+)/ig;
+		}
+		editor.phpParser.AddBxNode('diskfile0', {
 			Parse: function (params, bxid)
 			{
 				var node = editor.GetIframeDoc().getElementById(bxid) || BX.findChild(field.quoteNode, {attr: {id: bxid}}, true);
-				if (node)
+				var params = editor.GetBxTag(bxid);
+
+				if (node && params)
 				{
 					var dummy = document.createElement('DIV');
 
@@ -995,7 +984,7 @@
 						node.setAttribute('data-bx-orig-src', node.getAttribute('src'));
 						node.setAttribute('src', image);
 
-						return dummy.innerHTML.replace(image, 'bxacid:'+params.value);
+						return dummy.innerHTML.replace(image, 'bxacid:'+params.fileId);
 					}
 
 					return dummy.innerHTML;
@@ -1014,7 +1003,7 @@
 
 				for (i in editor.bxTags)
 				{
-					if (editor.bxTags[i].params && editor.bxTags[i].params.value == result)
+					if (editor.bxTags[i].fileId && editor.bxTags[i].fileId == result)
 					{
 						var node = editor.GetIframeDoc().getElementById(editor.bxTags[i].id);
 						if (node && node.parentNode)
@@ -1106,20 +1095,31 @@
 
 	BXMainMailFormField.__types['rcpt'].setValue = function(field, value)
 	{
-		var selected = BX.SocNetLogDestination.getSelected(field.selector);
-		for (var id in selected)
-			BX.SocNetLogDestination.deleteItem(id, selected[id], field.selector);
+		if (field.form.options.version < 2)
+		{
+			var selected = BX.SocNetLogDestination.getSelected(field.selector);
+			for (var id in selected)
+				BX.SocNetLogDestination.deleteItem(id, selected[id], field.selector);
+		}
 
 		if (value && BX.type.isPlainObject(value))
 		{
-			for (var id in value)
+			if (field.form.options.version < 2)
 			{
-				if (value.hasOwnProperty(id))
+				for (var id in value)
 				{
-					BX.SocNetLogDestination.obItemsSelected[field.selector][id] = value[id];
-					BX.SocNetLogDestination.runSelectCallback(id, value[id], field.selector, false, 'init');
+					if (value.hasOwnProperty(id))
+					{
+						BX.SocNetLogDestination.obItemsSelected[field.selector][id] = value[id];
+						BX.SocNetLogDestination.runSelectCallback(id, value[id], field.selector, false, 'init');
+					}
 				}
 			}
+
+			BX.onCustomEvent("BX.Main.SelectorV2:reInitDialog", [ {
+				selectorId: field.params.id,
+				selectedItems: BX.clone(value)
+			} ]);
 		}
 	};
 
@@ -1230,7 +1230,7 @@
 				var matches = nodeList[i].getAttribute(types[name])
 					? nodeList[i].getAttribute(types[name]).match(regex)
 					: false;
-				if (matches && postForm.arFiles['disk_file'+matches[1]])
+				if (matches)
 				{
 					nodeList[i].removeAttribute('id');
 					nodeList[i].setAttribute(
@@ -1238,10 +1238,7 @@
 						nodeList[i].getAttribute(types[name]).replace(regex, '')
 					);
 
-					editor.SetBxTag(nodeList[i], {'tag': 'disk_file', params: {'value': matches[1]}});
-
-					postForm.monitoringSetStatus('disk_file', matches[1], true);
-					postForm.monitoringStart();
+					editor.SetBxTag(nodeList[i], {'tag': 'diskfile0', fileId: matches[1]});
 				}
 			}
 		}

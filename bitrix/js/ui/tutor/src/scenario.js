@@ -885,7 +885,7 @@ export class Scenario extends Event.EventEmitter {
 			this.layout.link =
 				Tag.render`
 					<span class="ui-tutor-popup-help-link" onclick="${this.handleClickLinkHandler.bind(this)}">
-						<span class="ui-tutor-popup-help-link-text">${Loc.getMessage('JS_UI_TUTOR_ARTICLE_HELP')}</span>
+						<span class="ui-tutor-popup-help-link-text">${Loc.getMessage('JS_UI_TUTOR_ARTICLE_HELP_TOPIC')}</span>
 					</span>
 				`;
 		}

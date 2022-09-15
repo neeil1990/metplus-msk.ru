@@ -1,9 +1,5 @@
 <?
-$MESS["JS_UI_TUTOR_ARTICLE_EMPTY"] = "Статей поки немає";
-$MESS["JS_UI_TUTOR_ARTICLE_HELP"] = "Додаткові статті про налаштування та бізнес-сценарії";
-$MESS["JS_UI_TUTOR_ARTICLE_SCENARIO"] = "Сценарії";
-$MESS["JS_UI_TUTOR_ARTICLE_SETTINGS"] = "Налаштування";
-$MESS["JS_UI_TUTOR_ARTICLE_WORK"] = "Щоденна робота";
+$MESS["JS_UI_TUTOR_ARTICLE_HELP_TOPIC"] = "Прочитати статті по темі";
 $MESS["JS_UI_TUTOR_BTN_BEGIN"] = "Почати";
 $MESS["JS_UI_TUTOR_BTN_COMPLETED"] = "Завдання виконано";
 $MESS["JS_UI_TUTOR_BTN_COMPLETED_SHORT"] = "виконано";
@@ -24,7 +20,6 @@ $MESS["JS_UI_TUTOR_DEFER_MENU_WEEK"] = "На тиждень";
 $MESS["JS_UI_TUTOR_FINAL_CONGRATULATIONS"] = "Вітаємо";
 $MESS["JS_UI_TUTOR_FINAL_NOTICE"] = "Усі завдання виконані";
 $MESS["JS_UI_TUTOR_FINAL_TEXT"] = "Ви успішно пройшли наставника";
-$MESS["JS_UI_TUTOR_STEP"] = "Крок";
 $MESS["JS_UI_TUTOR_STEP_COMPLETED"] = "Завдання виконано";
 $MESS["JS_UI_TUTOR_STEP_NEW"] = "Але зараз у ньому з'явилися нові кроки.  Хочете їх пройти?";
 $MESS["JS_UI_TUTOR_STEP_TITLE"] = "Завдання";

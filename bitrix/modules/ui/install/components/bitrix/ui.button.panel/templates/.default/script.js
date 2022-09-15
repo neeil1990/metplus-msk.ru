@@ -6,30 +6,53 @@
 
 	var Panel = function()
 	{
-
+		this.layout = {
+			container: null
+		}
 	};
 	Panel.prototype = {
 		init: function (options)
 		{
-			options = options || {};
-			this.context = BX(options.containerId);
+			this.layout.container= BX(options.containerId);
 			this.isFrame = options.isFrame || false;
 			this.hasHints = options.hasHints || false;
+			this.pinnerContainer = options.pinnerContainer || false;
 
 			this.pinner = new BX.UI.Pinner(
-				this.context,
+				this.layout.container,
 				{
 					fixBottom: this.isFrame,
-					fullWidth: this.isFrame
+					fullWidth: this.isFrame,
+					anchorBottom: this.pinnerContainer
 				}
 			);
 
 			if (this.hasHints)
 			{
-				BX.UI.Hint.init(this.context);
+				BX.UI.Hint.init(this.layout.container);
 			}
 
 			options.buttons.forEach(this.initButton, this);
+		},
+
+		getContainer: function()
+		{
+			return this.layout.container;
+		},
+
+		hide: function()
+		{
+			if(!this.layout.container)
+			{
+				return;
+			}
+
+			this.layout.container.classList.add('ui-button-panel-wrapper-hide');
+		},
+
+		show: function()
+		{
+			this.layout.container.classList.remove('ui-button-panel-wrapper-hide');
 		},
 
 		initButton: function (button)

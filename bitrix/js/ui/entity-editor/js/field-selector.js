@@ -1,5 +1,4 @@
 /**
- * @author Grigoriy Zavodov <zavodov@gmail.com>
  * @version 1.0
  * @copyright Bitrix Inc. 2019
  */
@@ -15,9 +14,10 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 		this._settings = {};
 		this._scheme = null;
 		this._excludedNames = null;
-		this._emitter = null;
 		this._contentWrapper = null;
 		this._popup = null;
+		this.fieldVisibleClass = 'ui-entity-editor-popup-field-search-list-item-visible';
+		this.fieldHiddenClass = 'ui-entity-editor-popup-field-search-list-item-hidden';
 	};
 
 	BX.UI.EntityEditorFieldSelector.prototype =
@@ -32,7 +32,6 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 				throw "BX.UI.EntityEditorFieldSelector. Parameter 'scheme' is not found.";
 			}
 			this._excludedNames = BX.prop.getArray(this._settings, "excludedNames", []);
-			this._emitter = new BX.Event.EventEmitter();
 		},
 		getMessage: function(name)
 		{
@@ -52,11 +51,11 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 		},
 		addClosingListener: function(listener)
 		{
-			this._emitter.subscribe("BX.UI.EntityEditorFieldSelector:close", listener);
+			BX.Event.EventEmitter.subscribe("BX.UI.EntityEditorFieldSelector:close", listener);
 		},
 		removeClosingListener: function(listener)
 		{
-			this._emitter.unsubscribe("BX.UI.EntityEditorFieldSelector:close", listener);
+			BX.Event.EventEmitter.unsubscribe("BX.UI.EntityEditorFieldSelector:close", listener);
 		},
 		isOpened: function()
 		{
@@ -80,11 +79,6 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 					closeIcon: {},
 					zIndex: 1,
 					titleBar: BX.prop.getString(this._settings, "title", ""),
-					events:
-						{
-							onPopupClose: BX.delegate(this._onPopupClose, this),
-							onPopupDestroy: BX.delegate(this._onPopupDestroy, this)
-						},
 					content: this.prepareContent(),
 					lightShadow : true,
 					contentNoPaddings: true,
@@ -109,7 +103,10 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 									}
 							}
 						)
-					]
+					],
+					events: {
+						onPopupClose: this.onPopupClose.bind(this),
+					}
 				}
 			);
 
@@ -129,98 +126,275 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 			this._contentWrapper = BX.create("div", {
 				props: { className: "ui-entity-editor-popup-field-selector" }
 			});
+
+			var useFieldsSearch =  BX.prop.getString(this._settings, 'useFieldsSearch', false);
+			if (useFieldsSearch)
+			{
+				var headerWrapper = BX.create('div', {
+					attrs: {
+						className: 'ui-entity-editor-popup-field-search-header-wrapper',
+					},
+					children: [
+						BX.create('div', {
+							attrs: {
+								className: 'ui-form-row-inline'
+							},
+						}),
+					],
+				});
+
+				this._contentWrapper.prepend(headerWrapper);
+
+				this.prepareContentHeaderSections(headerWrapper);
+				this.prepareContentHeaderSearch(headerWrapper);
+			}
+
 			var container = BX.create("div", {
 				props: { className: "ui-entity-editor-popup-field-selector-list" }
 			});
 
-			var elements = this._scheme.getElements();
-			for(var i = 0, elementCount = elements.length; i < elementCount; i++)
+			var columns = this._scheme.getElements();
+			for(var i = 0, columnCount = columns.length; i < columnCount; i++)
 			{
-				var element = elements[i];
-				if(!this.isSchemeElementEnabled(element))
-				{
-					continue;
-				}
+				var column = columns[i];
 
-				var effectiveElements = [];
-				var elementChildren = element.getElements();
-				var childElement;
-				for(var j = 0; j < elementChildren.length; j++)
+				var sections = column.getElements();
+				for(var k = 0, sectionCount = sections.length; k < sectionCount; k++)
 				{
-					childElement = elementChildren[j];
-					if(childElement.isTransferable() && childElement.getName() !== "")
+					var section = sections[k];
+					if(!this.isSchemeElementEnabled(section))
 					{
-						effectiveElements.push(childElement);
+						continue;
 					}
-				}
 
-				if(effectiveElements.length === 0)
-				{
-					continue;
-				}
-
-				var parentName = element.getName();
-				var parentTitle = element.getTitle();
-
-				this._contentWrapper.appendChild(
-					BX.create(
-						"div",
+					var effectiveElements = [];
+					var elementChildren = section.getElements();
+					var childElement;
+					for(var j = 0; j < elementChildren.length; j++)
+					{
+						childElement = elementChildren[j];
+						if(childElement.isTransferable() && childElement.getName() !== "")
 						{
-							attrs: { className: "ui-entity-editor-popup-field-selector-list-caption" },
-							text: parentTitle
+							effectiveElements.push(childElement);
 						}
-					)
-				);
+					}
 
-				for(var k = 0; k < effectiveElements.length; k++)
-				{
-					childElement = effectiveElements[k];
+					if(effectiveElements.length === 0)
+					{
+						continue;
+					}
 
-					var childElementName = childElement.getName();
-					var childElementTitle = childElement.getTitle();
+					var parentName = section.getName();
+					var parentTitle = section.getTitle();
 
-					var itemId = parentName + "\\" + childElementName;
-					var itemWrapper = BX.create(
-						"div",
-						{
-							attrs: { className: "ui-entity-editor-popup-field-selector-list-item" }
-						}
-					);
-					container.appendChild(itemWrapper);
-
-					itemWrapper.appendChild(
+					container.appendChild(
 						BX.create(
-							"input",
+							"div",
 							{
-								attrs:
-									{
-										id: itemId,
-										type: "checkbox",
-										className: "ui-entity-editor-popup-field-selector-list-checkbox"
-									}
+								attrs: { className: "ui-entity-editor-popup-field-selector-list-caption" },
+								text: parentTitle
 							}
 						)
 					);
 
-					itemWrapper.appendChild(
-						BX.create(
-							"label",
-							{
-								attrs:
-									{
-										for: itemId,
-										className: "ui-entity-editor-popup-field-selector-list-label"
-									},
-								text: childElementTitle
-							}
-						)
+					var sectionContainer = BX.create(
+						"div",
+						{
+							attrs: { className: "ui-entity-editor-popup-field-selector-list-section" }
+						}
 					);
+					container.appendChild(sectionContainer);
+
+					for(var j = 0; j < effectiveElements.length; j++)
+					{
+						childElement = effectiveElements[j];
+
+						var childElementName = childElement.getName();
+						var childElementTitle = childElement.getTitle();
+
+						var itemId = parentName + "\\" + childElementName;
+						var itemWrapper = BX.create(
+							"div",
+							{
+								attrs: { className: "ui-entity-editor-popup-field-selector-list-item" }
+							}
+						);
+						sectionContainer.appendChild(itemWrapper);
+
+						itemWrapper.appendChild(
+							BX.create(
+								"input",
+								{
+									attrs:
+										{
+											id: itemId,
+											type: "checkbox",
+											className: "ui-entity-editor-popup-field-selector-list-checkbox"
+										}
+								}
+							)
+						);
+
+						itemWrapper.appendChild(
+							BX.create(
+								"label",
+								{
+									attrs:
+										{
+											for: itemId,
+											className: "ui-entity-editor-popup-field-selector-list-label"
+										},
+									text: childElementTitle
+								}
+							)
+						);
+					}
 				}
 			}
 
 			this._contentWrapper.appendChild(container);
 
 			return this._contentWrapper;
+		},
+		prepareContentHeaderSections: function(headerWrapper)
+		{
+			var headerSectionsWrapper = BX.create("div", {
+				attrs: {
+					className: 'ui-form-row',
+				},
+				children: [
+					BX.create('div', {
+						attrs: {
+							className: 'ui-form-content ui-entity-editor-popup-field-search-section-wrapper',
+						},
+					}),
+				],
+			});
+
+			headerWrapper.firstElementChild.appendChild(headerSectionsWrapper);
+
+			var buttonTitle = BX.prop.getString(this._settings, 'buttonTitle', '');
+			var itemClass = 'ui-entity-editor-popup-field-search-section-item-icon ui-entity-editor-popup-field-search-section-item-icon-active';
+			var headerSectionItem = BX.create('div', {
+				attrs: {
+					className: 'ui-entity-editor-popup-field-search-section-item',
+				},
+				children: [
+					BX.create('div', {
+						attrs: {
+							className: itemClass
+						},
+						html: buttonTitle
+					}),
+				],
+			});
+
+			headerSectionsWrapper.firstElementChild.appendChild(headerSectionItem);
+		},
+		prepareContentHeaderSearch: function(headerWrapper)
+		{
+			var input = BX.create('input', {
+				attrs: {
+					className: 'ui-ctl-element ui-entity-editor-popup-field-search-section-input',
+				},
+				events: {
+					input: this.onFilterSectionSearchInput.bind(this),
+				}
+			});
+			var searchForm = BX.create('div', {
+				attrs: {
+					className: 'ui-form-row',
+				},
+				children: [
+					BX.create('div', {
+						attrs: {
+							className: 'ui-form-content ui-entity-editor-popup-field-search-input-wrapper',
+						},
+						children: [
+							BX.create('div', {
+								attrs: {
+									className: 'ui-ctl ui-ctl-textbox ui-ctl-before-icon ui-ctl-after-icon'
+								},
+								children: [
+									BX.create('div', {
+										attrs: {
+											className: 'ui-ctl-before ui-ctl-icon-search',
+										},
+									}),
+									BX.create('button', {
+										attrs: {
+											className: 'ui-ctl-after ui-ctl-icon-clear',
+										},
+										events: {
+											click: this.onFilterSectionSearchInputClear.bind(this, input),
+										}
+									}),
+									input,
+								],
+							}),
+						],
+					}),
+				],
+			});
+
+			headerWrapper.firstElementChild.appendChild(searchForm);
+		},
+		onFilterSectionSearchInput: function(input)
+		{
+			var search = (input.target ? input.target.value : input.value);
+			if (search.length)
+			{
+				search = search.toLowerCase();
+			}
+
+			this.getFieldsPopupItems().map(function(item){
+				var title = item.innerText.toLowerCase();
+				if (search.length && title.indexOf(search) === -1)
+				{
+					BX.removeClass(item, this.fieldVisibleClass);
+					BX.addClass(item, this.fieldHiddenClass);
+				}
+				else
+				{
+					BX.removeClass(item, this.fieldHiddenClass);
+					BX.addClass(item, this.fieldVisibleClass);
+					item.style.display = 'block';
+				}
+			}.bind(this));
+		},
+		getFieldsPopupItems: function()
+		{
+			if (!BX.type.isArray(this.fieldsPopupItems))
+			{
+				this.fieldsPopupItems = Array.from(
+					this._contentWrapper.querySelectorAll('.ui-entity-editor-popup-field-selector-list-item')
+				);
+				this.prepareAnimation();
+			}
+
+			return this.fieldsPopupItems;
+		},
+		prepareAnimation: function()
+		{
+			this.fieldsPopupItems.map(function(item){
+				BX.bind(item, 'animationend', this.onAnimationEnd.bind(this, item));
+			}.bind(this));
+		},
+		onAnimationEnd: function(item)
+		{
+			item.style.display = (
+				BX.hasClass(item, this.fieldHiddenClass)
+					? 'none'
+					: 'block'
+			);
+		},
+		onFilterSectionSearchInputClear: function(input)
+		{
+			if (input.value.length)
+			{
+				input.value = '';
+				this.onFilterSectionSearchInput(input);
+			}
 		},
 		getSelectedItems: function()
 		{
@@ -248,7 +422,7 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 		},
 		onAcceptButtonClick: function()
 		{
-			this._emitter.emit(
+			BX.Event.EventEmitter.emit(
 				"BX.UI.EntityEditorFieldSelector:close",
 				{ sender: this, isCanceled: false, items: this.getSelectedItems() }
 			);
@@ -256,7 +430,7 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 		},
 		onCancelButtonClick: function()
 		{
-			this._emitter.emit(
+			BX.Event.EventEmitter.emit(
 				"BX.UI.EntityEditorFieldSelector:close",
 				{ sender: this, isCanceled: true }
 			);
@@ -291,6 +465,109 @@ if(typeof(BX.UI.EntityEditorFieldSelector) === "undefined")
 	{
 		var self = new BX.UI.EntityEditorFieldSelector(id, settings);
 		self.initialize(id, settings);
+		return self;
+	}
+}
+//endregion
+
+//region USER SELECTOR
+if(typeof(BX.UI.EntityEditorUserSelector) === "undefined")
+{
+	BX.UI.EntityEditorUserSelector = function()
+	{
+		this._id = "";
+		this._settings = {};
+	};
+
+	BX.UI.EntityEditorUserSelector.prototype =
+		{
+			initialize: function(id, settings)
+			{
+				this._id = id;
+				this._settings = settings ? settings : {};
+				this._isInitialized = false;
+				this._onlyUsers = BX.prop.getBoolean(this._settings, "onlyUsers", true);
+			},
+			getId: function()
+			{
+				return this._id;
+			},
+			open: function(anchor)
+			{
+				if(this._mainWindow && this._mainWindow === BX.SocNetLogDestination.containerWindow)
+				{
+					return;
+				}
+
+				if(!this._isInitialized)
+				{
+					BX.SocNetLogDestination.init(
+						{
+							name: this._id,
+							extranetUser:  false,
+							userSearchArea: "I",
+							bindMainPopup: { node: anchor, offsetTop: "5px", offsetLeft: "15px" },
+							callback: {
+								select : BX.delegate(this.onSelect, this),
+								unSelect: BX.delegate(this.onSelect, this)
+							},
+							showSearchInput: BX.prop.getBoolean(this._settings, "showSearchInput", true),
+							departmentSelectDisable: (this._onlyUsers ? true : false),
+							items:
+								{
+									users: BX.UI.EntityEditorUserSelector.users,
+									groups: {},
+									sonetgroups: (this._onlyUsers ? {} : BX.UI.EntityEditorUserSelector.socnetGroups),
+									department: BX.UI.EntityEditorUserSelector.department,
+									departmentRelation : BX.SocNetLogDestination.buildDepartmentRelation(BX.UI.EntityEditorUserSelector.department)
+								},
+							itemsLast: BX.UI.EntityEditorUserSelector.last,
+							itemsSelected: BX.prop.getObject(this._settings, "itemsSelected", {}),
+							isCrmFeed: false,
+							useClientDatabase: false,
+							destSort: {},
+							allowAddUser: false,
+							allowSearchCrmEmailUsers: false,
+							allowUserSearch: true
+						}
+					);
+					this._isInitialized = true;
+				}
+
+				BX.SocNetLogDestination.openDialog(this._id, { bindNode: anchor });
+				this._mainWindow = BX.SocNetLogDestination.containerWindow;
+			},
+			close: function()
+			{
+				if(this._mainWindow && this._mainWindow === BX.SocNetLogDestination.containerWindow)
+				{
+					BX.SocNetLogDestination.closeDialog();
+					this._mainWindow = null;
+					this._isInitialized = false;
+				}
+
+			},
+			onSelect: function(item, type, search, bUndeleted)
+			{
+				if(this._onlyUsers && type !== "users")
+				{
+					return;
+				}
+
+				var callback = BX.prop.getFunction(this._settings, "callback", null);
+				if(callback)
+				{
+					callback(this, item);
+				}
+			}
+		};
+
+	BX.UI.EntityEditorUserSelector.items = {};
+	BX.UI.EntityEditorUserSelector.create = function(id, settings)
+	{
+		var self = new BX.UI.EntityEditorUserSelector(id, settings);
+		self.initialize(id, settings);
+		this.items[self.getId()] = self;
 		return self;
 	}
 }

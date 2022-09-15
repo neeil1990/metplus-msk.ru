@@ -16,6 +16,9 @@ Loc::loadMessages(__FILE__);
 
 class EmptyDeliveryService extends Configurable
 {
+	/** @var string */
+	protected $handlerCode = 'BITRIX_EMPTY';
+
 	const CACHE_ID = 'BITRIX_SALE_EMPTY_DELIVERY_SRV_ID';
 	const TTL = 31536000;
 
@@ -64,7 +67,7 @@ class EmptyDeliveryService extends Configurable
 				$cacheManager->set(self::CACHE_ID, $id);
 		}
 
-		return $id;
+		return (int)$id;
 	}
 
 	/**

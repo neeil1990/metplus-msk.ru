@@ -92,7 +92,7 @@ class PersonType
 
 	/**
 	 * @param array $parameters
-	 * @return \Bitrix\Main\ORM\Query\Result|Internals\EO_PersonType_Result
+	 * @return \Bitrix\Main\ORM\Query\Result
 	 * @throws ArgumentException
 	 * @throws \Bitrix\Main\ObjectPropertyException
 	 * @throws \Bitrix\Main\SystemException
@@ -151,4 +151,35 @@ class PersonType
 		return uniqid('bx_');
 	}
 
+	/**
+	 * Person type is an individual
+	 *
+	 * @param int $personTypeId
+	 * @return bool
+	 */
+	public static function isIndividual($personTypeId)
+	{
+		$row = BusinessValue::getPersonTypes()[$personTypeId] ?? null;
+		if ($row)
+		{
+			return $row['DOMAIN'] === BusinessValue::INDIVIDUAL_DOMAIN;
+		}
+		return false;
+	}
+	
+	/**
+	 * Person type is legal entity
+	 *
+	 * @param int $personTypeId
+	 * @return bool
+	 */
+	public static function isEntity($personTypeId)
+	{
+		$row = BusinessValue::getPersonTypes()[$personTypeId] ?? null;
+		if ($row)
+		{
+			return $row['DOMAIN'] === BusinessValue::ENTITY_DOMAIN;
+		}
+		return false;
+	}
 }

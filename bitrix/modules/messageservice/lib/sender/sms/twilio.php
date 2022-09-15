@@ -4,6 +4,9 @@ namespace Bitrix\MessageService\Sender\Sms;
 use Bitrix\Main\Application;
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\Error;
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Event;
+use Bitrix\Main\EventResult;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Result;
 use Bitrix\Main\Web\HttpClient;
@@ -18,9 +21,14 @@ Loc::loadMessages(__FILE__);
 
 class Twilio extends Sender\BaseConfigurable
 {
+	public const ID = 'twilio';
+
+	public const NOT_SUPPORT_ALPHANUMERIC_NUMBER_STATUS_CODE = 21612;
+	public const ON_BEFORE_TWILIO_MESSAGE_SEND = 'OnBeforeTwilioMessageSend';
+
 	public function getId()
 	{
-		return 'twilio';
+		return static::ID;
 	}
 
 	public function getName()
@@ -52,23 +60,6 @@ class Twilio extends Sender\BaseConfigurable
 	{
 		$from = $this->getOption('from_list');
 		return is_array($from) ? $from : array();
-	}
-
-	public function getDefaultFrom()
-	{
-		$fromList = $this->getFromList();
-		if (count($fromList) > 0)
-		{
-			return $fromList[0]['id'];
-		}
-		return null;
-	}
-
-	public function setDefaultFrom($from)
-	{
-		//$from = (string)$from;
-		//$this->setOption('default_from', $from);
-		return $this;
 	}
 
 	public function register(array $fields)
@@ -112,7 +103,7 @@ class Twilio extends Sender\BaseConfigurable
 		return 'https://www.twilio.com/console';
 	}
 
-	public function sendMessage(array $messageFields)
+	public function sendMessage(array $messageFields): SendMessage
 	{
 		$sid = $this->getOption('account_sid');
 
@@ -123,30 +114,51 @@ class Twilio extends Sender\BaseConfigurable
 			return $result;
 		}
 
-		$params = array(
-			'To' => $messageFields['MESSAGE_TO'],
-			'Body' => $messageFields['MESSAGE_BODY'],
-			'From' => $messageFields['MESSAGE_FROM'],
-			'StatusCallback' => $this->getCallbackUrl()
-		);
-
-		if (!$params['From'])
+		$eventResults = self::fireEventBeforeMessageSend($messageFields);
+		foreach ($eventResults as $eventResult)
 		{
-			$params['From'] = $this->getDefaultFrom();
+			$eventParams = $eventResult->getParameters();
+
+			if ($eventResult->getType() === \Bitrix\Main\EventResult::ERROR)
+			{
+				$result = new SendMessage();
+				if ($eventParams && is_string($eventParams))
+				{
+					$result->addError(new Error($eventParams));
+				}
+				else
+				{
+					$result->addError(new Error(Loc::getMessage("MESSAGESERVICE_SENDER_SMS_TWILIO_MESSAGE_HAS_NOT_BEEN_SENT")));
+				}
+				return $result;
+			}
+
+			if (is_array($eventParams))
+			{
+				$messageFields = array_merge($messageFields, $eventParams);
+			}
 		}
 
-		if (is_string($params['From']) && strlen($params['From']) === 34) //unique id of the Messaging Service
+		if (isset($messageFields['MESSAGE_FROM_ALPHANUMERIC']))
 		{
-			$params['MessagingServiceSid'] = $params['From'];
-			unset($params['From']);
+			$apiResult = $this->sendMessageByAlphanumericNumber($sid, $messageFields);
+			if (
+				!$apiResult->isSuccess()
+				&& $this->checkSupportErrorAlphanumericNumber($apiResult->getErrorCollection())
+			)
+			{
+				$apiResult = $this->sendMessageByNumber($sid, $messageFields);
+			}
+		}
+		else
+		{
+			$apiResult = $this->sendMessageByNumber($sid, $messageFields);
 		}
 
 		$result = new SendMessage();
-		$apiResult = $this->callExternalMethod(
-			HttpClient::HTTP_POST,
-			'Accounts/'.$sid.'/Messages/',
-			$params
-		);
+		$result->setServiceRequest($apiResult->getHttpRequest());
+		$result->setServiceResponse($apiResult->getHttpResponse());
+
 		if (!$apiResult->isSuccess())
 		{
 			$result->addErrors($apiResult->getErrors());
@@ -194,7 +206,7 @@ class Twilio extends Sender\BaseConfigurable
 				array('accepted', 'queued', 'sending', 'sent', 'delivered', 'undelivered', 'failed')))
 			{
 				$result->setStatusText(
-					Loc::getMessage('MESSAGESERVICE_SENDER_SMS_TWILIO_MESSAGE_STATUS_'.strtoupper($resultData['status']))
+					Loc::getMessage('MESSAGESERVICE_SENDER_SMS_TWILIO_MESSAGE_STATUS_'.mb_strtoupper($resultData['status']))
 				);
 			}
 		}
@@ -243,7 +255,7 @@ class Twilio extends Sender\BaseConfigurable
 		return $this;
 	}
 
-	private function callExternalMethod($httpMethod, $apiMethod, array $params = array(), $sid = null, $token = null)
+	private function callExternalMethod($httpMethod, $apiMethod, array $params = array(), $sid = null, $token = null): Sender\Result\HttpRequestResult
 	{
 		$url = 'https://api.twilio.com/2010-04-01/'.$apiMethod.'.json';
 
@@ -270,9 +282,15 @@ class Twilio extends Sender\BaseConfigurable
 			$params = \Bitrix\Main\Text\Encoding::convertEncoding($params, SITE_CHARSET, 'UTF-8');
 		}
 
-		$result = new Result();
+		$result = new Sender\Result\HttpRequestResult();
 		$answer = array();
 
+		$result->setHttpRequest(new MessageService\DTO\Request([
+			'method' => HttpClient::HTTP_POST,
+			'uri' => $url,
+			'headers' => method_exists($httpClient, 'getRequestHeaders') ? $httpClient->getRequestHeaders()->toArray() : [],
+			'body' => $params,
+		]));
 		if ($httpClient->query($httpMethod, $url, $params))
 		{
 			try
@@ -297,6 +315,12 @@ class Twilio extends Sender\BaseConfigurable
 				}
 			}
 		}
+		$result->setHttpResponse(new MessageService\DTO\Response([
+			'statusCode' => $httpClient->getStatus(),
+			'headers' => $httpClient->getHeaders()->toArray(),
+			'body' => $httpClient->getResult(),
+			'error' => Sender\Util::getHttpClientErrorString($httpClient)
+		]));
 
 		if ($result->isSuccess())
 		{
@@ -334,5 +358,79 @@ class Twilio extends Sender\BaseConfigurable
 
 			$this->setOption('from_list', $from);
 		}
+	}
+
+	private function checkSupportErrorAlphanumericNumber(ErrorCollection $collection): bool
+	{
+		if ($collection->getErrorByCode(self::NOT_SUPPORT_ALPHANUMERIC_NUMBER_STATUS_CODE))
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
+	 * @param string $sid
+	 * @param array $messageFields
+	 * @return Result
+	 */
+	private function sendMessageByAlphanumericNumber(string $sid, array $messageFields): Sender\Result\HttpRequestResult
+	{
+		$params = [
+			'To' => $messageFields['MESSAGE_TO'],
+			'Body' => $messageFields['MESSAGE_BODY'],
+			'From' => $messageFields['MESSAGE_FROM_ALPHANUMERIC'],
+			'StatusCallback' => $this->getCallbackUrl()
+		];
+
+		return $this->callExternalMethod(
+			HttpClient::HTTP_POST,
+			'Accounts/'.$sid.'/Messages/',
+			$params
+		);
+	}
+
+	/**
+	 * @param string $sid
+	 * @param array $messageFields
+	 * @return Result
+	 */
+	private function sendMessageByNumber(string $sid, array $messageFields): Sender\Result\HttpRequestResult
+	{
+		$params = [
+			'To' => $messageFields['MESSAGE_TO'],
+			'Body' => $messageFields['MESSAGE_BODY'],
+			'From' => $messageFields['MESSAGE_FROM'],
+			'StatusCallback' => $this->getCallbackUrl()
+		];
+
+		if (!$params['From'])
+		{
+			$params['From'] = $this->getDefaultFrom();
+		}
+		if (is_string($params['From']) && mb_strlen($params['From']) === 34) //unique id of the Messaging Service
+		{
+			$params['MessagingServiceSid'] = $params['From'];
+			unset($params['From']);
+		}
+
+		return $this->callExternalMethod(
+			HttpClient::HTTP_POST,
+			'Accounts/'.$sid.'/Messages/',
+			$params
+		);
+	}
+
+	/**
+	 * @param array $messageFields
+	 * @return EventResult[]
+	 */
+	public static function fireEventBeforeMessageSend(array $messageFields): array
+	{
+		$event = new Event('messageservice', self::ON_BEFORE_TWILIO_MESSAGE_SEND, $messageFields);
+		$event->send();
+
+		return $event->getResults();
 	}
 }

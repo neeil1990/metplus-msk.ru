@@ -298,6 +298,7 @@ switch (LANGUAGE_ID)
 		$locale = 'en-US'; break;
 }
 
+\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
 $this->addExternalCss('/bitrix/css/main/bootstrap.css');
 $APPLICATION->SetAdditionalCSS('/bitrix/css/main/themes/'.$arParams['TEMPLATE_THEME'].'/style.css', true);
 $APPLICATION->SetAdditionalCSS($templateFolder.'/style.css', true);
@@ -310,7 +311,7 @@ $this->addExternalJs($templateFolder.'/script.js');
 	</NOSCRIPT>
 <?
 
-if (strlen($request->get('ORDER_ID')) > 0)
+if ($request->get('ORDER_ID') <> '')
 {
 	include(Main\Application::getDocumentRoot().$templateFolder.'/confirm.php');
 }
@@ -328,7 +329,7 @@ else
 		<?
 		echo bitrix_sessid_post();
 
-		if (strlen($arResult['PREPAY_ADIT_FIELDS']) > 0)
+		if ($arResult['PREPAY_ADIT_FIELDS'] <> '')
 		{
 			echo $arResult['PREPAY_ADIT_FIELDS'];
 		}
@@ -640,8 +641,9 @@ else
 		if ($arParams['PICKUP_MAP_TYPE'] === 'yandex')
 		{
 			$this->addExternalJs($templateFolder.'/scripts/yandex_maps.js');
+			$apiKey = htmlspecialcharsbx(Main\Config\Option::get('fileman', 'yandex_map_api_key', ''));
 			?>
-			<script src="<?=$scheme?>://api-maps.yandex.ru/2.1.50/?load=package.full&lang=<?=$locale?>"></script>
+			<script src="<?=$scheme?>://api-maps.yandex.ru/2.1.50/?apikey=<?=$apiKey?>&load=package.full&lang=<?=$locale?>"></script>
 			<script>
 				(function bx_ymaps_waiter(){
 					if (typeof ymaps !== 'undefined' && BX.Sale && BX.Sale.OrderAjaxComponent)

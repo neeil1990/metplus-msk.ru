@@ -1,5 +1,4 @@
 /**
- * @author Grigoriy Zavodov <zavodov@gmail.com>
  * @module ui
  * @version 1.0
  * @copyright 2001-2019 Bitrix
@@ -21,6 +20,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		this._userFieldManager = null;
 
 		this._container = null;
+		this._layoutContainer = null;
 		this._buttonContainer = null;
 		this._createSectionButton = null;
 		this._configMenuButton = null;
@@ -32,8 +32,11 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		this._editPageTitleButton = null;
 		this._copyPageUrlButton = null;
 
+		this._actionTypes = null;
 		this._formElement = null;
 		this._ajaxForm = null;
+		this._ajaxForms = null;
+		this._reloadAjaxForm = null;
 		this._formSubmitHandler = BX.delegate(this.onFormSubmit, this);
 
 		this._controllers = null;
@@ -59,13 +62,15 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		this._enableSectionCreation = false;
 		this._enableModeToggle = true;
 		this._enableVisibilityPolicy = true;
-		this._enablePageTitleContols = true;
+		this._enablePageTitleControls = true;
 		this._enableToolPanel = true;
+		this._isToolPanelAlwaysVisible = false;
 		this._enableBottomPanel = true;
 		this._enableConfigControl = true;
 		this._enableFieldsContextMenu = true;
 
 		this._serviceUrl = "";
+		this._htmlEditorConfigs = null;
 
 		this._pageTitleExternalClickHandler = BX.delegate(this.onPageTitleExternalClick, this);
 		this._pageTitleKeyPressHandler = BX.delegate(this.onPageTitleKeyPress, this);
@@ -83,6 +88,8 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		this._closeConfirmationHandler = BX.delegate(this.onCloseConfirmButtonClick, this);
 		this._cancelConfirmationHandler = BX.delegate(this.onCancelConfirmButtonClick, this);
 
+		this._windowResizeHandler = BX.debounce(BX.delegate(this.onResize, this), 50);
+
 		this._sliderOpenHandler = BX.delegate(this.onSliderOpen, this);
 		this._sliderCloseHandler = BX.delegate(this.onSliderClose, this);
 
@@ -93,6 +100,17 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		this._dragContainerController = null;
 		this._dropHandler = BX.delegate(this.onDrop, this);
 		this._dragConfig = {};
+
+		this.eventsNamespace = 'BX.UI.EntityEditor';
+		this.pageTitleInputClassName = "pagetitle-item";
+		this._configurationFieldManager = null;
+		this._commonConfigEditUrl = BX.prop.getString(
+			this._settings,
+			"commonConfigEditUrl",
+			"/configs/editor/?ENTITY_TYPE_ID=#ENTITY_TYPE_ID_VALUE#&MODULE_ID=#MODULE_ID#"
+		);
+		this.moduleId = null;
+		this._restrictions = {};
 	};
 	BX.UI.EntityEditor.prototype =
 	{
@@ -107,25 +125,46 @@ if(typeof BX.UI.EntityEditor === "undefined")
 
 			this._serviceUrl = BX.prop.getString(this._settings, "serviceUrl", "");
 			this._entityTypeName = BX.prop.getString(this._settings, "entityTypeName", '');
+			this._entityTypeTitle = BX.prop.getString(this._settings, "entityTypeTitle", '');
+			this._useFieldsSearch = BX.prop.getBoolean(this._settings, "useFieldsSearch", false);
 			this._entityId = BX.prop.getInteger(this._settings, "entityId", 0);
+			this.moduleId = BX.prop.getString(this._settings, "moduleId", '');
 			this._isNew = this._entityId <= 0 && this._model.isIdentifiable();
 
 			this._isEmbedded = BX.prop.getBoolean(this._settings, "isEmbedded", false);
+			this._creationFieldPageUrl = BX.prop.getBoolean(this._settings, "creationFieldPageUrl", false);
 
-			this._container = BX(BX.prop.get(this._settings, "containerId"));
+			var container = BX.prop.get(this._settings, "container");
+			if(!BX.type.isElementNode(container))
+			{
+				container = BX(BX.prop.get(this._settings, "containerId"));
+			}
+			this._container = container;
 
-			this._parentContainer = BX.findParent(this._container, { className: "ui-entity-section" }, false);
+			this._parentContainer = BX.findParent(this._container, { className: 'ui-entity-section' }, false);
 			this._buttonContainer = BX(BX.prop.get(this._settings, "buttonContainerId"));
 			this._configIcon = BX(BX.prop.get(this._settings, "configIconId"));
+
+			this._enableVisibilityPolicy = BX.prop.getBoolean(this._settings, "enableVisibilityPolicy", true);
+			this._enablePageTitleControls = BX.prop.getBoolean(this._settings, "enablePageTitleControls", true);
+			if(this._enablePageTitleControls)
+			{
+				this._pageTitle = BX("pagetitle");
+				this._buttonWrapper = BX("pagetitle_btn_wrapper");
+				this._editPageTitleButton = BX("pagetitle_edit");
+				this._copyPageUrlButton = BX("page_url_copy_btn");
+			}
 
 			this.adjustSize();
 			this.adjustTitle();
 
-			this._enableVisibilityPolicy = BX.prop.getBoolean(this._settings, "enableVisibilityPolicy", true);
-
 			//region Form
-			this._formElement = BX.create("form", {props: { name: this._id + "_form"}});
+			var formTagName = BX.prop.getString(this._settings, "formTagName", "form");
+			this._formElement = BX.create(formTagName, {props: { name: this._id + "_form"}});
 			this._container.appendChild(this._formElement);
+
+			this._layoutContainer = BX.create("div", {props: { className: "ui-entity-editor-column-wrapper"}});
+			this._formElement.appendChild(this._layoutContainer);
 
 			this._enableRequiredUserFieldCheck = BX.prop.getBoolean(this._settings, "enableRequiredUserFieldCheck", true);
 
@@ -135,6 +174,8 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				this.initializeAjaxForm();
 			}
 			//endregion
+
+			this._restrictions = BX.prop.getObject(this._settings, "restrictions", {});
 
 			this.initializeManagers();
 
@@ -157,7 +198,9 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			this._controls = [];
 			this._activeControls = [];
 			this._modeSwitch = BX.UI.EntityEditorModeSwitch.create(this._id, { editor: this });
-			
+
+			this._htmlEditorConfigs = BX.prop.getObject(this._settings, "htmlEditorConfigs", {});
+
 			var initialMode = BX.UI.EntityEditorMode.view;
 			if(!this._readOnly)
 			{
@@ -176,6 +219,53 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				this._mode = BX.UI.EntityEditorMode.edit;
 			}
 
+			this._availableSchemeElements = this._scheme.getAvailableElements();
+
+			this.initializeControllers();
+			this.initializeControls();
+
+			if(this._mode === BX.UI.EntityEditorMode.edit && this._controls.length > 0)
+			{
+				this.initializeControlsEditMode();
+			}
+
+			this.initializeValidators();
+
+			this._enableToolPanel = BX.prop.getBoolean(this._settings, "enableToolPanel", true);
+			this._isToolPanelAlwaysVisible = BX.prop.getBoolean(this._settings, "isToolPanelAlwaysVisible", false);
+			if(this._enableToolPanel)
+			{
+				this.initializeToolPanel();
+
+				if (this.isToolPanelAlwaysVisible())
+				{
+					this.showToolPanel();
+				}
+			}
+
+			this._enableBottomPanel = BX.prop.getBoolean(this._settings, "enableBottomPanel", true);
+			this._enableConfigControl = BX.prop.getBoolean(this._settings, "enableConfigControl", true);
+
+			this._enableFieldsContextMenu = BX.prop.getBoolean(this._settings, "enableFieldsContextMenu", true);
+
+			this.initializeDragDrop();
+
+			this.layout();
+			this.attachToEvents();
+
+			var eventArgs =
+				{
+					id: this._id,
+					externalContext: this._externalContextId,
+					context: this._contextId,
+					entityTypeName: this._entityTypeName,
+					entityId: this._entityId,
+					model: this._model
+				};
+			BX.onCustomEvent(window, this.eventsNamespace + ":onInit", [ this, eventArgs ]);
+		},
+		initializeControllers: function()
+		{
 			var i, length;
 			var controllerData = BX.prop.getArray(this._settings, "controllers", []);
 			for(i = 0, length = controllerData.length; i < length; i++)
@@ -186,9 +276,11 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					this._controllers.push(controller);
 				}
 			}
-
+		},
+		initializeControls: function()
+		{
 			var elements = this._scheme.getElements();
-			var element, control;
+			var i, length, element, control;
 			for(i = 0, length = elements.length; i < length; i++)
 			{
 				element = elements[i];
@@ -205,18 +297,19 @@ if(typeof BX.UI.EntityEditor === "undefined")
 
 				this._controls.push(control);
 			}
-
-			if(this._mode === BX.UI.EntityEditorMode.edit && this._controls.length > 0)
+		},
+		initializeControlsEditMode: function()
+		{
+			var i, length;
+			for(i = 0, length = this._controls.length; i < length; i++)
 			{
-				for(i = 0, length = this._controls.length; i < length; i++)
-				{
-					this._controls[i].setMode(BX.UI.EntityEditorMode.edit, { notify: false });
-				}
+				this._controls[i].setMode(BX.UI.EntityEditorMode.edit, { notify: false });
 			}
-
-			this._availableSchemeElements = this._scheme.getAvailableElements();
-
+		},
+		initializeValidators: function()
+		{
 			//region Validators
+			var i, length;
 			this._validators = [];
 			var validatorConfigs = BX.prop.getArray(this._settings, "validators", []);
 			for(i = 0, length = validatorConfigs.length; i < length; i++)
@@ -228,26 +321,25 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				}
 			}
 			//endregion
+		},
+		initializeToolPanel: function()
+		{
+			var buttonsOrder = BX.prop.getObject(this._settings, 'toolPanelButtonsOrder', {});
+			var customButtons = BX.prop.getArray(this._settings, 'customToolPanelButtons', []);
 
-			this._enableToolPanel = BX.prop.getBoolean(this._settings, "enableToolPanel", true);
-			if(this._enableToolPanel)
-			{
-				this._toolPanel = BX.UI.EntityEditorToolPanel.create(
-					this._id,
-					{
-						container: this._isEmbedded ? this._formElement : document.body,
-						editor: this,
-						visible: false
-					}
-				);
-			}
-
-			this._enableBottomPanel = BX.prop.getBoolean(this._settings, "enableBottomPanel", true);
-			this._enableConfigControl = BX.prop.getBoolean(this._settings, "enableConfigControl", true);
-
-			this._enableFieldsContextMenu = BX.prop.getBoolean(this._settings, "enableFieldsContextMenu", true);
-
-			//region D&D Config
+			this._toolPanel = BX.UI.EntityEditorToolPanel.create(
+				this._id,
+				{
+					container: this._isEmbedded ? this._formElement : document.body,
+					editor: this,
+					visible: false,
+					buttonsOrder: buttonsOrder,
+					customButtons: customButtons,
+				}
+			);
+		},
+		initializeDragDrop: function()
+		{
 			this._dragConfig = {};
 
 			var sectionDragModes = {};
@@ -272,49 +364,48 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					modes: fieldDragModes
 				};
 
-			if(this.canChangeScheme())
-			{
-				this._dragContainerController = BX.UI.EditorDragContainerController.create(
-					"editor_" + this.getId(),
-					{
-						charge: BX.UI.EditorSectionDragContainer.create({ editor: this }),
-						node: this._formElement
-					}
-				);
-				this._dragContainerController.addDragFinishListener(this._dropHandler);
-			}
-			//endregion
-
-			this.layout();
-			this.attachToEvents();
-
-			var eventArgs =
-				{
-					id: this._id,
-					externalContext: this._externalContextId,
-					context: this._contextId,
-					entityTypeName: this._entityTypeName,
-					entityId: this._entityId,
-					model: this._model
-				};
-			BX.onCustomEvent(window, "BX.UI.EntityEditor:onInit", [ this, eventArgs ]);
+			// if(this.canChangeScheme())
+			// {
+			// 	this._dragContainerController = BX.UI.EditorDragContainerController.create(
+			// 		"editor_" + this.getId(),
+			// 		{
+			// 			charge: BX.UI.EditorSectionDragContainer.create({ editor: this }),
+			// 			node: this._formElement
+			// 		}
+			// 	);
+			// 	this._dragContainerController.addDragFinishListener(this._dropHandler);
+			// }
 		},
 		initializeManagers: function()
 		{
 			this._userFieldManager = BX.prop.get(this._settings, "userFieldManager", null);
+			this._configurationFieldManager = BX.UI.EntityConfigurationManager.create(
+				this._id,
+				{ editor: this }
+			);
+			var eventArgs = {
+				id: this._id,
+				editor: this,
+				type: 'editor',
+				configurationFieldManager: this._configurationFieldManager,
+			};
+			BX.onCustomEvent(window, "BX.UI.EntityConfigurationManager:onInitialize", [ this, eventArgs ]);
+			this._configurationFieldManager = eventArgs.configurationFieldManager;
 		},
 		initializeCustomEditors: function()
 		{
 		},
 		attachToEvents: function()
 		{
-			BX.bind(window, "resize", BX.debounce(BX.delegate(this.onResize, this), 50));
+			BX.bind(window, "resize", this._windowResizeHandler);
 
 			BX.addCustomEvent("SidePanel.Slider:onOpenComplete", this._sliderOpenHandler);
 			BX.addCustomEvent("SidePanel.Slider:onClose", this._sliderCloseHandler);
 		},
 		deattachFromEvents: function()
 		{
+			BX.unbind(window, "resize", this._windowResizeHandler);
+
 			BX.removeCustomEvent("SidePanel.Slider:onOpenComplete", this._sliderOpenHandler);
 			BX.removeCustomEvent("SidePanel.Slider:onClose", this._sliderCloseHandler);
 		},
@@ -328,6 +419,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			this.deattachFromEvents();
 
 			this.releaseAjaxForm();
+			this.releaseReloadAjaxForm();
 			this._container = BX.remove(this._container);
 
 			this._isReleased = true;
@@ -345,7 +437,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					entityId: this._entityId,
 					model: this._model
 				};
-			BX.onCustomEvent(window, "BX.UI.EntityEditor:onOpen", [ this, eventArgs ]);
+			BX.onCustomEvent(window, this.eventsNamespace + ":onOpen", [ this, eventArgs ]);
 		},
 		onSliderClose: function(event)
 		{
@@ -420,6 +512,67 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			var ajaxData = BX.prop.getObject(this._settings, "ajaxData", {});
 			var actionName = BX.prop.getString(ajaxData, "ACTION_NAME", "");
 			var componentName = BX.prop.getString(ajaxData, "COMPONENT_NAME", "");
+			var signedParameters = BX.prop.getString(ajaxData, "SIGNED_PARAMETERS", "");
+
+			this._ajaxForms = {};
+			this._actionTypes = {};
+
+			this._actionTypes[BX.UI.EntityEditorActionIds.defaultActionId] = BX.UI.EntityEditorActionTypes.save;
+			var defaultAjaxForm = this.createAjaxForm(
+				{
+					componentName: componentName,
+					actionName: actionName,
+					elementNode: this._formElement,
+					signedParameters: signedParameters,
+					enableRequiredUserFieldCheck: this._enableRequiredUserFieldCheck
+				},
+				{
+					onSuccess: this.onSaveSuccess.bind(this),
+					onFailure: this.onSaveFailure.bind(this)
+				}
+			);
+			this._ajaxForms[BX.UI.EntityEditorActionIds.defaultActionId] = defaultAjaxForm;
+
+			BX.addCustomEvent(defaultAjaxForm, "onAfterSubmit", this._formSubmitHandler);
+
+			if (ajaxData.ADDITIONAL_ACTIONS && ajaxData.ADDITIONAL_ACTIONS.length > 0)
+			{
+				var additionalActions = ajaxData.ADDITIONAL_ACTIONS;
+				for (var i=0; i < additionalActions.length; i++) {
+					var action = additionalActions[i];
+
+					this._actionTypes[action.ID] = action.ACTION_TYPE;
+
+					var ajaxForm = this.createAjaxForm(
+						{
+							componentName: componentName,
+							actionName: action.ACTION,
+							elementNode: this._formElement,
+							signedParameters: signedParameters,
+							enableRequiredUserFieldCheck: this._enableRequiredUserFieldCheck
+						},
+						{
+							onSuccess: this.onSaveSuccess.bind(this),
+							onFailure: this.onSaveFailure.bind(this)
+						}
+					);
+					BX.addCustomEvent(ajaxForm, "onAfterSubmit", this._formSubmitHandler);
+					this._ajaxForms[action.ID] = ajaxForm;
+				}
+			}
+
+			// compatibility
+			this._ajaxForm = this._ajaxForms[BX.UI.EntityEditorActionIds.defaultActionId];
+
+			//Disable submit action by pressing Enter key (if there is only one input on the form)
+			this._formElement.setAttribute("onsubmit", "return false;");
+		},
+		createAjaxForm: function(options, callbacks)
+		{
+			var componentName = BX.prop.getString(options, "componentName", "");
+			var actionName = BX.prop.getString(options, "actionName", "");
+			var elementNode = BX.prop.getElementNode(options, "elementNode", null);
+			var formData = BX.prop.getObject(options, "formData", null);
 
 			if(componentName !== "")
 			{
@@ -428,17 +581,18 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					actionName = "save";
 				}
 
-				this._ajaxForm = BX.UI.ComponentAjax.create(
+				return BX.UI.ComponentAjax.create(
 					this._id,
 					{
-						elementNode: this._formElement,
+						elementNode: elementNode,
+						formData: formData,
 						className: componentName,
-						signedParameters: BX.prop.getString(ajaxData, "SIGNED_PARAMETERS", null),
+						signedParameters: BX.prop.getString(options, "signedParameters", null),
 						actionName: actionName,
 						callbacks:
 							{
-								onSuccess: BX.delegate(this.onSaveSuccess, this),
-								onFailure: BX.delegate(this.onSaveFailure, this)
+								onSuccess: (callbacks ? callbacks.onSuccess : null),
+								onFailure: (callbacks ? callbacks.onFailure : null)
 							}
 					}
 				);
@@ -450,32 +604,28 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					actionName = "SAVE";
 				}
 
-				this._ajaxForm = BX.UI.AjaxForm.create(
+				return BX.UI.AjaxForm.create(
 					this._id,
 					{
-						elementNode: this._formElement,
+						elementNode: elementNode,
+						formData: formData,
 						config:
 							{
 								url: this._serviceUrl,
 								method: "POST",
 								dataType: "json",
 								processData : true,
-								onsuccess: BX.delegate(this.onSaveSuccess, this),
+								onsuccess: (callbacks ? callbacks.onSuccess : null),
 								data:
 									{
 										"ACTION": actionName,
 										"ACTION_ENTITY_TYPE": this._entityTypeName,
-										"ENABLE_REQUIRED_USER_FIELD_CHECK": this._enableRequiredUserFieldCheck ? 'Y' : 'N'
+										"ENABLE_REQUIRED_USER_FIELD_CHECK": BX.prop.getBoolean(options, "enableRequiredUserFieldCheck", false) ? 'Y' : 'N'
 									}
 							}
 					}
 				);
 			}
-
-			//Disable submit action by pressing Enter key (if there is only one input on the form)
-			this._formElement.setAttribute("onsubmit", "return false;");
-
-			BX.addCustomEvent(this._ajaxForm, "onAfterSubmit", this._formSubmitHandler);
 		},
 		releaseAjaxForm: function()
 		{
@@ -484,8 +634,27 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				return;
 			}
 
+			var _this = this;
+
+			if (BX.Type.isObject(this._ajaxForms))
+			{
+				Object.keys(this._ajaxForms).forEach(function (ajaxForm) {
+					BX.removeCustomEvent(_this._ajaxForms[ajaxForm], "onAfterSubmit", _this._formSubmitHandler);
+					_this._ajaxForms[ajaxForm] = null;
+				});
+			}
+
 			BX.removeCustomEvent(this._ajaxForm, "onAfterSubmit", this._formSubmitHandler);
 			this._ajaxForm = null;
+		},
+		releaseReloadAjaxForm: function()
+		{
+			if(!this._reloadAjaxForm)
+			{
+				return;
+			}
+
+			this._reloadAjaxForm = null;
 		},
 		getId: function()
 		{
@@ -531,6 +700,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		{
 			return this._enableVisibilityPolicy;
 		},
+		isToolPanelAlwaysVisible: function()
+		{
+			return this._isToolPanelAlwaysVisible;
+		},
 		isBottomPanelEnabled: function()
 		{
 			return this._enableBottomPanel;
@@ -567,6 +740,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		{
 			return this._isEmbedded;
 		},
+		isEditInViewEnabled: function()
+		{
+			return this._entityId > 0;
+		},
 		getDetailManager: function()
 		{
 			if(typeof(BX.UI.EntityDetailManager) === "undefined")
@@ -576,6 +753,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 
 			return BX.UI.EntityDetailManager.get(BX.prop.getString(this._settings, "detailManagerId", ""));
 		},
+		getConfigurationFieldManager: function()
+		{
+			return this._configurationFieldManager;
+		},
 		getUserFieldManager: function()
 		{
 			return this._userFieldManager;
@@ -583,6 +764,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		getAttributeManager: function()
 		{
 			return null;
+		},
+		getHtmlEditorConfig: function(fieldName)
+		{
+			return BX.prop.getObject(this._htmlEditorConfigs, fieldName, null);
 		},
 		//region Validators
 		createValidator: function(settings)
@@ -621,7 +806,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		createControl: function(type, controlId, settings)
 		{
 			settings["serviceUrl"] = this._serviceUrl;
-			settings["container"] = this._formElement;
+			settings["container"] = this._layoutContainer;
 			settings["model"] = this._model;
 			settings["editor"] = this;
 
@@ -734,7 +919,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					return controls[i];
 				}
-				else if (controls[i] instanceof BX.UI.EntityEditorSection)
+				else if (
+					controls[i] instanceof BX.UI.EntityEditorColumn
+					|| controls[i] instanceof BX.UI.EntityEditorSection
+				)
 				{
 					if(res = this.getControlByIdRecursive(name, controls[i].getChildren()))
 					{
@@ -758,7 +946,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			{
 				if (controls[i] instanceof BX.UI.EntityEditorControl)
 				{
-					if (controls[i] instanceof BX.UI.EntityEditorSection)
+					if (
+						controls[i] instanceof BX.UI.EntityEditorColumn
+						|| controls[i] instanceof BX.UI.EntityEditorSection
+					)
 					{
 						if(res = this.getAllControls(controls[i].getChildren()))
 						{
@@ -869,7 +1060,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					entityId: this._entityId,
 					model: this._model
 				};
-			BX.onCustomEvent(window, "BX.UI.EntityEditor:onRelease", [ this, eventArgs ]);
+			BX.onCustomEvent(window, this.eventsNamespace + ":onRelease", [ this, eventArgs ]);
 			//endregion
 
 			for(var i = 0, length = this._activeControls.length; i < length; i++)
@@ -933,14 +1124,24 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			{
 				this.showToolPanel();
 			}
-			else
+			else if (!this.isToolPanelAlwaysVisible())
 			{
 				this.hideToolPanel();
 			}
+
+			var eventArgs = {
+				control: control,
+			}
+			BX.onCustomEvent(window, this.eventsNamespace + ":onControlModeChange", [ this, eventArgs ]);
 		},
 		processControlChange: function(control, params)
 		{
 			this.showToolPanel();
+			var eventArgs = {
+				control: control,
+				params: params,
+			}
+			BX.onCustomEvent(window, this.eventsNamespace + ":onControlChange", [ this, eventArgs ]);
 		},
 		processControlAdd: function(control)
 		{
@@ -1043,38 +1244,43 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				excludedCount = excludedNames.length;
 			}
 
-			var elements = this._scheme.getElements();
-			for(var i = 0, elementCount = elements.length; i < elementCount; i++)
+			var columns = this._scheme.getElements();
+			for (var columnsIterator = 0, columnsCount = columns.length; columnsIterator < columnsCount; columnsIterator++)
 			{
-				var element = elements[i];
-				var isExcluded = false;
-				if(excludedCount > 0)
+				var sections = columns[columnsIterator].getElements();
+				for(var sectionsIterator = 0, sectionsCount = sections.length; sectionsIterator < sectionsCount; sectionsIterator++)
 				{
-					var elementName = element.getName();
-					for(var j = 0; j < excludedCount; j++)
+					var section = sections[sectionsIterator];
+					var isExcluded = false;
+					if(excludedCount > 0)
 					{
-						if(excludedNames[j] === elementName)
+						var sectionName = section.getName();
+						for(var j = 0; j < excludedCount; j++)
 						{
-							isExcluded = true;
-							break;
+							if(excludedNames[j] === sectionName)
+							{
+								isExcluded = true;
+								break;
+							}
+						}
+					}
+
+					if(isExcluded)
+					{
+						continue;
+					}
+
+					var childElements = section.getElements();
+					for(var k = 0, childrenCount = childElements.length; k < childrenCount; k++)
+					{
+						if(childElements[k].isTransferable() &&  childElements[k].getName() !== "")
+						{
+							return true;
 						}
 					}
 				}
-
-				if(isExcluded)
-				{
-					continue;
-				}
-
-				var childElements = element.getElements();
-				for(var k = 0, childrenCount = childElements.length; k < childrenCount; k++)
-				{
-					if(childElements[k].isTransferable() &&  childElements[k].getName() !== "")
-					{
-						return true;
-					}
-				}
 			}
+
 			return false;
 		},
 		//endregion
@@ -1094,6 +1300,14 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		processControllerChange: function(controller)
 		{
 			this.showToolPanel();
+			var eventArgs = {
+				controller: controller,
+			}
+			BX.onCustomEvent(window, this.eventsNamespace + ":onControllerChange", [ this, eventArgs ]);
+		},
+		getControllers: function()
+		{
+			return this._controllers;
 		},
 		//endregion
 		//region Layout
@@ -1130,6 +1344,13 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		},
 		layout: function()
 		{
+			var eventArgs = { cancel: false };
+			BX.onCustomEvent(window, this.eventsNamespace + ":onBeforeLayout", [ this, eventArgs ]);
+			if(eventArgs["cancel"])
+			{
+				return;
+			}
+
 			this.prepareContextDataLayout(this._context, "");
 
 			if(this._toolPanel)
@@ -1241,7 +1462,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					);
 					this._buttonContainer.appendChild(this._configMenuButton);
 				}
-				}
+			}
 
 			this.adjustButtons();
 		},
@@ -1289,6 +1510,39 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			}
 
 			this.adjustButtons();
+
+			BX.onCustomEvent(window, this.eventsNamespace + ":onRefreshLayout", [ this ]);
+		},
+		refreshViewModeLayout: function(options)
+		{
+			var userFieldLoader = BX.UI.EntityUserFieldLayoutLoader.create(
+				this._id,
+				{ mode: BX.UI.EntityEditorMode.view, enableBatchMode: true, owner: this }
+			);
+
+			if(!BX.type.isPlainObject(options))
+			{
+				options = {};
+			}
+
+			for(var i = 0, length = this._controls.length; i < length; i++)
+			{
+				var control = this._controls[i];
+
+				var layoutOptions = BX.mergeEx(
+					options,
+					{
+						userFieldLoader: userFieldLoader,
+						enableFocusGain: false,
+						isRefreshViewModeLayout: true
+					}
+				);
+				control.refreshViewModeLayout(layoutOptions);
+			}
+
+			userFieldLoader.runBatch();
+
+			BX.onCustomEvent(window, this.eventsNamespace + ":onRefreshViewModeLayout", [ this ]);
 		},
 		//endregion
 		switchControlMode: function(control, mode, options)
@@ -1347,7 +1601,15 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		switchToViewMode: function(options)
 		{
 			this.releaseActiveControls(options);
-			this.hideToolPanel();
+			if (!this.isToolPanelAlwaysVisible())
+			{
+				this.hideToolPanel();
+			}
+
+			var eventArgs = {
+				options: options,
+			}
+			BX.onCustomEvent(window, this.eventsNamespace + ":onSwitchToViewMode", [ this, eventArgs ]);
 		},
 		switchTitleMode: function(mode)
 		{
@@ -1366,7 +1628,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 						props:
 							{
 								type: "text",
-								className: "pagetitle-item",
+								className: this.pageTitleInputClassName,
 								value: this._model.getCaption()
 							}
 					}
@@ -1410,12 +1672,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		},
 		adjustTitle: function()
 		{
-			if(!this._enablePageTitleContols)
-			{
-				return;
-			}
-
-			if(!this._buttonWrapper)
+			if(!this._enablePageTitleControls || !this._buttonWrapper)
 			{
 				return;
 			}
@@ -1452,12 +1709,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		},
 		adjustSize: function()
 		{
-			if(!this._enablePageTitleContols)
-			{
-				return;
-			}
-
-			if(!this._pageTitle)
+			if(!this._enablePageTitleControls || !this._pageTitle)
 			{
 				return;
 			}
@@ -1479,7 +1731,20 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			//Move configuration menu button to last section if bottom panel is hidden.
 			if(this._config.isScopeToggleEnabled() && !this._enableBottomPanel && this._controls.length > 0)
 			{
-				this._controls[this._controls.length - 1].addButtonElement(
+				var control = this._controls[this._controls.length - 1];
+				if(control instanceof BX.UI.EntityEditorColumn)
+				{
+					if(control._sections.length > 0)
+					{
+						control = control._sections[control._sections.length - 1]
+					}
+					else
+					{
+						// nowhere to add
+						return;
+					}
+				}
+				control.addButtonElement(
 					BX.create(
 						"span",
 						{
@@ -1560,6 +1825,25 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		{
 			return this._isNew || this.hasChangedControls() || this.hasChangedControllers();
 		},
+		getEntityTypeForAction: function()
+		{
+			return this._entityTypeName;
+		},
+		prepareControllersData: function(data)
+		{
+			if (!BX.type.isPlainObject(data))
+			{
+				data = {};
+			}
+			for(var i = 0, length = this._controllers.length; i < length; i++)
+			{
+				if (BX.Type.isFunction(this._controllers[i].onBeforesSaveControl))
+				{
+					data = this._controllers[i].onBeforesSaveControl(data);
+				}
+			}
+			return data;
+		},
 		savePageTitle: function()
 		{
 			if(!this._pageTitleInput)
@@ -1578,11 +1862,12 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					"ACTION": "SAVE",
 					"ACTION_ENTITY_ID": this._entityId,
-					"ACTION_ENTITY_TYPE": this._entityTypeName,
+					"ACTION_ENTITY_TYPE": this.getEntityTypeForAction(),
 					"PARAMS": BX.prop.getObject(this._context, "PARAMS", {})
 				};
 
 			this._model.prepareCaptionData(data);
+			data = BX.mergeEx(data, this.prepareControllersData(data));
 			BX.ajax(
 				{
 					url: this._serviceUrl,
@@ -1593,23 +1878,71 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				}
 			);
 		},
+		performAction: function (actionId)
+		{
+			if (!this._actionTypes)
+			{
+				return;
+			}
+			if (this._actionTypes[actionId] === BX.UI.EntityEditorActionTypes.save)
+			{
+				this.performSaveChangedAction(actionId);
+			}
+			else if (this._actionTypes[actionId] === BX.UI.EntityEditorActionTypes.direct)
+			{
+				this.performDirectAction(actionId);
+			}
+		},
+		performDirectAction: function (actionId)
+		{
+			if(this._toolPanel)
+			{
+				this._toolPanel.setLocked(true);
+			}
+
+			var eventArgs = this.getActionEventArguments();
+			eventArgs.actionId = actionId;
+
+			BX.onCustomEvent(window, this.eventsNamespace + ":onDirectAction", [ this, eventArgs ]);
+
+			if(eventArgs["cancel"])
+			{
+				return;
+			}
+
+			this._ajaxForms[actionId].submit();
+		},
 		saveChanged: function()
+		{
+			this.performSaveChangedAction(BX.UI.EntityEditorActionIds.defaultActionId);
+		},
+		performSaveChangedAction: function(action)
 		{
 			if(!this._isNew && !this.hasChangedControls() && !this.hasChangedControllers() && !this.isWaitingForInput())
 			{
 				this._modeSwitch.reset();
 				this.releaseActiveControls();
 				this.refreshLayout({ reset: true });
-				this.hideToolPanel();
+				if (!this.isToolPanelAlwaysVisible())
+				{
+					this.hideToolPanel();
+				}
+
+				BX.onCustomEvent(window, this.eventsNamespace + ":onNothingChanged", [ this ]);
 			}
 			else
 			{
 				this._modeSwitch.reset();
 				this._modeSwitch.getQueue().addBatch(this._activeControls, BX.UI.EntityEditorMode.view);
+				this._modeSwitch.setRunAction(action);
 				this._modeSwitch.run();
 			}
 		},
 		saveDelayed: function(delay)
+		{
+			this.performSaveDelayedAction(BX.UI.EntityEditorActionIds.defaultActionId, delay);
+		},
+		performSaveDelayedAction: function (action, delay)
 		{
 			if(typeof(delay) === "undefined")
 			{
@@ -1620,9 +1953,15 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			{
 				window.clearTimeout(this._delayedSaveHandle);
 			}
-			this._delayedSaveHandle = window.setTimeout(BX.delegate(this.save, this), delay);
+			this._delayedSaveHandle = window.setTimeout(BX.delegate(function () {
+				this.performSaveAction(action);
+			}, this), delay);
 		},
 		save: function()
+		{
+			this.performSaveAction(BX.UI.EntityEditorActionIds.defaultActionId);
+		},
+		performSaveAction: function (action)
 		{
 			if(this._toolPanel)
 			{
@@ -1651,7 +1990,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					{
 						if(result.getStatus())
 						{
-							this.innerSave();
+							this.performInnerSaveAction(action);
 							if(this._bizprocManager)
 							{
 								this._bizprocManager.onAfterSave();
@@ -1665,6 +2004,8 @@ if(typeof BX.UI.EntityEditor === "undefined")
 								if(field)
 								{
 									field.focus();
+									var toolPanelOffset = 130;
+									window.scroll(window.pageXOffset, window.pageYOffset + toolPanelOffset);
 								}
 							}
 
@@ -1673,7 +2014,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 								this._toolPanel.setLocked(false);
 							}
 
-							BX.onCustomEvent(window, "BX.UI.EntityEditor:onFailedValidation", [ this, result ]);
+							BX.onCustomEvent(window, this.eventsNamespace + ":onFailedValidation", [ this, result ]);
 						}
 					},
 					this
@@ -1704,17 +2045,14 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					"ACTION": "SAVE",
 					"ACTION_ENTITY_ID": this._entityId,
-					"ACTION_ENTITY_TYPE": this._entityTypeName
+					"ACTION_ENTITY_TYPE": this.getEntityTypeForAction()
 				};
 
 			data = BX.mergeEx(data, this._context);
 			control.save();
 			control.prepareSaveData(data);
 
-			for(var i = 0, length = this._controllers.length; i < length; i++)
-			{
-				data = this._controllers[i].onBeforesSaveControl(data);
-			}
+			data = BX.mergeEx(data, this.prepareControllersData(data));
 
 			BX.ajax(
 				{
@@ -1739,7 +2077,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					"ACTION": "SAVE",
 					"ACTION_ENTITY_ID": this._entityId,
-					"ACTION_ENTITY_TYPE": this._entityTypeName
+					"ACTION_ENTITY_TYPE": this.getEntityTypeForAction()
 				}
 			);
 
@@ -1752,6 +2090,54 @@ if(typeof BX.UI.EntityEditor === "undefined")
 					onsuccess: BX.delegate(this.onSaveSuccess, this)
 				}
 			);
+		},
+		reload: function()
+		{
+			if(this._isRequestRunning)
+			{
+				return;
+			}
+			if(this._entityId <= 0 && this._model.isIdentifiable())
+			{
+				return;
+			}
+			var eventArgs = this.getActionEventArguments();
+
+			BX.onCustomEvent(window, this.eventsNamespace + ':onEntityStartReload', [ this, eventArgs ]);
+
+			if(eventArgs["cancel"])
+			{
+				return;
+			}
+
+			var ajaxData = BX.prop.getObject(this._settings, 'ajaxData', {});
+			var componentName = BX.prop.getString(ajaxData, 'COMPONENT_NAME', '');
+			var signedParameters = BX.prop.getString(ajaxData, 'SIGNED_PARAMETERS', '');
+			var reloadActionFormData = BX.prop.getObject(ajaxData,'RELOAD_FORM_DATA', {});
+			var reloadActionName = BX.prop.getString(ajaxData, "RELOAD_ACTION_NAME", '');
+			if (reloadActionName === '')
+			{
+				console.warn("Can't reload entity editor because RELOAD_ACTION_NAME is not defined");
+				return;
+			}
+
+			this._reloadAjaxForm = this.createAjaxForm(
+				{
+					componentName: componentName,
+					actionName: reloadActionName,
+					signedParameters: signedParameters,
+					formData: reloadActionFormData,
+					enableRequiredUserFieldCheck: false
+				},
+				{
+					onSuccess: this.onReloadSuccess.bind(this)
+				}
+			);
+
+			if(this._reloadAjaxForm)
+			{
+				this._reloadAjaxForm.submit();
+			}
 		},
 		validate: function(result)
 		{
@@ -1770,7 +2156,23 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		{
 			return this._isRequestRunning;
 		},
+		getActionEventArguments: function()
+		{
+			return {
+				id: this._id,
+				externalContext: this._externalContextId,
+				context: this._contextId,
+				entityTypeName: this._entityTypeName,
+				entityId: this._entityId,
+				model: this._model,
+				cancel: false
+			};
+		},
 		innerSave: function()
+		{
+			this.performInnerSaveAction(BX.UI.EntityEditorActionIds.defaultActionId);
+		},
+		performInnerSaveAction: function(action)
 		{
 			if(this._isRequestRunning)
 			{
@@ -1808,64 +2210,78 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			}
 
 			//region Rise Save Event
-			var eventArgs =
-				{
-					id: this._id,
-					externalContext: this._externalContextId,
-					context: this._contextId,
-					entityTypeName: this._entityTypeName,
-					entityId: this._entityId,
-					model: this._model,
-					cancel: false
-				};
+			var eventArgs = this.getActionEventArguments();
+			eventArgs.actionId = action;
 
-			BX.onCustomEvent(window, "BX.UI.EntityEditor:onSave", [ this, eventArgs ]);
+			BX.onCustomEvent(window, this.eventsNamespace + ":onSave", [ this, eventArgs ]);
 
 			if(eventArgs["cancel"])
 			{
 				return;
 			}
 
-			if(this._ajaxForm)
+			var enableCloseConfirmation = BX.prop.getBoolean(
+				eventArgs,
+				"enableCloseConfirmation",
+				null
+			);
+			if(BX.type.isBoolean(enableCloseConfirmation))
+			{
+				this._enableCloseConfirmation = enableCloseConfirmation;
+			}
+
+			var ajaxFormToSubmit = null;
+
+			if (this._ajaxForms && this._ajaxForms[action])
+			{
+				ajaxFormToSubmit = this._ajaxForms[action];
+			}
+			else
+			{
+				ajaxFormToSubmit = this._ajaxForm;
+			}
+
+			if(ajaxFormToSubmit)
 			{
 				var detailManager = this.getDetailManager();
 				if(detailManager)
 				{
 					var params =  detailManager.prepareAnalyticParams(
 						(this._entityId <= 0 && this._model.isIdentifiable()) ? "create" : "update",
-						{}
+						{ embedded: this.isEmbedded() ? "Y" : "N" }
 					);
 
 					if(params)
 					{
-						this._ajaxForm.addUrlParams(params);
+						ajaxFormToSubmit.addUrlParams(params);
 					}
 				}
-				this._ajaxForm.submit();
+				ajaxFormToSubmit.submit();
 			}
 			//endregion
 		},
 		cancel: function()
 		{
 			//region Rise Cancel Event
-			var eventArgs =
-				{
-					id: this._id,
-					externalContext: this._externalContextId,
-					context: this._contextId,
-					entityTypeName: this._entityTypeName,
-					entityId: this._entityId,
-					model: this._model,
-					cancel: false
-				};
+			var eventArgs = this.getActionEventArguments();
 
-			BX.onCustomEvent(window, "BX.UI.EntityEditor:onCancel", [ this, eventArgs ]);
+			BX.onCustomEvent(window, this.eventsNamespace + ":onCancel", [ this, eventArgs ]);
 
 			if(eventArgs["cancel"])
 			{
 				return;
 			}
 			//endregion
+
+			var enableCloseConfirmation = BX.prop.getBoolean(
+				eventArgs,
+				"enableCloseConfirmation",
+				null
+			);
+			if(BX.type.isBoolean(enableCloseConfirmation))
+			{
+				this._enableCloseConfirmation = enableCloseConfirmation;
+			}
 
 			if(this.hasChangedControls() || this.hasChangedControllers())
 			{
@@ -1914,7 +2330,12 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		},
 		openCancellationConfirmationDialog: function()
 		{
-			BX.UI.EditorAuxiliaryDialog.create(
+			if (this._confirmationCancelDialog)
+			{
+				return;
+			}
+
+			this._confirmationCancelDialog = BX.UI.EditorAuxiliaryDialog.create(
 				"cancel_confirmation",
 				{
 					title: BX.message("UI_ENTITY_EDITOR_CONFIRMATION"),
@@ -1935,12 +2356,13 @@ if(typeof BX.UI.EntityEditor === "undefined")
 							}
 						]
 				}
-			).open();
+			);
+			this._confirmationCancelDialog.open();
 		},
 		onCancelConfirmButtonClick: function(button)
 		{
 			button.getDialog().close();
-
+			this._confirmationCancelDialog = null;
 			if(button.getId() === "yes")
 			{
 				this.innerCancel();
@@ -2006,6 +2428,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 			var result = this._config.save(false);
 			if(result)
 			{
+				this._areAvailableSchemeElementsChanged = false;
 				this.processSchemeChange();
 			}
 			return result;
@@ -2027,6 +2450,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				this._scheme.setAvailableElements(this._availableSchemeElements);
 				this._areAvailableSchemeElementsChanged = false;
 			}
+		},
+		canChangeCommonConfiguration: function()
+		{
+			return this._config.isCanChangeCommonConfiguration();
 		},
 		onSaveSuccess: function(result)
 		{
@@ -2114,7 +2541,6 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				return;
 			}
 
-			//debugger;
 			var entityData = BX.prop.getObject(result, "ENTITY_DATA", null);
 			eventParams["entityData"] = entityData;
 
@@ -2178,6 +2604,8 @@ if(typeof BX.UI.EntityEditor === "undefined")
 
 			if(redirectUrl !== "")
 			{
+				eventParams.redirectUrl = redirectUrl;
+				BX.onCustomEvent(window, "beforeEntityRedirect", [eventParams]);
 				window.location.replace(
 					BX.util.add_url_param(
 						redirectUrl,
@@ -2213,7 +2641,10 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				}
 
 				this.refreshLayout({ reset: true });
-				this.hideToolPanel();
+				if (!this.isToolPanelAlwaysVisible())
+				{
+					this.hideToolPanel();
+				}
 			}
 		},
 		onSaveFailure: function(response)
@@ -2233,6 +2664,56 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					this._toolPanel.addError(errors[i]);
 				}
+			}
+		},
+		onReloadSuccess: function(result)
+		{
+			var eventParams = BX.prop.getObject(result, "EVENT_PARAMS", {});
+			eventParams["entityId"] = this._entityId;
+			eventParams["entityTypeName"] = this._entityTypeName;
+
+			var checkErrors = BX.prop.getObject(result, "CHECK_ERRORS", null);
+			var error = BX.prop.getString(result, "ERROR", "");
+			if(checkErrors || error !== "")
+			{
+				eventParams["checkErrors"] = checkErrors;
+				eventParams["error"] = error;
+
+				BX.onCustomEvent(window, this.eventsNamespace + ":onEntityReloadError", [eventParams]);
+				return;
+			}
+			var entityData = BX.prop.getObject(result, "ENTITY_DATA", null);
+
+			eventParams["entityData"] = entityData;
+			eventParams["sender"] = this;
+			eventParams["entityId"] = this._entityId;
+			BX.onCustomEvent(window, this.eventsNamespace + ":onEntityReload", [eventParams]);
+
+			if(BX.type.isPlainObject(entityData))
+			{
+				var previousModel = Object.create(this._model); // clone model object
+				previousModel.setData(  // copy model data
+					BX.clone(this._model.getData()),
+					{
+						enableNotification: false
+					}
+				);
+
+				//Notification event is disabled because we will call "refreshViewModeLayout" for all controls at the end.
+				this._model.setData(entityData, {enableNotification: false});
+
+				this.adjustTitle();
+				this.adjustSize();
+
+				for(var i = 0, length = this._controllers.length; i < length; i++)
+				{
+					this._controllers[i].onReload();
+				}
+
+				this.refreshViewModeLayout({
+					previousModel: previousModel,
+					reset: true
+				});
 			}
 		},
 		formatMoney: function(sum, currencyId, callback)
@@ -2292,6 +2773,29 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				);
 			}
 
+			if (this._config._userScopes)
+			{
+				for (var userScopeId in this._config._userScopes)
+				{
+					items.push(
+						{
+							text: BX.message('UI_ENTITY_EDITOR_CHECK_SCOPE').replace('#SCOPE_NAME#', this._config._userScopes[userScopeId]['NAME']),
+							onclick: callback,
+							attributes: {
+								'data-id': userScopeId
+							},
+							className:
+								(
+									this._config.getScope() === BX.UI.EntityConfigScope.custom
+									&& this._config._userScopeId === userScopeId
+								)
+									? "menu-popup-item-accept" : "menu-popup-item-none"
+
+						}
+					);
+				}
+			}
+
 			if(this.canChangeScheme())
 			{
 				if(this._config.isScopeToggleEnabled())
@@ -2319,9 +2823,32 @@ if(typeof BX.UI.EntityEditor === "undefined")
 						}
 					);
 				}
+
+				if(this.moduleId && this.canChangeCommonConfiguration())
+				{
+					items.push({ delimiter: true });
+
+					items.push(
+						{
+							id: "createConfigForCheckedUsers",
+							text: BX.message('UI_ENTITY_EDITOR_CREATE_SCOPE'),
+							onclick: callback,
+							className: "menu-popup-item-none"
+						}
+					);
+
+					items.push(
+						{
+							id: "editCommonConfig",
+							text: BX.message('UI_ENTITY_EDITOR_UPDATE_SCOPE'),
+							onclick: callback,
+							className: "menu-popup-item-none"
+						}
+					);
+				}
 			}
 
-			BX.onCustomEvent(window, "BX.UI.EntityEditor:onPrepareConfigMenuItems", [ this, items ]);
+			BX.onCustomEvent(window, this.eventsNamespace + ":onPrepareConfigMenuItems", [ this, items ]);
 			return items;
 		},
 		getServiceUrl: function()
@@ -2392,19 +2919,36 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				}
 			);
 
-			this.addSchemeElementAt(schemeElement, index);
+			var sectionSettings = {
+				schemeElement: schemeElement,
+				model: this._model,
+			};
+
+			var firstColumn = this.getControlByIndex(0);
+
+			if (!firstColumn)
+			{
+				this.addSchemeElementAt(schemeElement, index);
+				sectionSettings.container = this._formElement;
+			}
 
 			var control = this.createControl(
 				"section",
 				name,
-				{
-					schemeElement: schemeElement,
-					model: this._model,
-					container: this._formElement
-				}
+				sectionSettings
 			);
-			this.addControlAt(control, index);
-			this.saveScheme();
+
+			if (firstColumn)
+			{
+				firstColumn.addChild(control,{
+					enableSaving: false
+				});
+			}
+			else
+			{
+				this.addControlAt(control, 0);
+				this.saveScheme();
+			}
 
 			control.setMode(BX.UI.EntityEditorMode.edit, { notify: false });
 			control.refreshLayout();
@@ -2485,24 +3029,43 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		},
 		//endregion
 		//region Configuration
+		getCommonConfigEditUrl: function(entityTypeId, moduleId)
+		{
+			return this._commonConfigEditUrl
+				.replace(/#ENTITY_TYPE_ID_VALUE#/gi, entityTypeId)
+				.replace(/#MODULE_ID#/gi, moduleId);
+		},
 		onMenuItemClick: function(event, menuItem)
 		{
 			var id = BX.prop.getString(menuItem, "id", "");
-			if(id === "resetConfig")
-			{
-				this.resetConfig();
-			}
-			else if(id === "switchToPersonalConfig")
-			{
-				this.setConfigScope(BX.UI.EntityConfigScope.personal);
-			}
-			else if(id === "switchToCommonConfig")
-			{
-				this.setConfigScope(BX.UI.EntityConfigScope.common);
-			}
-			else if(id === "forceCommonConfigForAllUsers")
-			{
-				this.forceCommonConfigScopeForAll();
+			switch (id) {
+				case 'resetConfig':
+					this.resetConfig();
+					break;
+				case 'switchToPersonalConfig':
+					this.setConfigScope(BX.UI.EntityConfigScope.personal);
+					break;
+				case 'switchToCommonConfig':
+					this.setConfigScope(BX.UI.EntityConfigScope.common);
+					break;
+				case 'forceCommonConfigForAllUsers':
+					this.forceCommonConfigScopeForAll();
+					break;
+				case 'createConfigForCheckedUsers':
+					this.createConfigScopeForCheckedUsers();
+					break;
+				case 'editCommonConfig':
+					BX.SidePanel.Instance.open(
+						this.getCommonConfigEditUrl(this._config._id, this.moduleId),
+						{width: 980}
+					);
+					break;
+				default:
+					var attributes = BX.prop.getObject(menuItem, "attributes", "");
+					if (attributes['data-id'] !== undefined)
+					{
+						this.setConfigScope(BX.UI.EntityConfigScope.custom, attributes['data-id']);
+					}
 			}
 
 			if(menuItem.menuWindow)
@@ -2510,18 +3073,34 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				menuItem.menuWindow.close();
 			}
 		},
-		setConfigScope: function(scope)
+		setConfigScope: function(scope, userScopeId)
 		{
-			if(this._config.getScope() === scope)
+			if(
+				(
+					scope === this._config.getScope()
+					&& this._config.getScope() !== BX.UI.EntityConfigScope.custom
+				)
+				||
+				(
+					scope === BX.UI.EntityConfigScope.custom
+					&&
+					(userScopeId === undefined || userScopeId === this._config._userScopeId)
+				)
+			)
 			{
 				return;
 			}
 
-			this._config.setScope(scope).then(
+			this._config.setScope(scope, userScopeId, this.moduleId).then(
 				function()
 				{
-					var eventArgs = { id: this._id, scope: scope, enableReload: true };
-					BX.onCustomEvent(window, "BX.UI.EntityEditor:onConfigScopeChange", [ this, eventArgs ]);
+					var eventArgs = {
+						id: this._id,
+						moduleId: this.moduleId,
+						scope: scope, userScopeId: userScopeId,
+						enableReload: true
+					};
+					BX.onCustomEvent(window, this.eventsNamespace + ":onConfigScopeChange", [ this, eventArgs ]);
 
 					if(eventArgs["enableReload"] && !this._isEmbedded)
 					{
@@ -2530,6 +3109,18 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				}.bind(this)
 			);
 		},
+		createConfigScopeForCheckedUsers: function()
+		{
+			var config = BX.UI.EntityEditorScopeConfig.create(
+				this._id+'_config', {
+					editor: this,
+					config: this._config.toJSON(),
+					entityTypeId: this._config._id,
+					isCommonConfig: true,
+					moduleId: this.moduleId
+				});
+			config.open();
+		},
 		forceCommonConfigScopeForAll: function()
 		{
 			this._config.forceCommonScopeForAll().then(
@@ -2537,7 +3128,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					var scope = this._config.getScope();
 					var eventArgs = { id: this._id, scope: scope, enableReload: true };
-					BX.onCustomEvent(window, "BX.UI.EntityEditor:onForceCommonConfigScopeForAll", [ this, eventArgs ]);
+					BX.onCustomEvent(window, this.eventsNamespace + ":onForceCommonConfigScopeForAll", [ this, eventArgs ]);
 
 					if(eventArgs["enableReload"] && !this._isEmbedded && scope !== BX.UI.EntityConfigScope.common)
 					{
@@ -2553,7 +3144,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 				{
 					var scope = this._config.getScope();
 					var eventArgs = { id: this._id, scope: scope, enableReload: true };
-					BX.onCustomEvent(window, "BX.UI.EntityEditor:onConfigReset", [ this, eventArgs ]);
+					BX.onCustomEvent(window, this.eventsNamespace + ":onConfigReset", [ this, eventArgs ]);
 
 					if(eventArgs["enableReload"] && !this._isEmbedded)
 					{
@@ -2592,6 +3183,7 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		},
 		//endregion
 		//region D&D
+		// D&D for sections moved from root editor entity to column entities
 		getDragConfig: function(typeId)
 		{
 			return BX.prop.getObject(this._dragConfig, typeId, {});
@@ -2697,6 +3289,37 @@ if(typeof BX.UI.EntityEditor === "undefined")
 		getConfigScope: function()
 		{
 			return this._config.getScope();
+		},
+		prepareFieldLayoutOptions: function(field)
+		{
+			var hasContent = field.hasContentToDisplay();
+			var result = { isNeedToDisplay: (hasContent || this._showEmptyFields) };
+			if(this.isExternalLayoutResolversEnabled())
+			{
+				var eventArgs =
+					{
+						id: this._id,
+						field: field,
+						hasContent: hasContent,
+						showEmptyFields: this._showEmptyFields,
+						layoutOptions: result
+					};
+
+				BX.onCustomEvent(
+					window,
+					this.eventsNamespace + ":onResolveFieldLayoutOptions",
+					[ this, eventArgs ]
+				);
+			}
+			return result;
+		},
+		isExternalLayoutResolversEnabled: function()
+		{
+			return !!this._enableExternalLayoutResolvers;
+		},
+		getRestriction: function(id)
+		{
+			return BX.prop.getObject(this._restrictions, id, null);
 		}
 	};
 	BX.UI.EntityEditor.defaultInstance = null;
@@ -2829,6 +3452,8 @@ if(typeof BX.UI.EntityEditorModeSwitch === "undefined")
 		this._queue = null;
 		this._isRunning = false;
 		this._runHandle = 0;
+
+		this._runAction = "";
 	};
 	BX.UI.EntityEditorModeSwitch.prototype =
 		{
@@ -2852,6 +3477,10 @@ if(typeof BX.UI.EntityEditorModeSwitch === "undefined")
 			{
 				return this._isRunning;
 			},
+			setRunAction: function(action)
+			{
+				this._runAction = action;
+			},
 			run: function()
 			{
 				if(this._isRunning)
@@ -2867,7 +3496,7 @@ if(typeof BX.UI.EntityEditorModeSwitch === "undefined")
 			},
 			doRun: function()
 			{
-				this._editor.saveDelayed();
+				this._editor.performSaveDelayedAction(this._runAction);
 
 				this._isRunning = true;
 				this._runHandle = 0;
@@ -2881,6 +3510,437 @@ if(typeof BX.UI.EntityEditorModeSwitch === "undefined")
 	BX.UI.EntityEditorModeSwitch.create = function(id, settings)
 	{
 		var self = new BX.UI.EntityEditorModeSwitch();
+		self.initialize(id, settings);
+		return self;
+	};
+}
+//endregion
+
+//region ENTITY EDITOR MODE
+if(typeof(BX.UI.EntityEditorScopeConfig) === "undefined")
+{
+	BX.UI.EntityEditorScopeConfig = function()
+	{
+		this._id = "";
+		this._settings = {};
+
+		this._editor = {};
+		this._config = {};
+		this._isCommonConfig = false;
+
+		this._popup = null;
+		this._selector = null;
+
+		this._name = "";
+		this._items = [];
+
+		this._nameInput = {};
+		this._usersInput = {};
+		this._usersInputTagSelector = {};
+		this._forceSetInput = {};
+		this._nameInputError = null;
+		this._usersInputError = null;
+
+		this._entityId = "";
+		this._entityTypeId = '';
+
+		this._isOpened = false;
+		this._closeNotifier = null;
+
+		this.moduleId = null;
+
+		this._onSquareClick = BX.delegate(this.onSquareClick, this);
+	};
+
+	BX.UI.EntityEditorScopeConfig.prototype =
+		{
+			initialize: function(id, settings)
+			{
+				this._id = BX.type.isNotEmptyString(id) ? id : BX.util.getRandomString(4);
+				this._settings = settings ? settings : {};
+
+				this._editor = this.getSetting('editor', {});
+				this._config = this.getSetting('config', {});
+				this._isCommonConfig = this.getSetting('isCommonConfig', false);
+
+				this._name = this.getSetting('name', '');
+				this._items = this.getSetting('items', []);
+
+				this._entityId = this.getSetting('entityId', null);
+
+				this._entityTypeId = this.getSetting('entityTypeId', null);
+				this.moduleId = this.getSetting('moduleId', null);
+			},
+			getId: function()
+			{
+				return this._id;
+			},
+			getSetting: function(name, defaultValue)
+			{
+				return (this._settings.hasOwnProperty(name) ? this._settings[name] : defaultValue);
+			},
+			isOpened: function()
+			{
+				return this._isOpened;
+			},
+			open: function()
+			{
+				if(this._isOpened)
+				{
+					return;
+				}
+
+				this._popup = this.createPopup();
+
+				this._popup.show();
+			},
+			createPopup: function()
+			{
+				return (this._popup || new BX.PopupWindow(this._id, null, {
+					className: 'ui-entity-editor-content-user-scope-popup',
+					titleBar: BX.message('UI_ENTITY_EDITOR_CREATE_SCOPE'),
+					closeIcon : true,
+					autoHide: false,
+					closeByEsc: true,
+					padding: 0,
+					contentPadding: 0,
+					contentBackground: 'none',
+					draggable: true,
+					minWidth: 550,
+					maxWidth: 550,
+					content: this.prepareContent(),
+					buttons: this.prepareButtons(),
+					events:
+						{
+							onPopupShow: BX.delegate(this.onPopupShow, this),
+							onPopupClose: BX.delegate(this.onPopupClose, this),
+							onPopupDestroy: BX.delegate(this.onPopupDestroy, this)
+						},
+				}));
+			},
+			prepareContent: function()
+			{
+				var container = BX.create('div', {
+					style: {
+						padding: '0 20px',
+					}
+				});
+				container.appendChild(this.prepareNameControl());
+				container.appendChild(this.prepareUserSelectControl());
+				container.appendChild(this.prepareForceSetToUsersControl());
+
+				return container;
+			},
+			prepareNameControl: function()
+			{
+				var container = BX.create('div', {
+					style: {
+						paddingBottom: '25px',
+						marginBottom: '20px',
+						borderBottom: '1px solid #f2f2f4'
+					}
+				});
+				container.appendChild(BX.create('div', {
+					props: {
+						className: 'ui-ctl-label-text'
+					},
+					text: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_NAME')
+				}));
+
+				var control = BX.create('div', {
+					props:{
+						className: 'ui-ctl ui-ctl-textbox ui-ctl-w100'
+					}
+				});
+
+				this._nameInput = BX.create("input", {
+					props:{
+						className: 'ui-ctl-element',
+						value: this.getName(),
+						type: 'text',
+						placeholder: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_NAME_PLACEHOLDER')
+					}
+				});
+
+				control.appendChild(this._nameInput);
+				container.appendChild(control);
+				return container;
+			},
+			prepareUserSelectControl: function()
+			{
+				var container = BX.create('div', {
+					style: {
+						paddingBottom: '25px',
+						marginBottom: '10px',
+						borderBottom: '1px solid #f2f2f4'
+					}
+				});
+				container.appendChild(BX.create('div', {
+					props: {
+						className: 'ui-ctl-label-text'
+					},
+					text: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_MEMBERS')
+				}));
+
+				var control = BX.create('div', {
+					props:{
+						className: 'ui-ctl ui-ctl-textbox ui-ctl-w100'
+					}
+				});
+
+				this._usersInput = BX.create("div", {
+					style:{
+						width: '100%'
+					},
+					attrs: {
+						id: 'user-selector-item',
+					},
+				});
+
+				control.appendChild(this._usersInput);
+				container.appendChild(control);
+
+				this._usersInputTagSelector = new BX.UI.EntitySelector.TagSelector({
+					dialogOptions: {
+						context: 'UI_ENTITY_EDITOR_SCOPE',
+						entities: [
+							{
+								id: 'user',
+							},
+							{
+								id: 'project',
+							},
+							{
+								id: 'department',
+								options: {
+									selectMode: 'usersAndDepartments'
+								}
+							},
+						],
+					}
+				});
+
+				this._usersInputTagSelector.renderTo(this._usersInput);
+
+				return container;
+			},
+			prepareForceSetToUsersControl: function()
+			{
+				var container = BX.create('div', {
+					style: {
+						paddingBottom: '10px',
+						borderBottom: '1px solid #f2f2f4'
+					}
+				});
+
+				var control = BX.create('div', {
+					props:{
+						className: 'ui-ctl ui-ctl-checkbox ui-ctl-w100'
+					}
+				});
+
+				this._forceSetInput = BX.create("input", {
+					props:{
+						className: 'ui-ctl-element',
+						type: 'checkbox',
+						checked: true
+					},
+				});
+
+				control.appendChild(this._forceSetInput);
+				control.appendChild(BX.create('div', {
+					props:{
+						className: 'ui-ctl-label-text',
+					},
+					text: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_FORCE_INSTALL_TO_USERS')
+				}));
+
+				container.appendChild(control);
+
+				return container;
+			},
+			prepareButtons: function()
+			{
+				return [
+					new BX.UI.Button({
+						text: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_SAVE'),
+						tag: BX.UI.Button.Tag.LINK,
+						color: BX.UI.Button.Color.PRIMARY,
+						events: {
+							click: function(params, event) {
+								event.preventDefault();
+								this.processSave();
+							}.bind(this)
+						}
+					}),
+					new BX.UI.Button({
+						text: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_CANCEL'),
+						tag: BX.UI.Button.Tag.LINK,
+						color: BX.UI.Button.Color.LINK,
+						events: {
+							click: function(params, event) {
+								event.preventDefault();
+								this.processCancel();
+							}.bind(this)
+						}
+					})
+				];
+			},
+			close: function()
+			{
+				if (this._popup)
+				{
+					this._popup.close();
+				}
+			},
+			addCloseListener: function(listener)
+			{
+				this._closeNotifier.addListener(listener);
+			},
+			removeCloseListener: function(listener)
+			{
+				this._closeNotifier.removeListener(listener);
+			},
+			createUserInfo: function(item)
+			{
+				return {
+					ID: item.id,
+					FORMATTED_NAME: BX.util.htmlspecialcharsback(BX.prop.getString(item, 'name', '')),
+				};
+			},
+			isCustomized: function()
+			{
+				var accessCodes = BX.prop.getObject(this._config, 'accessCodes', []);
+				return !!Object.keys(accessCodes).length;
+			},
+			getName: function()
+			{
+				return this._name;
+			},
+			setName: function(name)
+			{
+				this._name = name;
+			},
+			processSave: function()
+			{
+				this.clearErrors();
+				this.setName(this._nameInput.value);
+
+				BX.ajax.runComponentAction(
+					'bitrix:ui.form.config',
+					'save',
+					{
+						data: {
+							moduleId: this.moduleId,
+							entityTypeId: this._entityTypeId,
+							name: this.getName(),
+							accessCodes: this.getSelectedItems(),
+							config: this._config,
+							params: {
+								forceSetToUsers: this._forceSetInput.checked,
+								categoryName: this._editor._config.categoryName,
+								common: 'Y',
+							}
+						}
+					}
+				)
+				.then(
+					function(response) {
+						this.close();
+						BX.UI.EntityEditorScopeConfig.prototype.notifyShow(response);
+						var scopeId = parseInt(response.data, 10);
+						this._editor.setConfigScope(BX.UI.EntityConfigScope.custom, scopeId);
+					}.bind(this)
+				).catch(function(response){
+					//todo show errors some other way
+					this.fillErrors(response.data);
+				}.bind(this));
+			},
+			/**
+			 *
+			 * @returns {{entityType: string, id: string|number}[]}
+			 */
+			getSelectedItems: function()
+			{
+				var items = this._usersInputTagSelector.getTags();
+				return items.map(function(item){
+					return {
+						id: item.id,
+						entityId: item.entityId,
+					}
+				});
+			},
+			fillErrors: function(errors)
+			{
+				if (errors.name)
+				{
+					this._nameInputError = this.createErrorElement(this._nameInput, errors.name.message);
+				}
+				if (errors.accessCodes)
+				{
+					this._usersInputError = this.createErrorElement(this._usersInput, errors.accessCodes.message);
+				}
+			},
+			createErrorElement: function(fieldNode, message)
+			{
+				var errorContainer = BX.create('div', {
+					props: {
+						className: 'ui-entity-section-control-error-text'
+					}
+				});
+				errorContainer.innerHTML = message;
+				fieldNode.parentNode.parentNode.appendChild(errorContainer);
+
+				return errorContainer;
+			},
+			clearErrors: function()
+			{
+				if (this._nameInputError)
+				{
+					this._nameInputError.remove();
+				}
+				if (this._usersInputError)
+				{
+					this._usersInputError.remove();
+				}
+			},
+			notifyShow: function(response)
+			{
+				window.top.BX.UI.Notification.Center.notify({
+					content: BX.message('UI_ENTITY_EDITOR_CONFIG_SCOPE_SAVED'),
+					width: 'auto',
+				});
+			},
+			processCancel: function()
+			{
+				this.close();
+			},
+			onPopupShow: function()
+			{
+				this._isOpened = true;
+			},
+			onPopupClose: function()
+			{
+				if(this._popup)
+				{
+					this._popup.destroy();
+				}
+			},
+			onPopupDestroy: function()
+			{
+				this._isOpened = false;
+				this._popup = null;
+			},
+		};
+
+	if(BX.UI.EntityEditorScopeConfig.messages === undefined)
+	{
+		BX.UI.EntityEditorScopeConfig.messages = {};
+	}
+
+	BX.UI.EntityEditorScopeConfig.create = function(id, settings)
+	{
+		var self = new BX.UI.EntityEditorScopeConfig();
 		self.initialize(id, settings);
 		return self;
 	};

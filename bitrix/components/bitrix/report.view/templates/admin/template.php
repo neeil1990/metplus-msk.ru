@@ -342,7 +342,7 @@ foreach($arResult['changeableFilters'] as $chFilter)
 						</script>
 
 						<?php /*    Sale report currency selection    */    ?>
-						<? if (substr(call_user_func(array($arResult['helperClassName'], 'getOwnerId')),0,5) === 'sale_'): ?>
+						<? if (mb_substr(call_user_func(array($arResult['helperClassName'], 'getOwnerId')), 0, 5) === 'sale_'): ?>
 						<tr>
 							<td class="adm-filter-item-left"><?=GetMessage('SALE_REPORT_CURRENCY').':'?></td>
 							<td class="adm-filter-item-center">
@@ -799,8 +799,16 @@ function groupingReportResultHtml(&$arParams, &$arResult, $level = 0, $arRowSet 
 				while ($rowNumber++ < $nRows)
 				{
 					// get index
-					if ($bUseRowSet) list(,$dataIndex) = each($arRowSet);
-					else list($dataIndex,) = each($arData);
+					if ($bUseRowSet)
+					{
+						$dataIndex = current($arRowSet);
+						next($arRowSet);
+					}
+					else
+					{
+						$dataIndex = key($arData);
+						next($arData);
+					}
 	
 					// fill index and value of group
 					$arGroupValuesIndexes[] = $dataIndex;
@@ -1013,8 +1021,16 @@ function groupingReportResultHtml(&$arParams, &$arResult, $level = 0, $arRowSet 
 					while ($rowNumber++ < $nRows)
 					{
 						// get index
-						if ($bUseRowSet) list(,$dataIndex) = each($arRowSet);
-						else list($dataIndex,) = each($arData);
+						if ($bUseRowSet)
+						{
+							$dataIndex = current($arRowSet);
+							next($arRowSet);
+						}
+						else
+						{
+							$dataIndex = key($arData);
+							next($arData);
+						}
 	
 						// total += values
 						foreach ($arColumns as $columnIndex => $viewColumnIndex)
@@ -1285,7 +1301,7 @@ unset($arGroupingResult['html']);
 						.'">'.$v.'</a>';
 				}
 			}
-			elseif (strlen($row[$col['resultName']]))
+			elseif(mb_strlen($row[$col['resultName']]))
 			{
 				$finalValue = '<a href="'.$row['__HREF_'.$col['resultName']].'">'.$row[$col['resultName']].'</a>';
 			}
@@ -1746,10 +1762,10 @@ unset($arGroupingResult['html']);
 <? endif; ?>
 
 <!-- description -->
-<? if (strlen($arResult['report']['DESCRIPTION'])): ?>
-<div class="adm-info-message-wrap">
-	<div class="adm-info-message">
-		<?=htmlspecialcharsbx($arResult['report']['DESCRIPTION'])?>
+<? if($arResult['report']['DESCRIPTION'] <> ''): ?>
+	<div class="adm-info-message-wrap">
+		<div class="adm-info-message">
+			<?= htmlspecialcharsbx($arResult['report']['DESCRIPTION']) ?>
+		</div>
 	</div>
-</div>
 <? endif; ?>

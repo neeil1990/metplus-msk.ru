@@ -77,6 +77,19 @@ Loc::loadMessages(__FILE__);
  * <li> OPTIONS int,
  * </ul>
  *
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Vote_Query query()
+ * @method static EO_Vote_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Vote_Result getById($id)
+ * @method static EO_Vote_Result getList(array $parameters = array())
+ * @method static EO_Vote_Entity getEntity()
+ * @method static \Bitrix\Vote\EO_Vote createObject($setDefaultValues = true)
+ * @method static \Bitrix\Vote\EO_Vote_Collection createCollection()
+ * @method static \Bitrix\Vote\EO_Vote wakeUpObject($row)
+ * @method static \Bitrix\Vote\EO_Vote_Collection wakeUpCollection($rows)
  */
 class VoteTable extends Entity\DataManager
 {
@@ -148,6 +161,7 @@ class VoteTable extends Entity\DataManager
 				"CHANNEL.ACTIVE", "ACTIVE", "DATE_START", "DATE_END", "CHANNEL.VOTE_SINGLE"])),
 			(new Reference("CHANNEL", ChannelTable::class, Join::on("this.CHANNEL_ID", "ref.ID"))),
 			(new Reference("QUESTION", QuestionTable::class, Join::on("this.ID", "ref.VOTE_ID"))),
+			(new Reference("USER", \Bitrix\Main\UserTable::class, Join::on("this.AUTHOR_ID", "ref.ID"))),
 		);
 	}
 	/**
@@ -202,7 +216,7 @@ class VoteTable extends Entity\DataManager
 	public static function onAfterAdd(\Bitrix\Main\ORM\Event $event)
 	{
 		$id = $event->getParameter("id");
-		$id = $id["ID"];
+		$id = is_array($id) && array_key_exists("ID", $id) ? $id["ID"] : $id;
 		$fields = $event->getParameter("fields");
 		/***************** Event onAfterVoteAdd ****************************/
 		foreach (GetModuleEvents("vote", "onAfterVoteAdd", true) as $event)
@@ -222,7 +236,7 @@ class VoteTable extends Entity\DataManager
 			/** @var array $data */
 			$data = $event->getParameter("fields");
 			$id = $event->getParameter("id");
-			$id = $id["ID"];
+			$id = is_array($id) && array_key_exists("ID", $id) ? $id["ID"] : $id;
 			foreach ($events as $ev)
 			{
 				if (ExecuteModuleEventEx($ev, array($id, &$data)) === false)
@@ -246,7 +260,7 @@ class VoteTable extends Entity\DataManager
 	public static function onAfterUpdate(\Bitrix\Main\ORM\Event $event)
 	{
 		$id = $event->getParameter("id");
-		$id = $id["ID"];
+		$id = is_array($id) && array_key_exists("ID", $id) ? $id["ID"] : $id;
 		$fields = $event->getParameter("fields");
 		/***************** Event onAfterVoteAdd ****************************/
 		foreach (GetModuleEvents("vote", "onAfterVoteUpdate", true) as $event)
@@ -274,7 +288,7 @@ class VoteTable extends Entity\DataManager
 		foreach (["TIMESTAMP_X", "DATE_START", "DATE_END"] as $key)
 		{
 			if (isset($data[$key]) && !($data[$key] instanceof DateTime))
-				$fields[$key] = new DateTime($data[$key]);
+				$fields[$key] = DateTime::createFromUserTime($data[$key]);
 		}
 
 		//region check image
@@ -296,7 +310,10 @@ class VoteTable extends Entity\DataManager
 						$fields["IMAGE_ID"]["old_file"] = $vote["IMAGE_ID"];
 					}
 				}
-				\CFile::SaveForDB($fields, "IMAGE_ID", "");
+				if (\CFile::SaveForDB($fields, "IMAGE_ID", "") === false)
+				{
+					$result->unsetField("IMAGE_ID");
+				}
 			}
 		}
 		//endregion
@@ -501,8 +518,8 @@ class Vote extends BaseObject implements \ArrayAccess
 				$images = array();
 				$vote = array();
 				foreach ($row as $key => $val)
-					if (strpos($key, "V_") === 0)
-						$vote[substr($key, 2)] = $val;
+					if (mb_strpos($key, "V_") === 0)
+						$vote[mb_substr($key, 2)] = $val;
 				$vote += array(
 						"IMAGE" => null,
 						"FIELD_NAME" => \Bitrix\Vote\Event::getExtrasFieldName($vote["ID"], "#ENTITY_ID#"),
@@ -515,8 +532,8 @@ class Vote extends BaseObject implements \ArrayAccess
 					$answer = array();
 					foreach ($row as $key => $val)
 					{
-						if (strpos($key, "A_") === 0)
-							$answer[substr($key, 2)] = $val;
+						if (mb_strpos($key, "A_") === 0)
+							$answer[mb_substr($key, 2)] = $val;
 					}
 					if ($answer["IMAGE_ID"] > 0)
 						$images[$answer["IMAGE_ID"]] = &$answer["IMAGE"];
@@ -526,8 +543,8 @@ class Vote extends BaseObject implements \ArrayAccess
 						$question = array();
 						foreach ($row as $key => $val)
 						{
-							if (strpos($key, "Q_") === 0)
-								$question[substr($key, 2)] = $val;
+							if (mb_strpos($key, "Q_") === 0)
+								$question[mb_substr($key, 2)] = $val;
 						}
 						$question += array(
 							"IMAGE" => null,
@@ -926,7 +943,12 @@ class Vote extends BaseObject implements \ArrayAccess
 				"V_" => "*",
 				"Q_" => "QUESTION.*",
 				"A_" => "QUESTION.ANSWER.*",
-				"U_" => "USER.USER.*",
+				"U_ID" => "USER.USER.ID",
+				"U_NAME" => "USER.USER.NAME",
+				"U_LAST_NAME" => "USER.USER.LAST_NAME",
+				"U_SECOND_NAME" => "USER.USER.SECOND_NAME",
+				"U_LOGIN" => "USER.USER.LOGIN",
+				"U_PERSONAL_PHOTO" => "USER.USER.PERSONAL_PHOTO",
 			),
 			"filter" => array("VOTE_ID" => $this->id, "VALID" => "Y"),
 			"order" => array(
@@ -970,7 +992,11 @@ class Vote extends BaseObject implements \ArrayAccess
 				"V_" => "*",
 				"Q_" => "QUESTION.*",
 				"A_" => "QUESTION.ANSWER.*",
-				"U_" => "USER.USER.*",
+				"U_ID" => "USER.USER.ID",
+				"U_NAME" => "USER.USER.NAME",
+				"U_LAST_NAME" => "USER.USER.LAST_NAME",
+				"U_SECOND_NAME" => "USER.USER.SECOND_NAME",
+				"U_PERSONAL_PHOTO" => "USER.USER.PERSONAL_PHOTO",
 			),
 			"filter" => array("VOTE_ID" => $this->id, "VALID" => "Y"),
 			"order" => array(
@@ -1150,7 +1176,7 @@ class Vote extends BaseObject implements \ArrayAccess
 			}
 			/*@var \Bitrix\Main\Type\DateTime $event["DATE"] */
 			$row = [
-				"DATE" => $event["DATE"]->format($dateTemplate),
+				"DATE" => $event["DATE"]->toUserTime()->format($dateTemplate),
 				"USER" => $user
 			];
 
@@ -1166,7 +1192,7 @@ class Vote extends BaseObject implements \ArrayAccess
 							if (!array_key_exists("STAT", $this->questions[$questionId]["ANSWERS"][$answerId]))
 								$this->questions[$questionId]["ANSWERS"][$answerId]["STAT"] = [];
 							$stat = &$this->questions[$questionId]["ANSWERS"][$answerId]["STAT"];
-							if (strlen($event["BALLOT"][$questionId][$answerId]) > 0)
+							if ($event["BALLOT"][$questionId][$answerId] <> '')
 							{
 								$stat[$event["ID"]] = $row["USER"]." (".$event["BALLOT"][$questionId][$answerId].")";
 								$answerMessage[] = $event["BALLOT"][$questionId][$answerId];
@@ -1341,7 +1367,7 @@ HTML;
 						default :
 							$fieldName = ($answer["FIELD_TYPE"] == AnswerTypes::TEXT ? "vote_field_" : "vote_memo_") . $answer["ID"];
 							$value = trim($request[$fieldName]);
-							if (strlen($value) > 0)
+							if ($value <> '')
 							{
 								if (!array_key_exists($question["ID"], $data["MESSAGE"]))
 									$data["MESSAGE"][$question["ID"]] = [];
@@ -1550,13 +1576,17 @@ HTML;
 		$canVoteResult = $this->canVote($user);
 		if (!$canVoteResult->isSuccess())
 		{
-			/** @var Error $error */
-			$error = $canVoteResult->getErrorCollection()->rewind();
 			$result = 0;
-			do
+			for (
+				$canVoteResult->getErrorCollection()->rewind();
+				$canVoteResult->getErrorCollection()->valid();
+				$canVoteResult->getErrorCollection()->next()
+			)
 			{
+				/** @var Error $error */
+				$error = $canVoteResult->getErrorCollection()->current();
 				$result |= $error->getCode();
-			} while ($error = $canVoteResult->getErrorCollection()->next());
+			}
 		}
 		return $result;
 	}
@@ -1718,7 +1748,8 @@ HTML;
 			$dbRes = \Bitrix\Vote\EventTable::getList([
 				"select" => [
 					"*",
-					"USER_" => "USER.*"
+					"USER_COOKIE_ID" => "USER.COOKIE_ID",
+					"USER_AUTH_USER_ID" => "USER.AUTH_USER_ID",
 				],
 				"filter" => [
 					"VOTE_ID" => $voteId,

@@ -1,5 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\CrmSiteMaster\Steps;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main,
 	Bitrix\Main\Application,
@@ -50,12 +56,12 @@ class ActivationKeyStep extends \CWizardStep
 		if (isset($steps["NEXT_STEP"]))
 		{
 			$this->SetNextStep($steps["NEXT_STEP"]);
-			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".strtoupper($shortClassName)."_NEXT"));
+			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName)."_NEXT"));
 		}
 		if (isset($steps["PREV_STEP"]))
 		{
 			$this->SetPrevStep($steps["PREV_STEP"]);
-			$this->SetPrevCaption(Loc::getMessage("SALE_CSM_WIZARD_".strtoupper($shortClassName)."_PREV"));
+			$this->SetPrevCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName)."_PREV"));
 		}
 	}
 
@@ -120,12 +126,19 @@ class ActivationKeyStep extends \CWizardStep
 						</g>
 					</svg>
 				</div>
+				<?php
+				$priceLink = "https://www.bitrix24.ru/prices/self-hosted.php";
+				if ($this->component->getLanguageId() === "ua")
+				{
+					$priceLink = "https://www.bitrix24.ua/prices/self-hosted.php";
+				}
+				?>
 				<div class="adm-crm-site-master-buy-key-link">
-					<a href="https://www.bitrix24.ru/prices/self-hosted.php" target="_blank"><?=Loc::getMessage("SALE_CSM_WIZARD_ACTIVATIONKEYSTEP_BUY_LINK")?></a>
+					<a href="<?=$priceLink?>" target="_blank"><?=Loc::getMessage("SALE_CSM_WIZARD_ACTIVATIONKEYSTEP_BUY_LINK")?></a>
 				</div>
 			</div>
 		</div>
-		<?
+		<?php
 		$content = ob_get_contents();
 		ob_end_clean();
 
@@ -145,7 +158,7 @@ class ActivationKeyStep extends \CWizardStep
 			?>
 			<input type="hidden" name="<?=$this->GetWizard()->nextStepHiddenID?>" value="<?=$this->GetNextStepID()?>">
 			<input type="hidden" name="<?=$this->GetWizard()->nextButtonID?>" value="<?=$this->GetNextCaption()?>">
-			<?
+			<?php
 		}
 		$content = ob_get_contents();
 		ob_end_clean();

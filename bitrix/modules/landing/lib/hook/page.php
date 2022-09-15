@@ -36,6 +36,12 @@ abstract class Page
 	protected $customExec = null;
 
 	/**
+	 * Flag, if hook change required forced publication site or page
+	 * @var boolean
+	 */
+	protected $isNeedPublication = false;
+
+	/**
 	 * Class constructor.
 	 * @param boolean $editMode Edit mode if true.
 	 * @param boolean $isPage Instance of page.
@@ -113,24 +119,6 @@ abstract class Page
 	 */
 	public function isLocked()
 	{
-		static $lockStates = [];
-		$class = get_class($this);
-
-		if (!array_key_exists($class, $lockStates))
-		{
-			$lockStates[$class] = Manager::checkFeature(
-				Manager::FEATURE_ENABLE_ALL_HOOKS,
-				[
-					'hook' => strtolower(array_pop(explode('\\', $class)))
-				]
-			);
-		}
-
-		if (!$this->isFree() && !$lockStates[$class])
-		{
-			return true;
-		}
-
 		return false;
 	}
 
@@ -144,13 +132,21 @@ abstract class Page
 	}
 
 	/**
+	 * @return bool - true if hook change required forced page/site publication
+	 */
+	public function isNeedPublication(): bool
+	{
+		return $this->isNeedPublication;
+	}
+
+	/**
 	 * Get code of hook.
 	 * @return string
 	 */
 	public function getCode()
 	{
 		$class = new \ReflectionClass($this);
-		return strtoupper($class->getShortName());
+		return mb_strtoupper($class->getShortName());
 	}
 
 	/**
@@ -238,15 +234,6 @@ abstract class Page
 	public function dataExist()
 	{
 		return implode('', array_values($this->fields)) != '';
-	}
-
-	/**
-	 * Active or not the hook.
-	 * @return bool
-	 */
-	public function active()
-	{
-		return true;
 	}
 
 	/**

@@ -175,7 +175,19 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 			action = BX.type.isNotEmptyString(action) ? action : 'refreshOrderAjax';
 
-			if (action === 'saveOrderAjax')
+			var eventArgs = {
+				action: action,
+				actionData: actionData,
+				cancel: false
+			};
+			BX.Event.EventEmitter.emit('BX.Sale.OrderAjaxComponent:onBeforeSendRequest', eventArgs);
+			if (eventArgs.cancel)
+			{
+				this.endLoader();
+				return;
+			}
+
+			if (eventArgs.action === 'saveOrderAjax')
 			{
 				form = BX('bx-soa-order-form');
 				if (form)
@@ -207,13 +219,13 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					method: 'POST',
 					dataType: 'json',
 					url: this.ajaxUrl,
-					data: this.getData(action, actionData),
+					data: this.getData(eventArgs.action, eventArgs.actionData),
 					onsuccess: BX.delegate(function(result) {
 						if (result.redirect && result.redirect.length)
 							document.location.href = result.redirect;
 
 						this.saveFiles();
-						switch (action)
+						switch (eventArgs.action)
 						{
 							case 'refreshOrderAjax':
 								this.refreshOrder(result);
@@ -305,7 +317,20 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			}
 			else if (result.order.SHOW_AUTH)
 			{
-				var animation = result.order.OK_MESSAGE && result.order.OK_MESSAGE.length || result.order.SMS_AUTH.TYPE === 'OK' ? 'bx-step-good' : 'bx-step-bad';
+				var animation;
+
+				if (
+					(result.order.OK_MESSAGE && result.order.OK_MESSAGE.length)
+					|| (result.order.SMS_AUTH && result.order.SMS_AUTH.TYPE === 'OK')
+				)
+				{
+					animation = 'bx-step-good';
+				}
+				else
+				{
+					animation = 'bx-step-bad';
+				}
+
 				this.addAnimationEffect(this.authBlockNode, animation);
 				BX.merge(this.result, result.order);
 				this.editAuthBlock();
@@ -3597,14 +3622,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultBasketItemLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 
 			if (this.params.HIDE_DETAIL_PAGE_URL !== 'Y' && data.DETAIL_PAGE_URL && data.DETAIL_PAGE_URL.length)
@@ -4014,7 +4039,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 						children: [
 							BX.create('DIV', {
 								props: {className: 'bx-img-itemColor'},
-								style: {backgroundImage: 'url(' + link + ')'}
+								style: {backgroundImage: 'url("' + link + '")'}
 							})
 						],
 						events: {
@@ -4941,14 +4966,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultPaySystemLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 			label = BX.create('DIV', {
 				props: {className: 'bx-soa-pp-company-graf-container'},
@@ -5012,14 +5037,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				if (logotype && logotype.src_2x)
 				{
 					logoNode.setAttribute('style',
-						'background-image: url(' + logotype.src_1x + ');' +
-						'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+						'background-image: url("' + logotype.src_1x + '");' +
+						'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 					);
 				}
 				else
 				{
 					logotype = logotype && logotype.src_1x || this.defaultPaySystemLogo;
-					logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+					logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 				}
 
 				if (this.params.SHOW_PAY_SYSTEM_INFO_NAME == 'Y')
@@ -5098,14 +5123,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultPaySystemLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 
 			label = BX.create('DIV', {
@@ -5392,14 +5417,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultDeliveryLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 
 			name = this.params.SHOW_DELIVERY_PARENT_NAMES != 'N' ? currentDelivery.NAME : currentDelivery.OWN_NAME;
@@ -5612,14 +5637,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultDeliveryLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 			labelNodes.push(logoNode);
 

@@ -6,6 +6,22 @@ use \Bitrix\Main\Entity;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class BindingTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Binding_Query query()
+ * @method static EO_Binding_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Binding_Result getById($id)
+ * @method static EO_Binding_Result getList(array $parameters = array())
+ * @method static EO_Binding_Entity getEntity()
+ * @method static \Bitrix\Landing\Internals\EO_Binding createObject($setDefaultValues = true)
+ * @method static \Bitrix\Landing\Internals\EO_Binding_Collection createCollection()
+ * @method static \Bitrix\Landing\Internals\EO_Binding wakeUpObject($row)
+ * @method static \Bitrix\Landing\Internals\EO_Binding_Collection wakeUpCollection($rows)
+ */
 class BindingTable extends Entity\DataManager
 {
 	/**
@@ -47,7 +63,7 @@ class BindingTable extends Entity\DataManager
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_ENTITY_TYPE'),
 				'required' => true
 			)),
-			'BINDING_ID' => new Entity\IntegerField('BINDING_ID', array(
+			'BINDING_ID' => new Entity\StringField('BINDING_ID', array(
 				'title' => Loc::getMessage('LANDING_TABLE_FIELD_BINDING_ID'),
 				'required' => true
 			)),

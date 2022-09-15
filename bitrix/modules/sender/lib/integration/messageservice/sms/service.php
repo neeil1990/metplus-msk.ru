@@ -198,4 +198,26 @@ class Service
 
 		return $info;
 	}
+
+	public static function getFormattedOutputNumber($value)
+	{
+		static $numbers;
+		if (null === $numbers)
+		{
+			$numbers = [];
+			if (static::canUse())
+			{
+				$providers = static::getProviders();
+				foreach ($providers as $provider)
+				{
+					foreach ($provider['from'] as $number)
+					{
+						$numbers[$provider['id'] . ':'. $number['id']] = $number['name'];
+					}
+				}
+			}
+		}
+
+		return $numbers[$value] ?: $value;
+	}
 }

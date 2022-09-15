@@ -10,12 +10,28 @@ namespace Bitrix\Sender\Internals\Model;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type;
-
-use Bitrix\Sender\Message\iBase;
+use Bitrix\Sender\FileTable;
 use Bitrix\Sender\MailingChainTable;
+use Bitrix\Sender\Message\iBase;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class LetterTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Letter_Query query()
+ * @method static EO_Letter_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Letter_Result getById($id)
+ * @method static EO_Letter_Result getList(array $parameters = array())
+ * @method static EO_Letter_Entity getEntity()
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter_Collection createCollection()
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter wakeUpObject($row)
+ * @method static \Bitrix\Sender\Internals\Model\EO_Letter_Collection wakeUpCollection($rows)
+ */
 class LetterTable extends Entity\DataManager
 {
 	const STATUS_NEW = 'N';
@@ -88,6 +104,10 @@ class LetterTable extends Entity\DataManager
 				'data_type' => 'datetime',
 				'default_value' => new Type\DateTime(),
 			),
+			'DATE_UPDATE' => array(
+				'data_type' => 'datetime',
+				'default_value' => new Type\DateTime(),
+			),
 			'STATUS' => array(
 				'data_type' => 'string',
 				'required' => true,
@@ -114,6 +134,8 @@ class LetterTable extends Entity\DataManager
 			'TITLE' => array(
 				'data_type' => 'string',
 				'title' => Loc::getMessage('SENDER_ENTITY_MAILING_CHAIN_FIELD_TITLE_TITLE1'),
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
 			),
 
 			'AUTO_SEND_TIME' => array(
@@ -135,10 +157,20 @@ class LetterTable extends Entity\DataManager
 				'data_type' => 'integer',
 			),
 
-			'SEARCH_CONTENT' => array(
-				'data_type' => 'text'
+			'ERROR_MESSAGE' => array(
+				'data_type' => 'string',
 			),
 
+			'SEARCH_CONTENT' => array(
+				'data_type' => 'text',
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
+			),
+
+			'MESSAGE' => array(
+				'data_type' => MessageTable::class,
+				'reference' => array('=this.MESSAGE_ID' => 'ref.ID'),
+			),
 			'CAMPAIGN' => array(
 				'data_type' => 'Bitrix\Sender\MailingTable',
 				'reference' => array('=this.CAMPAIGN_ID' => 'ref.ID'),
@@ -154,6 +186,11 @@ class LetterTable extends Entity\DataManager
 			'CREATED_BY_USER' => array(
 				'data_type' => 'Bitrix\Main\UserTable',
 				'reference' => array('=this.CREATED_BY' => 'ref.ID'),
+			),
+			'WAITING_RECIPIENT' => array(
+				'data_type' => 'boolean',
+				'default_value' => 'N',
+				'values' => array('N', 'Y')
 			),
 		);
 	}
@@ -204,6 +241,34 @@ class LetterTable extends Entity\DataManager
 		$fields = static::getRowById($data['primary']['ID']);
 		if ($fields)
 		{
+			$fileQuery = MessageFieldTable::getById([
+				'MESSAGE_ID' => $fields['MESSAGE_ID'],
+				'CODE' => 'ATTACHMENT',
+			]);
+
+			if($row = $fileQuery->fetch())
+			{
+				$files = explode(",", $row['VALUE']);
+
+				foreach ($files as $file)
+				{
+					if((int)$file)
+					{
+						\CFile::Delete((int)$file);
+					}
+				}
+			}
+
+			$messageQuery = MessageFieldTable::getById([
+				'MESSAGE_ID' => $fields['MESSAGE_ID'],
+				'CODE' => 'MESSAGE',
+			]);
+
+			if($row = $messageQuery->fetch())
+			{
+				FileTable::syncFiles($data['primary']['ID'], 0, $row['VALUE'], true, true);
+			}
+
 			MessageTable::delete($fields['MESSAGE_ID']);
 		}
 

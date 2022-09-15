@@ -1,12 +1,33 @@
 <?
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
-use Bitrix\Main,
-	Bitrix\Currency,
-	Bitrix\Catalog;
+use Bitrix\Main;
+use Bitrix\Currency;
+use Bitrix\Catalog;
 
-$selfFolderUrl = (defined("SELF_FOLDER_URL") ? SELF_FOLDER_URL : "/bitrix/admin/");
-$publicMode = (defined("SELF_FOLDER_URL") ? true : false);
+if (
+	isset($urlBuilderId)
+	&& in_array(
+		$urlBuilderId,
+		[
+			'SHOP',
+			'INVENTORY',
+			'CRM',
+		]
+	)
+)
+{
+	$selfFolderUrl = '/shop/settings/';
+	$publicMode = true;
+	$adminSidePanelHelper->setPublicPageProcessMode(true);
+}
+else
+{
+	$selfFolderUrl = (defined("SELF_FOLDER_URL") ? SELF_FOLDER_URL : "/bitrix/admin/");
+	$publicMode = defined("SELF_FOLDER_URL");
+}
+
+$isCloud = \Bitrix\Main\Loader::includeModule('bitrix24');
 
 if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_price') || $USER->CanDoOperation('catalog_view'))
 {
@@ -28,6 +49,11 @@ if ($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_pric
 	$bUseStoreControl = Catalog\Config\State::isUsedInventoryManagement();
 	$bEnableReservation = ('N' != COption::GetOptionString('catalog', 'enable_reservation'));
 	$enableQuantityRanges = Catalog\Config\Feature::isPriceQuantityRangesEnabled();
+	$quantityRangesHelpLink = null;
+	if (!$enableQuantityRanges)
+	{
+		$quantityRangesHelpLink = Catalog\Config\Feature::getPriceQuantityRangesHelpLink();
+	}
 
 	$availQuantityTrace = COption::GetOptionString("catalog", "default_quantity_trace");
 	$availCanBuyZero = COption::GetOptionString("catalog", "default_can_buy_zero");
@@ -347,7 +373,45 @@ if ($enableQuantityRanges)
 	$bUseExtendedPrice = $bVarsFromForm ? $subprice_useextform == 'Y' : $usedRanges;
 else
 	$bUseExtendedPrice = false;
-$str_CAT_VAT_ID = $bVarsFromForm ? $SUBCAT_VAT_ID : ($arBaseProduct['VAT_ID'] == 0 ? $arCatalog['VAT_ID'] : $arBaseProduct['VAT_ID']);
+if ($isCloud)
+{
+	$str_CAT_VAT_ID = (int)($bVarsFromForm
+		? $SUBCAT_VAT_ID
+		: ($arBaseProduct['VAT_ID'] == 0 ? $arCatalog['VAT_ID'] : $arBaseProduct['VAT_ID'])
+	);
+}
+else
+{
+	$str_CAT_VAT_ID = (int)($bVarsFromForm ? $SUBCAT_VAT_ID : $arBaseProduct['VAT_ID']);
+}
+$vatList = [];
+$iterator = Catalog\VatTable::getList([
+	'select' => [
+		'ID',
+		'NAME',
+		'SORT',
+	],
+	'filter' => [
+		'=ACTIVE' => 'Y',
+	],
+	'order' => [
+		'SORT' => 'ASC',
+		'NAME' => 'ASC',
+	]
+]);
+while ($row = $iterator->fetch())
+{
+	$vatList[$row['ID']] = $row['NAME'];
+}
+unset($row, $iterator);
+if (!isset($vatList[$arCatalog['VAT_ID']]))
+{
+	$arCatalog['VAT_ID'] = 0;
+}
+if (!isset($vatList[$str_CAT_VAT_ID]))
+{
+	$str_CAT_VAT_ID = 0;
+}
 $str_CAT_VAT_INCLUDED = (string)($bVarsFromForm ? $SUBCAT_VAT_INCLUDED : $arBaseProduct['VAT_INCLUDED']);
 if ($str_CAT_VAT_INCLUDED != 'Y' && $str_CAT_VAT_INCLUDED != 'N')
 	$str_CAT_VAT_INCLUDED = ((string)Main\Config\Option::get('catalog', 'default_product_vat_included') == 'Y' ? 'Y' : 'N');
@@ -355,14 +419,26 @@ if ($str_CAT_VAT_INCLUDED != 'Y' && $str_CAT_VAT_INCLUDED != 'N')
 <input type="hidden" name="subprice_useextform" id="subprice_useextform_N" value="N" />
 <table border="0" cellspacing="0" cellpadding="0" width="100%" class="edit-table" id="subcatalog_vat_table">
 <?
-if ($enableQuantityRanges)
+if ($enableQuantityRanges || !empty($quantityRangesHelpLink))
 {
 	?>
 	<tr>
 		<td width="40%"><label for="subprice_useextform"><? echo GetMessage('C2IT_PRICES_USEEXT'); ?>:</label></td>
-		<td width="60%">
-			<input type="checkbox" name="subprice_useextform" id="subprice_useextform" value="Y" onclick="toggleSubPriceType()" <?= $bUseExtendedPrice ? 'checked="checked"' : '' ?> <? echo($bReadOnly ? ' disabled readonly' : ''); ?> />
-		</td>
+		<td width="60%"><?
+		if ($enableQuantityRanges)
+		{
+			?><input type="checkbox" name="subprice_useextform" id="subprice_useextform" value="Y" onclick="toggleSubPriceType()" <?= $bUseExtendedPrice ? 'checked="checked"' : '' ?><? echo($bReadOnly ? ' disabled readonly' : ''); ?> /><?
+		}
+		else
+		{
+			?><input type="hidden" name="subprice_useextform" value="N"><?
+			if ($quantityRangesHelpLink['TYPE'] == 'ONCLICK')
+			{
+				?><a href="#" onclick="<?=$quantityRangesHelpLink['LINK']; ?>"><?=GetMessage('C2IT_PRICES_EXT_TARIFF_ENABLE'); ?></a><?
+				Catalog\Config\Feature::initUiHelpScope();
+			}
+		}
+		?></td>
 	</tr>
 	<?
 }
@@ -373,13 +449,41 @@ else
 ?>
 	<tr>
 		<td width="40%">
-			<?echo GetMessage("CAT_VAT")?>:
+			<?php
+			if (!$isCloud && (int)$arCatalog['VAT_ID'] !== 0)
+			{
+				$hintMessage = GetMessage(
+					'CAT_VAT_ID_CATALOG_HINT',
+					[
+					'#VAT_NAME#' => $vatList[$arCatalog['VAT_ID']],
+					]
+				);
+				?>
+				<span id="hint_SUBCAT_VAT_ID"></span>
+				<script type="text/javascript">
+					BX.hint_replace(BX('hint_SUBCAT_VAT_ID'), '<?=\CUtil::JSEscape($hintMessage); ?>');
+				</script>&nbsp;<?php
+			}
+			echo GetMessage("CAT_VAT")?>:
 		</td>
 		<td width="60%">
-<?
-	$arVATRef = CatalogGetVATArray(array(), true);
-	echo SelectBoxFromArray('SUBCAT_VAT_ID', $arVATRef, $str_CAT_VAT_ID, "", $bReadOnly ? "disabled readonly" : '');
-?>
+			<select name="SUBCAT_VAT_ID" id="SUBCAT_VAT_ID" <?= ($bReadOnly ? "disabled readonly" : ''); ?>>
+				<?php
+				if (!$isCloud)
+				{
+				$vatSelected = ($str_CAT_VAT_ID === 0 ? ' selected' : '');
+				?>
+				<option value="0"<?=$vatSelected; ?>><?=htmlspecialcharsbx(GetMessage('CAT_VAT_ID_EMPTY')); ?></option>
+				<?php
+				}
+				foreach ($vatList as $vatId => $vatName)
+				{
+					$vatSelected = ($str_CAT_VAT_ID === $vatId ? ' selected' : '');
+					?><option value="<?=htmlspecialcharsbx($vatId); ?>"<?=$vatSelected; ?>><?=htmlspecialcharsbx($vatName); ?></option><?php
+				}
+				unset($vatList);
+				?>
+			</select>
 		</td>
 	</tr>
 	<tr>
@@ -414,7 +518,12 @@ else
 		<td width="40%">
 			<?
 			$arBaseGroup = CCatalogGroup::GetBaseGroup();
-			$arBasePrice = CPrice::GetBasePrice($PRODUCT_ID, $arPriceBoundaries[0]["FROM"], $arPriceBoundaries[0]["TO"]);
+			$arBasePrice = CPrice::GetBasePrice(
+				$PRODUCT_ID,
+				$arPriceBoundaries[0]["FROM"],
+				$arPriceBoundaries[0]["TO"],
+				false
+			);
 			echo GetMessage("BASE_PRICE")?> (<? echo GetMessage('C2IT_PRICE_TYPE'); ?> "<? echo htmlspecialcharsbx(!empty($arBaseGroup['NAME_LANG']) ? $arBaseGroup['NAME_LANG'] : $arBaseGroup["NAME"]); ?>"):
 		</td>
 		<td width="60%">
@@ -2036,7 +2145,67 @@ function HideNotice()
 				<?
 			}
 
-			$arUserFields = $USER_FIELD_MANAGER->GetUserFields(Catalog\ProductTable::getUfId(), $PRODUCT_ID, LANGUAGE_ID);
+			$userFieldManager = Main\UserField\Internal\UserFieldHelper::getInstance()->getManager();
+			$arUserFields = $userFieldManager->GetUserFields(
+				Catalog\ProductTable::getUfId(),
+				$PRODUCT_ID,
+				LANGUAGE_ID
+			);
+			if (!empty($arUserFields))
+			{
+				foreach (array_keys($arUserFields) as $fieldName)
+				{
+					$arUserFields[$fieldName]['VALUE_ID'] = $PRODUCT_ID;
+					$arUserFields[$fieldName]['EDIT_FORM_LABEL'] = $arUserFields[$fieldName]['EDIT_FORM_LABEL']
+						??
+						$arUserFields[$fieldName]['FIELD_NAME']
+					;
+				}
+				unset($fieldName);
+
+				$restrictions = [
+					'TYPE' => (int)$arBaseProduct['TYPE'],
+					'IBLOCK_ID' => $IBLOCK_ID,
+				];
+
+				$permissionFields = Catalog\Product\SystemField::getPermissionFieldsByRestrictions($restrictions);
+				foreach ($permissionFields as $field => $permission)
+				{
+					if (
+						!$permission
+						&& isset($arUserFields[$field])
+					)
+					{
+						unset($arUserFields[$field]);
+					}
+				}
+				$systemFields = Catalog\Product\SystemField::getFieldNamesByRestrictions($restrictions);
+
+				if (!empty($systemFields))
+				{
+					?><tr class="heading">
+					<td colspan="2"><?=GetMessage("C2IT_UF_SYSTEM_FIELDS"); ?></td>
+					</tr><?
+
+					foreach ($systemFields as $fieldName)
+					{
+						$html = $userFieldManager->GetEditFormHTML(
+							$bVarsFromForm,
+							$GLOBALS[$fieldName] ?? '',
+							$arUserFields[$fieldName]
+						);
+						//TODO: remove this code after refactoring UF fields
+						if ($fieldName == 'UF_PRODUCT_GROUP')
+						{
+							$html = str_replace('<select', '<select style="max-width: 300px;"', $html);
+						}
+						echo $html;
+
+						unset($arUserFields[$fieldName]);
+					}
+				}
+				unset($systemFields);
+			}
 			if (!empty($arUserFields))
 			{
 				?><tr class="heading">
@@ -2045,15 +2214,17 @@ function HideNotice()
 
 				foreach ($arUserFields as $FIELD_NAME => $arUserField)
 				{
-					$arUserField["VALUE_ID"] = $PRODUCT_ID;
-					$strLabel = $arUserField["EDIT_FORM_LABEL"] ? $arUserField["EDIT_FORM_LABEL"] : $arUserField["FIELD_NAME"];
-					$arUserField["EDIT_FORM_LABEL"] = $strLabel;
 
-					echo $USER_FIELD_MANAGER->GetEditFormHTML($bVarsFromForm, $GLOBALS[$FIELD_NAME], $arUserField);
+					echo $userFieldManager->GetEditFormHTML(
+						$bVarsFromForm,
+						$GLOBALS[$fieldName] ?? '',
+						$arUserField
+					);
 				}
 				unset($FIELD_NAME, $arUserField);
 			}
 			unset($arUserFields);
+			unset($userFieldManager);
 			?>
 		</table>
 <script type="text/javascript">
@@ -2106,14 +2277,14 @@ SetSubFieldsStyle('subcatalog_properties_table');
 
 				$arAvailContentGroups = array();
 				$availContentGroups = COption::GetOptionString("catalog", "avail_content_groups");
-				if (strlen($availContentGroups) > 0)
+				if ($availContentGroups <> '')
 					$arAvailContentGroups = explode(",", $availContentGroups);
 
 				$bNoAvailGroups = true;
 
 				$dbGroups = CGroup::GetList(
-						($b="c_sort"),
-						($o="asc"),
+						"c_sort",
+						"asc",
 						array("ANONYMOUS" => "N")
 					);
 				while ($arGroup = $dbGroups->Fetch())
@@ -2270,6 +2441,8 @@ SetSubFieldsStyle('subcatalog_properties_table');
 		<br>
 		<?echo GetMessage("C2IT_DISCOUNT_HINT");
 	$subtabControl1->BeginNextTab();
+
+		$showStoreReserve = Catalog\Config\State::isShowedStoreReserve();
 		$stores = array();
 		$storeLink = array();
 		$storeCount = 0;
@@ -2283,6 +2456,7 @@ SetSubFieldsStyle('subcatalog_properties_table');
 			$row['ID'] = (int)$row['ID'];
 			$row['ADDRESS'] = trim($row['ADDRESS']);
 			$row['PRODUCT_AMOUNT'] = '';
+			$row['QUANTITY_RESERVED'] = '';
 			$stores[$storeCount] = $row;
 			$storeLink[$row['ID']] = &$stores[$storeCount];
 			$storeCount++;
@@ -2293,25 +2467,53 @@ SetSubFieldsStyle('subcatalog_properties_table');
 			$storeIds = array_keys($storeLink);
 			if (!$bCopy)
 			{
-				$iterator = Catalog\StoreProductTable::getList(array(
-					'select' => array('STORE_ID', 'AMOUNT'),
-					'filter' => array('=PRODUCT_ID' => $PRODUCT_ID, '@STORE_ID' => $storeIds)
-				));
+				$select = [
+					'STORE_ID',
+					'AMOUNT'
+				];
+				if ($showStoreReserve)
+				{
+					$select[] = 'QUANTITY_RESERVED';
+				}
+				$iterator = Catalog\StoreProductTable::getList([
+					'select' => $select,
+					'filter' => [
+						'=PRODUCT_ID' => $PRODUCT_ID,
+						'@STORE_ID' => $storeIds
+					],
+				]);
 				while ($row = $iterator->fetch())
 				{
 					$storeId = (int)$row['STORE_ID'];
-					$storeLink[$storeId]['PRODUCT_AMOUNT'] = $row['AMOUNT'];
+					$row['AMOUNT'] = (string)$row['AMOUNT'];
+					$row['QUANTITY_RESERVED'] = (string)$row['QUANTITY_RESERVED'];
+					if ($row['AMOUNT'] !== '0' || $row['QUANTITY_RESERVED'] !== '0')
+					{
+						$storeLink[$storeId]['PRODUCT_AMOUNT'] = $row['AMOUNT'];
+					}
+					if (
+						$showStoreReserve
+						&& $row['QUANTITY_RESERVED'] !== '0'
+					)
+					{
+						$storeLink[$storeId]['QUANTITY_RESERVED'] = $row['QUANTITY_RESERVED'];
+					}
 				}
 				unset($row, $iterator);
 			}
 			if ($bVarsFromForm)
 			{
-				foreach ($storeIds as $store)
+				if ($bStore && !$bUseStoreControl)
 				{
-					if (isset($_POST['SUBAR_AMOUNT'][$store]) && is_string($_POST['SUBAR_AMOUNT'][$store]))
-						$storeLink[$store]['PRODUCT_AMOUNT'] = $_POST['SUBAR_AMOUNT'][$store];
+					foreach ($storeIds as $store)
+					{
+						if (isset($_POST['SUBAR_AMOUNT'][$store]) && is_string($_POST['SUBAR_AMOUNT'][$store]))
+						{
+							$storeLink[$store]['PRODUCT_AMOUNT'] = $_POST['SUBAR_AMOUNT'][$store];
+						}
+					}
+					unset($store);
 				}
-				unset($store);
 			}
 			unset($storeIds);
 		}
@@ -2324,7 +2526,12 @@ SetSubFieldsStyle('subcatalog_properties_table');
 				<td><? echo GetMessage('C2IT_STORE_ID'); ?></td>
 				<td><?echo GetMessage("C2IT_NAME"); ?></td>
 				<td><?echo GetMessage("C2IT_STORE_ADDR"); ?></td>
-				<td><?echo GetMessage("C2IT_PROD_AMOUNT"); ?></td>
+				<td><?echo GetMessage("C2IT_PROD_AMOUNT"); ?></td><?php
+				if ($showStoreReserve)
+				{
+					?><td><?php echo GetMessage("C2IT_PROD_QUANTITY_RESERVED"); ?></td><?php
+				}
+				?>
 			</tr>
 			<?
 			foreach ($stores as $storeIndex => $row)
@@ -2350,7 +2557,12 @@ SetSubFieldsStyle('subcatalog_properties_table');
 				{
 					?><input type="hidden" name="SUBAR_STORE_ID[<?=$row['ID']?>]" value="<?=$row['ID']?>"><?
 				}
-				?></td></tr><?
+				?></td><?php
+				if ($showStoreReserve)
+				{
+					?><td><input type="text" size="12" disable readonly value="<?=htmlspecialcharsbx($row['QUANTITY_RESERVED']); ?>"></td><?php
+				}
+				?></tr><?
 				unset($storeUrl, $address, $storeId);
 			}
 			unset($storeIndex, $row);

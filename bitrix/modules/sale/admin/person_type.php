@@ -14,11 +14,11 @@ IncludeModuleLangFile(__FILE__);
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 
 $sTableID = "tbl_sale_person_type";
-$oSort = new CAdminSorting($sTableID, "ID", "asc");
+$oSort = new CAdminUiSorting($sTableID, "ID", "asc");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
 
 $listSite = array();
-$sitesQueryObject = CSite::getList($bySite = "sort", $orderSite = "asc", array("ACTIVE" => "Y"));
+$sitesQueryObject = CSite::getList("sort", "asc", array("ACTIVE" => "Y"));
 while ($site = $sitesQueryObject->fetch())
 {
 	$listSite[$site["LID"]] = $site["NAME"]." [".$site["LID"]."]";
@@ -61,7 +61,7 @@ if ($lAdmin->EditAction() && $saleModulePermissions >= "W")
 	foreach ($FIELDS as $ID => $arFields)
 	{
 		$DB->StartTransaction();
-		$ID = IntVal($ID);
+		$ID = intval($ID);
 
 		if (!$lAdmin->IsUpdated($ID))
 			continue;
@@ -92,7 +92,7 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 
 	foreach ($arID as $ID)
 	{
-		if (strlen($ID) <= 0)
+		if ($ID == '')
 			continue;
 
 		switch ($_REQUEST['action'])
@@ -150,7 +150,7 @@ $lAdmin->AddHeaders(array(
 $arVisibleColumns = $lAdmin->GetVisibleHeaderColumns();
 
 $arLangs = array();
-$dbLangsList = CLang::GetList(($b = "sort"), ($o = "asc"));
+$dbLangsList = CLang::GetList();
 while ($arLang = $dbLangsList->Fetch())
 	$arLangs[$arLang["LID"]] = "[".htmlspecialcharsbx($arLang["LID"])."] ".htmlspecialcharsbx($arLang["NAME"]);
 
@@ -176,7 +176,7 @@ while ($arPersonType = $dbResultList->NavNext(false))
 			array("PERSON_TYPE_ID" => $arPersonType["ID"]),
 			array()
 		);
-		$numProps = IntVal($numProps);
+		$numProps = intval($numProps);
 
 		if ($numProps > 0)
 		{

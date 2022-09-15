@@ -14,9 +14,6 @@ BX.WindowManager = {
 	register: function (w)
 	{
 		this.currently_loaded = null;
-		var div = w.Get();
-
-		div.style.zIndex = w.zIndex = this.GetZIndex();
 
 		w.WM_REG_INDEX = this._stack.length;
 		this._stack.push(w);
@@ -343,6 +340,7 @@ BX.CWindow = function(div, type)
 
 	BX.ready(BX.delegate(function() {
 		document.body.appendChild(this.DIV);
+		BX.ZIndexManager.register(this.DIV);
 	}, this));
 };
 
@@ -358,6 +356,8 @@ BX.CWindow.prototype.Show = function(bNotRegister)
 		BX.WindowManager.register(this);
 		BX.onCustomEvent(this, 'onWindowRegister');
 	}
+
+	BX.ZIndexManager.bringToFront(this.DIV);
 };
 
 BX.CWindow.prototype.Hide = function()
@@ -792,6 +792,12 @@ BX.CWindowDialog.prototype.CreateOverlay = function(zIndex)
 				height: scrollHeight + "px"
 			}
 		}));
+
+		var component = BX.ZIndexManager.getComponent(this.DIV);
+		if (component)
+		{
+			component.setOverlay(this.OVERLAY);
+		}
 	}
 
 	return this.OVERLAY;
@@ -804,7 +810,6 @@ BX.CWindowDialog.prototype.Show = function()
 	this.CreateOverlay();
 
 	this.OVERLAY.style.display = 'block';
-	this.OVERLAY.style.zIndex = parseInt(this.DIV.style.zIndex)-2;
 
 	BX.unbind(window, 'resize', BX.proxy(this.__resizeOverlay, this));
 	BX.bind(window, 'resize', BX.proxy(this.__resizeOverlay, this));
@@ -1768,8 +1773,7 @@ BX.CDialog.prototype.Show = function(bNotRegister)
 
 		BX.WindowManager.currently_loaded = this;
 
-		var zIndex = (this.PARAMS.zIndex ? this.PARAMS.zIndex : parseInt(BX.style(wait, 'z-index'))-1);
-		this.CreateOverlay(zIndex);
+		this.CreateOverlay();
 		this.OVERLAY.style.display = 'block';
 		this.OVERLAY.className = 'bx-core-dialog-overlay';
 
@@ -1835,9 +1839,10 @@ BX.CDialog.prototype.adjustPos = function()
 	if (!this.bExpanded)
 	{
 		var currentWindow = window;
-		if (top.BX.SidePanel && top.BX.SidePanel.Instance && top.BX.SidePanel.Instance.getTopSlider())
+		var topWindow = BX.PageObject.getRootWindow();
+		if (topWindow.BX.SidePanel && topWindow.BX.SidePanel.Instance && topWindow.BX.SidePanel.Instance.getTopSlider())
 		{
-			currentWindow = top.BX.SidePanel.Instance.getTopSlider().getWindow();
+			currentWindow = topWindow.BX.SidePanel.Instance.getTopSlider().getWindow();
 		}
 		var windowSize = currentWindow.BX.GetWindowInnerSize();
 		var windowScroll = currentWindow.BX.GetWindowScrollPos();
@@ -1846,10 +1851,6 @@ BX.CDialog.prototype.adjustPos = function()
 			left: parseInt(windowScroll.scrollLeft + windowSize.innerWidth / 2 - parseInt(this.DIV.offsetWidth) / 2) + 'px',
 			top: Math.max(parseInt(windowScroll.scrollTop + windowSize.innerHeight / 2 - parseInt(this.DIV.offsetHeight) / 2), 0) + 'px'
 		};
-		if (this.PARAMS.zIndex)
-		{
-			style["z-index"] = this.PARAMS.zIndex;
-		}
 
 		BX.adjust(this.DIV, {
 			style: style
@@ -2253,6 +2254,8 @@ BX.COpener = function(arParams)
 	else
 		this.TIMEOUT = 0;
 
+	this.bMenuInit = false;
+
 	if (!!this.PARAMS.MENU_URL)
 	{
 		this.bMenuLoaded = false;
@@ -2290,7 +2293,7 @@ BX.COpener.prototype.Init = function()
 
 	//BX.bind(window, 'scroll', BX.delegate(this.__close_immediately, this));
 
-	this.bMenuInit = false;
+	//this.bMenuInit = false;
 };
 
 BX.COpener.prototype.Load = function()
@@ -3121,6 +3124,11 @@ BX.CMenuOpener = function(arParams)
 	BX.addCustomEvent('onMenuOpenerMoved', BX.delegate(this.checkPosition, this));
 	BX.addCustomEvent('onMenuOpenerUnhide', BX.delegate(this.checkPosition, this));
 
+	BX.Event.EventEmitter.incrementMaxListeners('onDynamicModeChange');
+	BX.Event.EventEmitter.incrementMaxListeners('onTopPanelCollapse');
+	BX.Event.EventEmitter.incrementMaxListeners('onMenuOpenerMoved');
+	BX.Event.EventEmitter.incrementMaxListeners('onMenuOpenerUnhide');
+
 	if (this.OPENERS)
 	{
 		for (i=0,len=this.OPENERS.length; i<len; i++)
@@ -3134,6 +3142,12 @@ BX.extend(BX.CMenuOpener, BX.CWindowFloat);
 BX.CMenuOpener.prototype.setParent = function(new_parent)
 {
 	new_parent = BX(new_parent);
+
+	if (!new_parent)
+	{
+		return;
+	}
+
 	if(new_parent.OPENER && new_parent.OPENER != this)
 	{
 		new_parent.OPENER.Close();
@@ -3749,7 +3763,11 @@ BX.CPageOpener.prototype.correctPosition = function(opener)
 	if (this.__check_intersection(pos_self, pos_other))
 	{
 		this.DIV.style.display = 'none';
-		BX.addCustomEvent(opener, 'onMenuOpenerHide', BX.proxy(this.restorePosition, this));
+
+		var handler = BX.proxy(this.restorePosition, this);
+
+		BX.removeCustomEvent(opener, 'onMenuOpenerHide', handler);
+		BX.addCustomEvent(opener, 'onMenuOpenerHide', handler);
 
 		this.bPosCorrected = true;
 	}
@@ -3792,6 +3810,8 @@ BX.CHintSimple.prototype.Init = function()
 {
 	this.DIV = document.body.appendChild(BX.create('DIV', {props: {className: 'bx-tooltip-simple'}, style: {display: 'none'}, children: [(this.CONTENT = BX.create('DIV'))]}));
 
+	BX.ZIndexManager.register(this.DIV);
+
 	if (this.HINT_TITLE)
 		this.CONTENT.appendChild(BX.create('B', {text: this.HINT_TITLE}));
 
@@ -3820,7 +3840,10 @@ BX.adminInformer = {
 		var informer = BX("admin-informer");
 
 		if(informer)
+		{
 			document.body.appendChild(informer);
+			BX.ZIndexManager.register(informer);
+		}
 
 		BX.addCustomEvent("onTopPanelCollapse", BX.proxy(BX.adminInformer.Close, BX.adminInformer));
 	},
@@ -3937,6 +3960,9 @@ BX.adminInformer = {
 			),0
 		);
 		BX.addClass(informer, "adm-informer-active");
+
+		BX.ZIndexManager.bringToFront(informer);
+
 		setTimeout(function() {BX.addClass(informer, "adm-informer-animate");},0);
 	},
 

@@ -14,13 +14,11 @@ class sender extends CModule
 
 	var $errors;
 
-	function sender()
+	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		$path = str_replace("\\", "/", __FILE__);
-		$path = substr($path, 0, strlen($path) - strlen("/index.php"));
-		include($path."/version.php");
+		include(__DIR__.'/version.php');
 
 		if (is_array($arModuleVersion) && array_key_exists("VERSION", $arModuleVersion))
 		{
@@ -40,13 +38,13 @@ class sender extends CModule
 
 	function InstallDB($arParams = array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		$this->errors = false;
 
 		// Database tables creation
 		if(!$DB->Query("SELECT 'x' FROM b_sender_contact WHERE 1=0", true))
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/db/".$DBType."/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/db/mysql/install.sql");
 		}
 
 		if($this->errors !== false)
@@ -59,14 +57,11 @@ class sender extends CModule
 			RegisterModule("sender");
 			CModule::IncludeModule("sender");
 
-			if (strtolower($DB->type) == 'mysql')
+			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/db/mysql/install_ft.sql");
+			if ($errors === false)
 			{
-				$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/db/".$DBType."/install_ft.sql");
-				if ($errors === false)
-				{
-					$entity = \Bitrix\Sender\Internals\Model\LetterTable::getEntity();
-					$entity->enableFullTextIndex("SEARCH_CONTENT");
-				}
+				$entity = \Bitrix\Sender\Internals\Model\LetterTable::getEntity();
+				$entity->enableFullTextIndex("SEARCH_CONTENT");
 			}
 
 			// read and click notifications
@@ -106,11 +101,18 @@ class sender extends CModule
 			// voximplant
 			RegisterModuleDependences("voximplant", "OnInfoCallResult", "sender", "Bitrix\\Sender\\Integration\\VoxImplant\\Service", "onInfoCallResult");
 
+			RegisterModuleDependences("pull", "OnGetDependentModule", "sender", "Bitrix\\Sender\\SenderPullSchema", "OnGetDependentModule" );
+			RegisterModuleDependences("im", "OnGetNotifySchema", "sender", "Bitrix\\Sender\\SenderNotifySchema", "OnGetNotifySchema" );
+
 			CTimeZone::Disable();
 
 			\Bitrix\Sender\Runtime\Job::actualizeAll();
 			\Bitrix\Sender\Trigger\Manager::activateAllHandlers(true);
-			\Bitrix\Sender\Security\Role\Manager::installRoles();
+			\CAgent::AddAgent(
+				'Bitrix\\Sender\\Access\\Install\\AccessInstaller::installAgent();',
+				"sender", "N", 60, "", "Y",
+				\ConvertTimeStamp(time()+\CTimeZone::GetOffset()+450, "FULL")
+			);
 
 			CTimeZone::Enable();
 
@@ -120,7 +122,7 @@ class sender extends CModule
 
 	function UnInstallDB($arParams = array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		$this->errors = false;
 
 		CModule::IncludeModule("sender");
@@ -128,7 +130,7 @@ class sender extends CModule
 
 		if(!array_key_exists("save_tables", $arParams) || ($arParams["save_tables"] != "Y"))
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/db/".$DBType."/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/db/mysql/uninstall.sql");
 		}
 
 		CAgent::RemoveModuleAgents('sender');
@@ -164,6 +166,9 @@ class sender extends CModule
 		// voximplant
 		UnRegisterModuleDependences("voximplant", "OnInfoCallResult", "sender", "Bitrix\\Sender\\Integration\\VoxImplant\\Service", "onInfoCallResult");
 
+		UnRegisterModuleDependences("pull", "OnGetDependentModule", "sender", "Bitrix\\Sender\\SenderPullSchema", "OnGetDependentModule" );
+		UnRegisterModuleDependences("im", "OnGetNotifySchema", "sender", "Bitrix\\Sender\\SenderNotifySchema", "OnGetNotifySchema" );
+
 		UnRegisterModule("sender");
 
 		if($this->errors !== false)
@@ -174,26 +179,41 @@ class sender extends CModule
 
 		return true;
 	}
-
-	function InstallEvents()
+	function GetEventCountByName($eventName)
 	{
 		global $DB;
-		$sIn = "'SENDER_SUBSCRIBE_CONFIRM'";
-		$rs = $DB->Query("SELECT count(*) C FROM b_event_type WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		$ar = $rs->Fetch();
-		if($ar["C"] <= 0)
+		$result = $DB->Query("SELECT count(*) C FROM b_event_type WHERE EVENT_NAME IN ('".$DB->ForSql($eventName)."') ",
+			false,
+			"File: ".__FILE__."<br>Line: ".__LINE__
+		);
+		$array = $result->Fetch();
+		return $array['C'];
+	}
+	function InstallEvents()
+	{
+		$senderSubscribeEventCount = $this->getEventCountByName("SENDER_SUBSCRIBE_CONFIRM") ?? 0;
+		$senderSubscribeEvent =  $senderSubscribeEventCount <= 0? true : false;
+
+		$senderConsentEventCount = $this->getEventCountByName("SENDER_CONSENT") ?? 0;
+		$senderConsentEvent =  $senderConsentEventCount <= 0? true : false;
+
+		if($senderSubscribeEvent || $senderConsentEvent)
 		{
 			include($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/events.php");
 		}
 		return true;
 	}
-
-	function UnInstallEvents()
+	function DeleteEventByName($name)
 	{
 		global $DB;
-		$sIn = "'SENDER_SUBSCRIBE_CONFIRM'";
-		$DB->Query("DELETE FROM b_event_message WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
-		$DB->Query("DELETE FROM b_event_type WHERE EVENT_NAME IN (".$sIn.") ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$realEscapeName = $DB->ForSql($name);
+		$DB->Query("DELETE FROM b_event_message WHERE EVENT_NAME IN ('".$realEscapeName."') ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+		$DB->Query("DELETE FROM b_event_type WHERE EVENT_NAME IN ('".$realEscapeName."') ", false, "File: ".__FILE__."<br>Line: ".__LINE__);
+	}
+	function UnInstallEvents()
+	{
+		$this->DeleteEventByName("SENDER_SUBSCRIBE_CONFIRM");
+		$this->DeleteEventByName("SENDER_CONSENT");
 		return true;
 	}
 
@@ -233,7 +253,7 @@ class sender extends CModule
 		$POST_RIGHT = $APPLICATION->GetGroupRight("sender");
 		if($POST_RIGHT == "W")
 		{
-			$step = IntVal($step);
+			$step = intval($step);
 			if($step < 2)
 			{
 				$APPLICATION->IncludeAdminFile(GetMessage("SENDER_MODULE_INST_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/inst1.php");
@@ -257,7 +277,7 @@ class sender extends CModule
 		$POST_RIGHT = $APPLICATION->GetGroupRight("sender");
 		if($POST_RIGHT == "W")
 		{
-			$step = IntVal($step);
+			$step = intval($step);
 			if($step < 2)
 			{
 				$APPLICATION->IncludeAdminFile(GetMessage("SENDER_MODULE_UNINST_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sender/install/uninst1.php");

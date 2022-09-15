@@ -3,7 +3,8 @@ use Bitrix\Main,
 	Bitrix\Main\Loader,
 	Bitrix\Iblock\Component\Element,
 	Bitrix\Main\Localization\Loc,
-	Bitrix\Catalog;
+	Bitrix\Catalog,
+	Bitrix\Sale\Internals\FacebookConversion;
 
 if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
@@ -227,6 +228,7 @@ class CatalogElementComponent extends Element
 						'MODULE' => 'catalog',
 						'LID' => $this->getSiteId()
 					);
+					/** @noinspection PhpDeprecationInspection */
 					\CSaleViewedProduct::Add($fields);
 				}
 
@@ -243,6 +245,7 @@ class CatalogElementComponent extends Element
 						'LID' => $this->getSiteId(),
 						'IBLOCK_ID' => $this->arResult['IBLOCK_ID']
 					);
+					/** @noinspection PhpDeprecationInspection */
 					\CSaleViewedProduct::Add($fields);
 				}
 
@@ -253,12 +256,15 @@ class CatalogElementComponent extends Element
 			{
 				if (Loader::includeModule('catalog') && Loader::includeModule('sale'))
 				{
-					Catalog\CatalogViewedProductTable::refresh(
-						$this->arResult['VIEWED_PRODUCT']['OFFER_ID'],
-						\CSaleBasket::GetBasketUserID(),
-						$this->getSiteId(),
-						$this->arResult['VIEWED_PRODUCT']['PRODUCT_ID']
-					);
+					if ((string)Main\Config\Option::get('catalog', 'enable_viewed_products') !== 'N')
+					{
+						Catalog\CatalogViewedProductTable::refresh(
+							$this->arResult['VIEWED_PRODUCT']['OFFER_ID'],
+							\CSaleBasket::GetBasketUserID(),
+							$this->getSiteId(),
+							$this->arResult['VIEWED_PRODUCT']['PRODUCT_ID']
+						);
+					}
 				}
 			}
 		}

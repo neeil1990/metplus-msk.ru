@@ -1,30 +1,37 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Context;
 use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Web\Uri;
-use Bitrix\Main\UI\Filter\Options as FilterOptions;
 use Bitrix\Main\Grid\Options as GridOptions;
-use Bitrix\Main\Loader;
-use Bitrix\Main\Error;
-
-use Bitrix\Sender\Message;
-use Bitrix\Sender\Entity;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\SystemException;
+use Bitrix\Main\Type\DateTime;
+use Bitrix\Main\UI\Filter\Options as FilterOptions;
+use Bitrix\Main\Web\Uri;
+use Bitrix\Sender\Access\ActionDictionary;
+use Bitrix\Sender\Access\Map\MailingAction;
 use Bitrix\Sender\Dispatch;
+use Bitrix\Sender\Entity;
 use Bitrix\Sender\Integration;
+use Bitrix\Sender\Internals\PrettyDate;
+use Bitrix\Sender\Message;
 use Bitrix\Sender\Stat\Statistics;
 use Bitrix\Sender\UI\PageNavigation;
-use Bitrix\Sender\Security;
-use Bitrix\Sender\Internals\PrettyDate;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderLetterListComponent extends CBitrixComponent
+class SenderLetterListComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
@@ -36,25 +43,42 @@ class SenderLetterListComponent extends CBitrixComponent
 
 	protected function initParams()
 	{
-		$this->arParams['PATH_TO_LIST'] = isset($this->arParams['PATH_TO_LIST']) ? $this->arParams['PATH_TO_LIST'] : '';
-		$this->arParams['PATH_TO_USER_PROFILE'] = isset($this->arParams['PATH_TO_USER_PROFILE']) ? $this->arParams['PATH_TO_USER_PROFILE'] : '';
-		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? \CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
+		parent::initParams();
 
 		$this->arParams['GRID_ID'] = isset($this->arParams['GRID_ID']) ? $this->arParams['GRID_ID'] : 'SENDER_LETTER_GRID';
 		$this->arParams['FILTER_ID'] = isset($this->arParams['FILTER_ID']) ? $this->arParams['FILTER_ID'] : $this->arParams['GRID_ID'] . '_FILTER';
 
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifyLetters();
+		$this->arParams['CAN_VIEW_CLIENT'] = $this->arParams['CAN_VIEW_CLIENT']??
+			$this->getAccessController()->check(ActionDictionary::ACTION_MAILING_CLIENT_VIEW);
+
+		$this->arParams['CAN_PAUSE_START_STOP'] = $this->arParams['CAN_PAUSE_START_STOP']??
+			$this->getAccessController()->check(ActionDictionary::ACTION_MAILING_PAUSE_START_STOP);
 
 		$this->arParams['SHOW_CAMPAIGNS'] = isset($this->arParams['SHOW_CAMPAIGNS'])
 			?
 			$this->arParams['SHOW_CAMPAIGNS']
 			:
 			Integration\Bitrix24\Service::isCampaignsAvailable();
+
+		$this->arParams['IS_BX24_INSTALLED'] = Integration\Bitrix24\Service::isCloud();
+		$this->arParams['IS_PHONE_CONFIRMED'] = \Bitrix\Sender\Integration\Bitrix24\Limitation\Verification::isPhoneConfirmed();
+
+		$templatesFilesSyncInstalled = 1 === \COption::GetOptionInt("sender", "sender_files_sync_installed", 0);
+		if (!$templatesFilesSyncInstalled)
+		{
+			\CAgent::AddAgent(
+				'\\Bitrix\\Sender\\Install\\FileTableInstaller::installAgent();',
+				"sender",
+				"N",
+				60,
+				"",
+				"Y",
+				\ConvertTimeStamp(time()+\CTimeZone::GetOffset()+250),
+				"FULL"
+			);
+			COption::SetOptionInt("sender", "sender_files_sync_installed", 1);
+		}
 	}
 
 	protected function getSenderMessages()
@@ -69,6 +93,15 @@ class SenderLetterListComponent extends CBitrixComponent
 		foreach ($messages as $message)
 		{
 			$message = new Message\Adapter($message);
+
+			if(!$this->getAccessController()->check(
+				MailingAction::getMap()[$message->getCode()]
+			))
+			{
+				continue;
+			}
+
+
 			$list[] = array(
 				'CODE' => $message->getCode(),
 				'NAME' => $message->getName(),
@@ -113,12 +146,6 @@ class SenderLetterListComponent extends CBitrixComponent
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_LETTER_LIST_COMP_TITLE'));
 		}
 
-		if (!Security\Access::current()->canViewLetters())
-		{
-			Security\AccessChecker::addError($this->errors);
-			return false;
-		}
-
 		$this->arResult['ERRORS'] = array();
 		$this->arResult['ROWS'] = array();
 
@@ -151,9 +178,23 @@ class SenderLetterListComponent extends CBitrixComponent
 		// set ui grid columns
 		$this->setUiGridColumns();
 
+		// export
+		$isExportMode = !!$this->request->get('export');
+
 		// create nav
+		$pageSizes = [];
+		foreach ([5, 10, 20, 30, 50, 100] as $index)
+		{
+			$pageSizes[] = ['NAME' => $index, 'VALUE' => $index];
+		}
+
+		$gridOptions = new GridOptions($this->arParams['GRID_ID']);
+		$navData = $gridOptions->getNavParams(['nPageSize' => 10]);
 		$nav = new PageNavigation("page-sender-letters");
-		$nav->allowAllRecords(true)->setPageSize(10)->initFromUri();
+		$nav->allowAllRecords(true)
+			->setPageSize($navData['nPageSize'])
+			->setPageSizes($pageSizes)
+			->initFromUri();
 
 		// get rows
 		$selectParameters = array(
@@ -161,10 +202,23 @@ class SenderLetterListComponent extends CBitrixComponent
 			'offset' => $nav->getOffset(),
 			'limit' => $nav->getLimit(),
 			'count_total' => true,
-			'order' => $this->getGridOrder()
+			'order' => $this->getGridOrder(),
+			'select' => array_merge(
+				Entity\Letter::getDefaultSelectFields(),
+				[	// fields for statistic:
+					'COUNT_READ' => 'CURRENT_POSTING.COUNT_READ',
+					'COUNT_CLICK' => 'CURRENT_POSTING.COUNT_CLICK',
+					'COUNT_UNSUB' => 'CURRENT_POSTING.COUNT_UNSUB',
+				]
+			)
 		);
+		if ($isExportMode)
+		{
+			unset($selectParameters['offset']);
+			unset($selectParameters['limit']);
+		}
 
-		$list = Entity\Letter::getList($selectParameters);
+		$list = Entity\Letter::getListWithMessageFields($selectParameters);
 		$letter = new Entity\Letter();
 		foreach ($list as $item)
 		{
@@ -174,10 +228,38 @@ class SenderLetterListComponent extends CBitrixComponent
 			try
 			{
 				$letter->loadByArray($item);
+				$approveConfirmation = $letter->getMessage()->getConfiguration()->getOption('APPROVE_CONFIRMATION');
+				$approveConfirmation = $approveConfirmation ? $approveConfirmation->getValue() : null;
 				$item['MESSAGE_CODE'] = $letter->getMessage()->getCode();
 				$item['MESSAGE_NAME'] = $letter->getMessage()->getName();
+				$item['CONSENT_SUPPORT'] = $approveConfirmation === 'Y';
+				$message = $letter->getMessage();
+				$options = $message->getConfiguration()->getOptions();
+				foreach ($options as $option)
+				{
+					if (!$option->getShowInList())
+					{
+						continue;
+					}
+
+					$optionCode = $option->getCode();
+					$item[$optionCode] = $message->getConfiguration()->getReadonlyView($optionCode);
+					if (!$isExportMode)
+					{
+						$item[$optionCode] = htmlspecialcharsbx($item[$optionCode]);
+					}
+				}
+
+				if (!$item['EMAIL_FROM'] && $item['SENDER'])
+				{
+					$item['EMAIL_FROM'] = $item['SENDER'];
+				}
+				if (!$item['EMAIL_FROM'] && $item['OUTPUT_NUMBER'])
+				{
+					$item['EMAIL_FROM'] = $item['OUTPUT_NUMBER'];
+				}
 			}
-			catch (\Bitrix\Main\SystemException $exception)
+			catch (SystemException $exception)
 			{
 				continue;
 			}
@@ -189,12 +271,14 @@ class SenderLetterListComponent extends CBitrixComponent
 				'unsent' => $letter->getCounter()->getUnsent(),
 			);
 
+			$trackMail = $letter->getMessage()->getConfiguration()->getOption('TRACK_MAIL');
+			$item['TRACK_MAIL'] = $trackMail ? $trackMail->getValue() : 'Y';
+
 			$item['HAS_STATISTICS'] = $letter->hasStatistics();
 			if ($item['HAS_STATISTICS'])
 			{
 				$item['STATS'] = [];
-				$postingStat = Statistics::create()->filter('chainId', $letter->getId());
-				$postingStat->setCacheTtl($this->getStatisticCacheTtl());
+				$postingStat = Statistics::create()->initFromArray($item);
 				$counters = $postingStat->getCounters();
 				foreach ($counters as $counter)
 				{
@@ -203,32 +287,54 @@ class SenderLetterListComponent extends CBitrixComponent
 
 			}
 			$item['DURATION'] = $letter->getDuration()->getFormattedInterval();
-			$item['STATE_NAME'] = $letter->getState()->getName();
-			$item['STATE'] = array(
-				'dateSend' => $this->formatDate($letter->getState()->getDateSend()),
-				'datePause' => $this->formatDate($letter->getState()->getDatePause()),
-				'dateSent' => $this->formatDate($letter->getState()->getDateSent()),
-				'dateCreate' => $this->formatDate($letter->getState()->getDateCreate()),
-				'datePlannedSend' => $this->formatDate($letter->getState()->getPlannedDateSend()),
-				'isSending' => $letter->getState()->isSending(),
-				'isPlanned' => $letter->getState()->isPlanned(),
-				'isPaused' => $letter->getState()->isPaused(),
-				'isFinished' => $letter->getState()->isFinished(),
-				'isStopped' => $letter->getState()->isStopped(),
-				'isSent' => $letter->getState()->isSent(),
-				'wasStartedSending' => $letter->getState()->wasStartedSending(),
-				'canSend' => $letter->getState()->canSend(),
-				'canPause' => $letter->getState()->canPause(),
-				'canStop' => $letter->getState()->canStop(),
-				'canResume' => $letter->getState()->canResume(),
-				'isSendingLimitExceeded' => $letter->getState()->isSendingLimitExceeded(),
-			);
+			$item['STATE_NAME'] = $item['WAITING_RECIPIENT'] === 'N'
+				? $letter->getState()->getName()
+				: Loc::getMessage('SENDER_DISPATCH_STATE_M')
+			;
+			if ($isExportMode)
+			{
+				$item['STATUS'] = $item['STATE_NAME'];
+				if (!$item['HAS_STATISTICS'])
+				{
+					$item['COUNT_READ'] = '';
+					$item['COUNT_CLICK'] = '';
+					$item['COUNT_UNSUB'] = '';
+				}
+			}
+			else
+			{
+				$item['STATE'] = array(
+					'dateSend' => $this->formatDate($letter->getState()->getDateSend()),
+					'datePause' => $this->formatDate($letter->getState()->getDatePause()),
+					'dateSent' => $this->formatDate($letter->getState()->getDateSent()),
+					'dateCreate' => $this->formatDate($letter->getState()->getDateCreate()),
+					'datePlannedSend' => $this->formatDate($letter->getState()->getPlannedDateSend()),
+					'isSending' => $letter->getState()->isSending(),
+					'isPlanned' => $letter->getState()->isPlanned(),
+					'isPaused' => $letter->getState()->isPaused(),
+					'isFinished' => $letter->getState()->isFinished(),
+					'isStopped' => $letter->getState()->isStopped(),
+					'isSent' => $letter->getState()->isSent(),
+					'wasStartedSending' => $letter->getState()->wasStartedSending(),
+					'canSend' => $letter->getState()->canSend(),
+					'canPause' => $letter->getState()->canPause(),
+					'canStop' => $letter->getState()->canStop(),
+					'canResume' => $letter->getState()->canResume(),
+					'isSendingLimitExceeded' => $letter->getState()->isSendingLimitExceeded(),
+					'isSendingLimitWaiting' => $letter->getState()->isSendingLimitWaiting(),
+				);
 
-			$item['URLS'] = array(
-				'EDIT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_EDIT']),
-				'STAT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_STAT']),
-				'RECIPIENT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_RECIPIENT']),
-			);
+				if ($item['STATE']['isSendingLimitWaiting'])
+				{
+					$this->prepareTimeLimitationMessage($letter, $item);
+				}
+
+				$item['URLS'] = array(
+					'EDIT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_EDIT']),
+					'STAT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_STAT']),
+					'RECIPIENT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_RECIPIENT']),
+				);
+			}
 
 			if ($this->arParams['SHOW_CAMPAIGNS'])
 			{
@@ -236,6 +342,14 @@ class SenderLetterListComponent extends CBitrixComponent
 			}
 
 			$this->arResult['ROWS'][] = $item;
+		}
+		$this->getExportGridColumns();
+		if ($isExportMode)
+		{
+			\Bitrix\Sender\Internals\DataExport::toCsv(
+				$this->getExportGridColumns(),
+				$this->arResult['ROWS']
+			);
 		}
 
 		$this->arResult['TOTAL_ROWS_COUNT'] = $list->getCount();
@@ -248,6 +362,27 @@ class SenderLetterListComponent extends CBitrixComponent
 		Integration\Bitrix24\Service::initLicensePopup();
 
 		return true;
+	}
+
+	private function prepareTimeLimitationMessage($letter, &$item)
+	{
+		$currentTime = strtotime((new DateTime())->format("H:i:s"));
+		$configuration = $letter->getMessage()->getConfiguration();
+		$sendingStart = strtotime($configuration->get('SENDING_START'));
+
+		$day = $currentTime > $sendingStart
+			? Loc::getMessage('SENDER_LETTER_LIST_LETTER_SENDING_TOMORROW')
+			: Loc::getMessage('SENDER_LETTER_LIST_LETTER_SENDING_TODAY')
+		;
+
+		$item['LIMITATION']['DAY'] = $day;
+
+		$item['LIMITATION']['TIME'] = (new \DateTime())
+			->setTimestamp($sendingStart)
+			->format(Context::getCurrent()
+				->getCulture()
+				->getShortTimeFormat());
+		;
 	}
 
 	protected function formatDate(\Bitrix\Main\Type\DateTime $dateTime = null)
@@ -313,6 +448,14 @@ class SenderLetterListComponent extends CBitrixComponent
 		{
 			$filter['=CAMPAIGN_ID'] = $requestFilter['CAMPAIGN_ID'];
 		}
+		if (isset($requestFilter['POSTING_DATE_SENT_from']) && $requestFilter['POSTING_DATE_SENT_from'])
+		{
+			$filter['>=POSTING.DATE_SENT'] = $requestFilter['POSTING_DATE_SENT_from'];
+		}
+		if (isset($requestFilter['POSTING_DATE_SENT_to']) && $requestFilter['POSTING_DATE_SENT_to'])
+		{
+			$filter['<=POSTING.DATE_SENT'] = $requestFilter['POSTING_DATE_SENT_to'];
+		}
 
 		return $filter;
 	}
@@ -325,7 +468,7 @@ class SenderLetterListComponent extends CBitrixComponent
 		$sorting = $gridOptions->getSorting(array('sort' => $defaultSort));
 
 		$by = key($sorting['sort']);
-		$order = strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
+		$order = mb_strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
 
 		$list = array();
 		foreach ($this->getUiGridColumns() as $column)
@@ -362,7 +505,7 @@ class SenderLetterListComponent extends CBitrixComponent
 			),
 			array(
 				"id" => "DATE_INSERT",
-				"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_DATE_INSERT'),
+				"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_DATE_INSERT2'),
 				"sort" => "DATE_INSERT",
 				"default" => false
 			),
@@ -381,7 +524,7 @@ class SenderLetterListComponent extends CBitrixComponent
 			array(
 				"id" => "ACTIONS",
 				"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_ACTIONS'),
-				"sort" => "ID",
+				"sort" => "DATE_UPDATE",
 				"default" => true
 			),
 			array(
@@ -396,7 +539,14 @@ class SenderLetterListComponent extends CBitrixComponent
 				"default" => true
 			),
 		);
-
+		if (Integration\Bitrix24\Service::isCloud())
+		{
+			$list[] = [
+				"id" => "CONSENT_SUPPORT",
+				"name"=> Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_CONSENT_SUPPORT'),
+				"default" => true
+			];
+		}
 		if ($this->arParams['SHOW_CAMPAIGNS'])
 		{
 			$list[] = [
@@ -405,6 +555,20 @@ class SenderLetterListComponent extends CBitrixComponent
 				"sort" => "CAMPAIGN.NAME",
 				"default" => true,
 			];
+		}
+
+		$letter = new Entity\Letter();
+		$options = $letter->getMessage()->getConfiguration()->getOptions();
+		foreach ($options as $option)
+		{
+			if ($option->getShowInList())
+			{
+				$list[] = [
+					"id" => $option->getCode(),
+					"name" => $option->getName(),
+					"default" => false,
+				];
+			}
 		}
 
 		return $list;
@@ -447,6 +611,18 @@ class SenderLetterListComponent extends CBitrixComponent
 					'group' => array('USER_NAME', 'USER_LAST_NAME', 'USER_ID'),
 					'cache' => array('ttl' => 3600),
 				))->fetchAll())
+			),
+			array(
+				"id" => "DATE_INSERT",
+				"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_DATE_INSERT2'),
+				"type" => "date",
+				"default" => true,
+			),
+			array(
+				"id" => "POSTING_DATE_SENT",
+				"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_DATE_SENT'),
+				"type" => "date",
+				"default" => true,
 			),
 		];
 
@@ -559,32 +735,85 @@ class SenderLetterListComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
-
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->includeComponentTemplate();
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
 	}
 
-	protected function getStatisticCacheTtl()
+	protected function getExportGridColumns()
 	{
-		return \Bitrix\Main\Config\Option::get('sender', 'letter_list_stat_cache_ttl', 0);
+		$columns = $this->getUiGridColumns();
+		$gridOptions = new GridOptions($this->arParams['GRID_ID']);
+		$defaultColumnsIds = [];
+		foreach ($columns as $column)
+		{
+			if ($column['default'])
+			{
+				$defaultColumnsIds[] = $column['id'];
+			}
+		}
+		$visibleColumnsIds = $gridOptions->getUsedColumns($defaultColumnsIds);
+		$hiddenColumnsIds = ['ACTIONS'];
+		$visibleColumnsIds = array_diff($visibleColumnsIds, $hiddenColumnsIds);
+
+		$columns = array_filter($this->getUiGridColumns(), function ($item) use ($visibleColumnsIds)
+		{
+			return in_array($item['id'], $visibleColumnsIds);
+		});
+		$result = [];
+		foreach ($columns as $index=>$column)
+		{
+			if ($column['id'] == 'STATS')
+			{
+				$result[] = [
+					"id" => "COUNT_SEND_ALL",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_COUNT_SEND_ALL'),
+				];
+				$result[] = [
+					"id" => "COUNT_SEND_SUCCESS",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_COUNT_SEND_SUCCESS'),
+				];
+				$result[] = [
+					"id" => "COUNT_READ",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_COUNT_READ'),
+				];
+				$result[] = [
+					"id" => "COUNT_CLICK",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_COUNT_CLICK'),
+				];
+				$result[] = [
+					"id" => "COUNT_UNSUB",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_COUNT_UNSUB'),
+				];
+			}
+			else
+			{
+				$result[] = $column;
+			}
+			if ($column['id'] == 'TITLE')
+			{
+				$result[] = [
+					"id" => "MESSAGE_NAME",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_MESSAGE_CODE'),
+				];
+			}
+			if ($column['id'] == 'DATE_INSERT')
+			{
+				$result[] = [
+					"id" => "DATE_SEND",
+					"name" => Loc::getMessage('SENDER_LETTER_LIST_COMP_UI_COLUMN_DATE_SENT'),
+				];
+			}
+		}
+		return $result;
+	}
+
+	public function getEditAction()
+	{
+		return $this->getViewAction();
+	}
+
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_MAILING_VIEW;
 	}
 }

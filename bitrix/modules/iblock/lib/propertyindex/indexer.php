@@ -5,7 +5,8 @@
  * @subpackage iblock
  */
 namespace Bitrix\Iblock\PropertyIndex;
-use Bitrix\Catalog;
+
+use Bitrix\Iblock;
 
 class Indexer
 {
@@ -194,14 +195,14 @@ class Indexer
 
 		$elementSections = $element->getSections();
 		$elementIndexValues = $this->getSectionIndexEntries($element);
-		
+
 		foreach ($element->getParentSections() as $sectionId)
 		{
 			foreach ($elementIndexValues as $facetId => $values)
 			{
 				foreach ($values as $value)
 				{
-					$this->storage->addIndexEntry(
+					$this->storage->queueIndexEntry(
 						$sectionId,
 						$elementId,
 						$facetId,
@@ -217,7 +218,7 @@ class Indexer
 		{
 			foreach ($values as $value)
 			{
-				$this->storage->addIndexEntry(
+				$this->storage->queueIndexEntry(
 					0,
 					$elementId,
 					$facetId,
@@ -227,6 +228,8 @@ class Indexer
 				);
 			}
 		}
+
+		$this->storage->flushIndexEntries();
 	}
 
 	/**
@@ -246,23 +249,28 @@ class Indexer
 	 * This list contains only active elements,
 	 * starts with $lastElementID and ID in ascending order.
 	 *
-	 * @param integer $lastElementID Element identifier.
-	 * @return \CIBlockResult
+	 * @param int $lastElementID Element identifier.
+	 * @return \Bitrix\Main\ORM\Query\Result
 	 */
-	protected function getElementsCursor($lastElementID = 0)
+	protected function getElementsCursor(int $lastElementID = 0): \Bitrix\Main\ORM\Query\Result
 	{
-		$filter = array(
-			"IBLOCK_ID" => $this->iblockId,
-			"ACTIVE" => "Y",
-			"CHECK_PERMISSIONS" => "N",
-		);
+		$filter = [
+			'=IBLOCK_ID' => $this->iblockId,
+			'=ACTIVE' => 'Y',
+			'=WF_STATUS_ID' => 1,
+			'==WF_PARENT_ELEMENT_ID' => null,
+		];
 
 		if ($lastElementID > 0)
 		{
-			$filter[">ID"] = $lastElementID;
+			$filter['>ID'] = $lastElementID;
 		}
 
-		return \CIBlockElement::getList(array("ID" => "ASC"), $filter, false, false, array("ID"));
+		return Iblock\ElementTable::getList([
+			'select' => ['ID'],
+			'filter' => $filter,
+			'order' => ['ID' => 'ASC'],
+		]);
 	}
 
 	/**
@@ -441,13 +449,21 @@ class Indexer
 	 */
 	public static function getPropertyStorageType($property)
 	{
-		if ($property["PROPERTY_TYPE"] === "N")
+		if ($property["PROPERTY_TYPE"] === Iblock\PropertyTable::TYPE_NUMBER)
+		{
 			return Storage::NUMERIC;
-		elseif ($property["USER_TYPE"] === "DateTime")
+		}
+		elseif ($property["USER_TYPE"] === \CIBlockPropertyDateTime::USER_TYPE)
+		{
 			return Storage::DATETIME;
-		elseif ($property["PROPERTY_TYPE"] === "S")
+		}
+		elseif ($property["PROPERTY_TYPE"] === Iblock\PropertyTable::TYPE_STRING)
+		{
 			return Storage::STRING;
+		}
 		else
+		{
 			return Storage::DICTIONARY;
+		}
 	}
 }

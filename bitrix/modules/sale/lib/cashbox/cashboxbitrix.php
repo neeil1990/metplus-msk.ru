@@ -447,7 +447,7 @@ class CashboxBitrix extends Cashbox
 		{
 			foreach ($params as $param)
 			{
-				list($key, $value) = explode('=', $param);
+				[$key, $value] = explode('=', $param);
 				switch ($key)
 				{
 					case 'fn' :
@@ -471,7 +471,7 @@ class CashboxBitrix extends Cashbox
 						$key = Check::PARAM_CALCULATION_ATTR;
 						break;
 					default:
-						continue;
+						continue 2;
 				}
 
 				$result[$key] = $value;
@@ -665,5 +665,10 @@ class CashboxBitrix extends Cashbox
 				)
 			),
 		);
+	}
+
+	public static function getFfdVersion(): ?float
+	{
+		return 1.0;
 	}
 }

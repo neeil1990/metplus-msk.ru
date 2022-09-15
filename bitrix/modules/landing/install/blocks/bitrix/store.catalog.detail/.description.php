@@ -42,6 +42,7 @@ $return = array(
 							'element',
 						),
 					),
+					'ALLOW_SEO_DATA' => array(),
 					'HIDE_NOT_AVAILABLE' => array(),
 					'HIDE_NOT_AVAILABLE_OFFERS' => array(),
 					// price
@@ -98,7 +99,6 @@ if (!Manager::availableOnlyForZone('ru'))
 
 // remove extended fields in simple mode
 $extendedFields = \Bitrix\Landing\Hook\Page\Settings::getCodes(true);
-//if (!isset($extended) || $extended !== true)
 foreach ($params as $key => $item)
 {
 	if (in_array($key, $extendedFields))

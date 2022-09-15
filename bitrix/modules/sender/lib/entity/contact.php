@@ -86,7 +86,7 @@ class Contact extends Base
 		}
 		catch (SqlQueryException $exception)
 		{
-			if (strpos($exception->getMessage(), '(1062) Duplicate entry') !== false)
+			if (mb_strpos($exception->getMessage(), '(1062) Duplicate entry') !== false)
 			{
 				$this->errors->setError(new Error(Loc::getMessage('SENDER_ENTITY_CONTACT_ERROR_DUPLICATE')));
 				return $id;
@@ -112,13 +112,13 @@ class Contact extends Base
 		$subList = array_unique($subList);
 		$subList = array_diff($subList, $unsubList);
 
-		ContactListTable::delete(['CONTACT_ID' => $id]);
+		ContactListTable::deleteList(['CONTACT_ID' => $id]);
 		foreach ($setList as $itemId)
 		{
 			ContactListTable::add(['CONTACT_ID' => $id, 'LIST_ID' => $itemId]);
 		}
 
-		MailingSubscriptionTable::delete(['CONTACT_ID' => $id]);
+		MailingSubscriptionTable::deleteList(['CONTACT_ID' => $id]);
 		foreach ($subList as $itemId)
 		{
 			MailingSubscriptionTable::add(['CONTACT_ID' => $id, 'MAILING_ID' => $itemId, 'IS_UNSUB' => 'N']);
@@ -207,7 +207,7 @@ class Contact extends Base
 			return false;
 		}
 
-		$campaignId = $campaignId ?: Campaign::getDefaultId();
+		$campaignId = $campaignId ?: Campaign::getDefaultId(SITE_ID);
 		return MailingSubscriptionTable::addSubscription(array(
 			'MAILING_ID' => $campaignId,
 			'CONTACT_ID' => $this->getId(),
@@ -227,7 +227,7 @@ class Contact extends Base
 			return false;
 		}
 
-		$campaignId = $campaignId ?: Campaign::getDefaultId();
+		$campaignId = $campaignId ?: Campaign::getDefaultId(SITE_ID);
 		return MailingSubscriptionTable::addUnSubscription(array(
 			'MAILING_ID' => $campaignId,
 			'CONTACT_ID' => $this->getId(),

@@ -49,18 +49,31 @@ Loc::loadMessages(__FILE__);
  * <li> WF_LAST_HISTORY_ID int optional
  * <li> SHOW_COUNTER int optional
  * <li> SHOW_COUNTER_START datetime optional
- * <li> PREVIEW_PICTURE_FILE reference to {@link \Bitrix\File\FileTable}
- * <li> DETAIL_PICTURE_FILE reference to {@link \Bitrix\File\FileTable}
+ * <li> PREVIEW_PICTURE_FILE reference to {@link \Bitrix\Main\FileTable}
+ * <li> DETAIL_PICTURE_FILE reference to {@link \Bitrix\Main\FileTable}
  * <li> IBLOCK reference to {@link \Bitrix\Iblock\IblockTable}
  * <li> WF_PARENT_ELEMENT reference to {@link \Bitrix\Iblock\IblockElementTable}
  * <li> IBLOCK_SECTION reference to {@link \Bitrix\Iblock\IblockSectionTable}
- * <li> MODIFIED_BY_USER reference to {@link \Bitrix\User\UserTable}
- * <li> CREATED_BY_USER reference to {@link \Bitrix\User\UserTable}
- * <li> WF_LOCKED_BY_USER reference to {@link \Bitrix\User\UserTable}
+ * <li> MODIFIED_BY_USER reference to {@link \Bitrix\Main\UserTable}
+ * <li> CREATED_BY_USER reference to {@link \Bitrix\Main\UserTable}
+ * <li> WF_LOCKED_BY_USER reference to {@link \Bitrix\Main\UserTable}
  * </ul>
  *
  * @package Bitrix\Iblock
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Element_Query query()
+ * @method static EO_Element_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Element_Result getById($id)
+ * @method static EO_Element_Result getList(array $parameters = array())
+ * @method static EO_Element_Entity getEntity()
+ * @method static \Bitrix\Iblock\EO_Element createObject($setDefaultValues = true)
+ * @method static \Bitrix\Iblock\EO_Element_Collection createCollection()
+ * @method static \Bitrix\Iblock\EO_Element wakeUpObject($row)
+ * @method static \Bitrix\Iblock\EO_Element_Collection wakeUpCollection($rows)
+ */
 
 class ElementTable extends ORM\Data\DataManager
 {
@@ -244,12 +257,6 @@ class ElementTable extends ORM\Data\DataManager
 				array('=this.WF_LOCKED_BY' => 'ref.ID'),
 				array('join_type' => 'LEFT')
 			),
-
-			(new ManyToMany('SECTIONS', SectionTable::class))
-				->configureMediatorEntity(SectionElementTable::class)
-				->configureLocalReference('REGULAR_ELEMENT')
-				->configureRemoteReference('IBLOCK_SECTION')
-
 		);
 	}
 	/**

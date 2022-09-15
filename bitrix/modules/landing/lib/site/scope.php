@@ -13,7 +13,7 @@ abstract class Scope
 	public static function init(array $params = [])
 	{
 		$reflectionClass = new \ReflectionClass(get_called_class());
-		self::$currentScopeId = strtoupper($reflectionClass->getShortName());
+		self::$currentScopeId = mb_strtoupper($reflectionClass->getShortName());
 	}
 
 	/**
@@ -48,4 +48,10 @@ abstract class Scope
 	 * @return mixed
 	 */
 	abstract public static function getFilterType();
+
+	/**
+	 * Returns array of hook's codes, which excluded by scope.
+	 * @return array
+	 */
+	abstract public static function getExcludedHooks(): array;
 }

@@ -16,13 +16,27 @@ foreach ($requiredModules as $requiredModule)
 	}
 }
 
-if (!isset($arParams['REPORT_HELPER_CLASS'])
-	|| strlen($arParams['REPORT_HELPER_CLASS']) < 1
-	|| !class_exists($arParams['REPORT_HELPER_CLASS'])
-	|| !is_subclass_of($arParams['REPORT_HELPER_CLASS'], 'CReportHelper'))
+$helperClassName = $arResult['HELPER_CLASS'] = ($arParams['REPORT_HELPER_CLASS'] ?? '');
+if (
+	!is_string($helperClassName)
+	|| mb_strlen($helperClassName) < 1
+	|| !class_exists($helperClassName)
+	|| !is_subclass_of($helperClassName, 'CReportHelper')
+)
 {
 	ShowError(GetMessage("REPORT_HELPER_NOT_DEFINED"));
 	return 0;
+}
+
+$arResult['IS_RESTRICTED'] = false;
+if (
+	\Bitrix\Main\Loader::includeModule('bitrix24')
+	&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('report')
+)
+{
+	$arResult['IS_RESTRICTED'] = true;
+	$this->IncludeComponentTemplate('restrict');
+	return 1;
 }
 
 use Bitrix\Main\Entity;
@@ -348,9 +362,9 @@ try
 				}
 
 				// save prcnt
-				if (strlen($v['prcnt']))
+				if($v['prcnt'] <> '')
 				{
-					if ($v['prcnt'] == 'self_column' || array_key_exists($v['prcnt'], $_POST['report_select_columns']))
+					if($v['prcnt'] == 'self_column' || array_key_exists($v['prcnt'], $_POST['report_select_columns']))
 					{
 						$row['prcnt'] = $v['prcnt'];
 					}
@@ -592,7 +606,24 @@ try
 		// <editor-fold defaultstate="collapsed" desc="initialize default values">
 		if ($arParams['ACTION'] == 'edit' || $arParams['ACTION'] == 'copy')
 		{
-			$settings = unserialize($arResult['report']['SETTINGS']);
+			$settings = unserialize($arResult['report']['SETTINGS'], ['allowed_classes' => false]);
+
+			if (!is_array($settings))
+			{
+				$settings = [];
+			}
+			if (!is_array($settings['select']))
+			{
+				$settings['select'] = [];
+			}
+			if (!is_array($settings['filter']))
+			{
+				$settings['filter'] = [];
+			}
+			if (!is_array($settings['period']))
+			{
+				$settings['period'] = ['type' => 'days', 'value' => 1, 'hidden' => 'N'];
+			}
 
 			call_user_func_array(
 				array($arParams['REPORT_HELPER_CLASS'], 'fillFilterUFColumns'),

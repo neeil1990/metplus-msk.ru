@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["CHECK_DATES_TIP"] = "Wenn diese Option aktiv ist, wird nur nach aktiven Elementen gesucht.";
 $MESS["CP_BCSE_ELEMENT_SORT_FIELD"] = "Elemente sortieren nach";
 $MESS["CP_BCSE_ELEMENT_SORT_FIELD2"] = "Feld für die zweite Sortierung";
@@ -30,7 +30,7 @@ $MESS["CP_BCS_PRODUCT_PROPERTIES"] = "Produkteigenschaften";
 $MESS["CP_BCS_PRODUCT_PROPS_VARIABLE"] = "Parametername für die Produkteigenschaften";
 $MESS["CP_BCS_PRODUCT_QUANTITY_VARIABLE"] = "Parametername für die Produktmenge";
 $MESS["CP_BCS_PROPERTY_CODE"] = "Eigenschaften";
-$MESS["CP_BCS_USE_PRODUCT_QUANTITY"] = "Feld fpr die Produktmenge einschalten";
+$MESS["CP_BCS_USE_PRODUCT_QUANTITY"] = "Feld für die Produktmenge einschalten";
 $MESS["CP_BSP_NO_WORD_LOGIC"] = "Die Verarbeitung allgemeiner Wörter als logische Operanden deaktivieren";
 $MESS["CP_BSP_USE_LANGUAGE_GUESS"] = "Tastaturbelegung automatisch bestimmen";
 $MESS["HIDE_NOT_AVAILABLE_OFFERS_TIP"] = "Eine Produktvariante, deren Menge kleiner oder gleich Null ist, wird für den Kauf nicht verfügbar sein, wenn: 1) die Option der Lagerverwaltung für die Produktvariante aktiviert ist, und 2) Elemente, die nicht am Lager sind, können nicht gekauft werden.<hr>Auch wenn eine Produktvariante verfügbar ist, bedeutet das nicht automatisch, sie kann gekauft werden. Eine Produktvariante benötigt Preise von den Typen, die als für einen Kunden verfügbare Preise angegeben sind, damit diese Produktvariante gekauft werden kann.";
@@ -49,6 +49,7 @@ $MESS["IBLOCK_SECTION_URL"] = "URL - Bereichs-Inhalte";
 $MESS["IBLOCK_SHOW_PRICE_COUNT"] = "Preis für die Menge anzeigen";
 $MESS["IBLOCK_USE_PRICE_COUNT"] = "Staffelpreise benutzen";
 $MESS["IBLOCK_VAT_INCLUDE"] = "Preis inkl. MwSt.";
+$MESS["LINE_ELEMENT_COUNT_TIP"] = "Standardvorlagen können zwei bis vier Elemente pro Tabellenzeile anzeigen";
 $MESS["RESTART_TIP"] = "Wenn diese Option aktiv ist, wird die erste Suche mit Morphologie durchgeführt. Wenn nichs gefunden wird, erfolgt eine zweite Suche ohne Morphologie.";
 $MESS["SEARCH_CHECK_DATES"] = "Nur in den nach Datum aktiven Dokumenten suchen";
 $MESS["SEARCH_RESTART"] = "Die Suche ohne Morphologie durchführen (falls keine Suchergebnisse gefunden wurden)";
@@ -58,4 +59,3 @@ $MESS["T_IBLOCK_DESC_DISPLAY_COMPARE"] = "Vergleichsbutton anzeigen";
 $MESS["T_IBLOCK_DESC_PAGER_CATALOG"] = "Produkte";
 $MESS["USE_SEARCH_RESULT_ORDER_TIP"] = "Suchergebnisse werden nach Relevanz geordnet, die relevantesten oben";
 $MESS["USE_TITLE_RANK_TIP"] = "Wenn diese Option eingeschaltet ist, werden Objekte mit relevanten Kopfzeilen oben in der Ergebnisliste angezeigt";
-?>

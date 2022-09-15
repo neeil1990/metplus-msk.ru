@@ -6,6 +6,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\UI\Extension;
+use Bitrix\Main\UI\Filter\AdditionalNumberType;
 use Bitrix\Main\UI\Filter\Type;
 use Bitrix\Main\UI\Filter\DateType;
 use Bitrix\Main\UI\Filter\AdditionalDateType;
@@ -14,10 +15,13 @@ use Bitrix\Main\UI\Filter\NumberType;
 Extension::load([
 	"ui.buttons",
 	"ui.fonts.opensans",
+	"ui.layout-form",
 	"ui",
 	"dnd",
 	"loader",
-	"date"
+	"date",
+	"ui.icons.service",
+	"ui.design-tokens",
 ]);
 
 global $USER;
@@ -54,10 +58,18 @@ $arResult = array_merge($arResult, array(
 		"CONFIRM_CANCEL" => Loc::getMessage("MAIN_UI_FILTER__BUTTON_CANCEL")
 ));
 
-$filterSearchClass = "main-ui-filter-theme-".strtolower($arResult["THEME"]);
+$filterSearchClass = "main-ui-filter-theme-".mb_strtolower($arResult["THEME"]);
 if ($arResult["DISABLE_SEARCH"] || !$arParams["CONFIG"]["SEARCH"])
 {
 	$filterSearchClass .= " main-ui-filter-no-search";
+}
+
+if (
+	$arResult["THEME"] === \Bitrix\Main\UI\Filter\Theme::LIGHT
+	&& strlen($arResult["CURRENT_PRESET"]["FIND"]) > 0
+)
+{
+	$filterSearchClass .= " main-ui-filter-search--active";
 }
 
 if ($arResult["COMPACT_STATE"])
@@ -68,6 +80,15 @@ if ($arResult["COMPACT_STATE"])
 if ($arResult["LIMITS_ENABLED"])
 {
 	$filterSearchClass .= " main-ui-filter-field-limits-active";
+}
+
+if ($currentPreset["IS_SET_OUTSIDE"])
+{
+	$filterSearchClass .= " main-ui-filter-set-outside";
+}
+else
+{
+	$filterSearchClass .= " main-ui-filter-set-inside";
 }
 
 $filterValue = \Bitrix\Main\Text\HtmlFilter::encode(htmlspecialcharsback($arResult["CURRENT_PRESET"]["FIND"]));
@@ -98,7 +119,7 @@ if ($arResult["LIMITS_ENABLED"])
 <?
 $frame = $this->createFrame()->begin(false);
 
-$filterWrapperClass = "main-ui-filter-theme-".strtolower($arResult["THEME"]);
+$filterWrapperClass = "main-ui-filter-theme-".mb_strtolower($arResult["THEME"]);
 if ($arParams["VALUE_REQUIRED_MODE"] === true)
 {
 	$filterWrapperClass .= " main-ui-filter-value-required-mode";
@@ -107,6 +128,11 @@ if ($arParams["VALUE_REQUIRED_MODE"] === true)
 if ($arResult["LIMITS_ENABLED"])
 {
 	$filterWrapperClass .= " main-ui-filter-field-limits-active main-ui-filter-field-limits-animate";
+}
+
+if ($arResult["ENABLE_ADDITIONAL_FILTERS"])
+{
+	$filterWrapperClass .= " main-ui-filter-with-additional-filters";
 }
 ?>
 
@@ -122,11 +148,11 @@ if ($arResult["LIMITS_ENABLED"])
 						<? foreach ($arResult["PRESETS"] as $key => $preset) : ?>
 							<div class="main-ui-filter-sidebar-item<?=$preset["ID"] === $arResult["CURRENT_PRESET"]["ID"] ? " main-ui-filter-current-item" : ""?><?
 							?><?=$preset["ID"] === "default_filter" || $preset["ID"] === "tmp_filter" ? " main-ui-hide" : ""?><?
-							?><?=$preset["IS_PINNED"] && $arParams["CONFIG"]["DEFAULT_PRESET"] ? " main-ui-item-pin" : ""?>" data-id="<?=$preset["ID"]?>"<?
+							?><?=$preset["IS_PINNED"] && $arParams["CONFIG"]["DEFAULT_PRESET"] ? " main-ui-item-pin" : ""?>" data-id="<?=htmlspecialcharsbx($preset["ID"])?>"<?
 							?><?=$preset["IS_PINNED"] && $arParams["CONFIG"]["DEFAULT_PRESET"] ? " title=\"".Loc::getMessage("MAIN_UI_FILTER__IS_SET_AS_DEFAULT_PRESET")."\"" : " "?>>
 								<span class="main-ui-item-icon main-ui-filter-icon-grab" title="<?=Loc::getMessage("MAIN_UI_FILTER__DRAG_TITLE")?>"></span>
 								<span class="main-ui-filter-sidebar-item-text-container">
-									<span class="main-ui-filter-sidebar-item-text"><?=\Bitrix\Main\Text\HtmlFilter::encode(htmlspecialcharsback($preset["TITLE"]))?></span>
+									<span class="main-ui-filter-sidebar-item-text" title="<?=\Bitrix\Main\Text\HtmlFilter::encode(htmlspecialcharsback($preset["TITLE"]))?>"><?=\Bitrix\Main\Text\HtmlFilter::encode(htmlspecialcharsback($preset["TITLE"]))?></span>
 									<input type="text" placeholder="<?=Loc::getMessage("MAIN_UI_FILTER__FILTER_NAME_PLACEHOLDER")?>" value="<?=\Bitrix\Main\Text\HtmlFilter::encode(htmlspecialcharsback($preset["TITLE"]))?>" class="main-ui-filter-sidebar-item-input">
 									<span class="main-ui-item-icon main-ui-filter-icon-pin" title="<?=Loc::getMessage("MAIN_UI_FILTER__IS_SET_AS_DEFAULT_PRESET")?>"></span>
 								</span>
@@ -207,23 +233,28 @@ if ($arResult["LIMITS_ENABLED"])
 </script>
 
 <?
-    $frame->end();
+    $messages = CUtil::phpToJSObject(Loc::loadLanguageFile(__FILE__), false);
 ?>
 
 <script>
-	BX.Main.filterManager.push(
-		'<?=\CUtil::jSEscape($arParams["FILTER_ID"])?>',
-		new BX.Main.Filter(
-			<?=CUtil::PhpToJSObject($arResult)?>,
-			<?=CUtil::PhpToJSObject($arParams["CONFIG"])?>,
-			<?=CUtil::PhpToJSObject(Type::getList())?>,
-			<?=CUtil::PhpToJSObject(DateType::getList())?>,
-			<?=CUtil::PhpToJSObject(NumberType::getList())?>,
-			<?=CUtil::PhpToJSObject(AdditionalDateType::getList())?>
-		)
-	);
+	BX.Loc.setMessage(<?= $messages ?>);
+	BX.ready(function() {
+		BX.Main.filterManager.push(
+			'<?=\CUtil::jSEscape($arParams["FILTER_ID"])?>',
+			new BX.Main.Filter(
+				<?=CUtil::PhpToJSObject($arResult, false, false, true)?>,
+				<?=CUtil::PhpToJSObject($arParams["CONFIG"])?>,
+				<?=CUtil::PhpToJSObject(Type::getList())?>,
+				<?=CUtil::PhpToJSObject(DateType::getList())?>,
+				<?=CUtil::PhpToJSObject(NumberType::getList())?>,
+				<?=CUtil::PhpToJSObject(AdditionalDateType::getList())?>,
+				<?=CUtil::PhpToJSObject(AdditionalNumberType::getList())?>
+			)
+		);
+	});
 </script>
 <?
+	$frame->end();
 	if (!empty($arResult["TARGET_VIEW_ID"]))
 	{
 		$this->EndViewTarget();

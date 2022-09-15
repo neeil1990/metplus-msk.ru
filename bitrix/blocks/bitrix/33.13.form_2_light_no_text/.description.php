@@ -12,7 +12,6 @@ return array(
 		'section' => array('forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'type' => ['page', 'store'],
 	),
 	'nodes' => array(),
 	'style' => array(

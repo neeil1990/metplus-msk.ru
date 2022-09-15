@@ -1,28 +1,33 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\UI\Filter\Options as FilterOptions;
-use Bitrix\Main\Grid\Options as GridOptions;
-use Bitrix\Main\Loader;
 use Bitrix\Main\Error;
-
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Grid\Options as GridOptions;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Filter\Options as FilterOptions;
+use Bitrix\Sender\Access\ActionDictionary;
+use Bitrix\Sender\ContactTable;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\Message;
-use Bitrix\Sender\Security;
-
 use Bitrix\Sender\Internals\DataExport;
-use Bitrix\Sender\UI\PageNavigation;
+use Bitrix\Sender\Message;
 use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Security;
+use Bitrix\Sender\UI\PageNavigation;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderContactRecipientComponent extends CBitrixComponent
+class ContactRecipientSenderComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
@@ -42,6 +47,10 @@ class SenderContactRecipientComponent extends CBitrixComponent
 
 	protected function initParams()
 	{
+		$this->arParams['GRID_ID'] = isset($this->arParams['GRID_ID']) ? $this->arParams['GRID_ID'] : 'SENDER_LETTER_RECIPIENT_GRID';
+
+		parent::initParams();
+
 		if (empty($this->arParams['CONTACT_ID']))
 		{
 			$this->arParams['CONTACT_ID'] = (int) $this->request->get('CONTACT_ID');
@@ -54,27 +63,49 @@ class SenderContactRecipientComponent extends CBitrixComponent
 		{
 			$this->arParams['CAMPAIGN_ID'] = (int) $this->request->get('CAMPAIGN_ID');
 		}
-
-		$this->arParams['PATH_TO_LIST'] = isset($this->arParams['PATH_TO_LIST']) ? $this->arParams['PATH_TO_LIST'] : '';
-		$this->arParams['PATH_TO_USER_PROFILE'] = isset($this->arParams['PATH_TO_USER_PROFILE']) ? $this->arParams['PATH_TO_USER_PROFILE'] : '';
-		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? \CAllSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
-
-		$this->arParams['GRID_ID'] = isset($this->arParams['GRID_ID']) ? $this->arParams['GRID_ID'] : 'SENDER_LETTER_RECIPIENT_GRID';
-		$this->arParams['FILTER_ID'] = isset($this->arParams['FILTER_ID']) ? $this->arParams['FILTER_ID'] : $this->arParams['GRID_ID'] . '_FILTER';
-
-		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifySegments();
 	}
 
 	protected function preparePost()
 	{
 
 	}
-
+	protected function getCsvClosure()
+	{
+		$statusList = PostingRecipientTable::getStatusList();
+		return function ($item) use ($statusList)
+		{
+			foreach (['IS_READ', 'IS_CLICK', 'IS_UNSUB'] as $key)
+			{
+				$item[$key] = $item[$key] === 'Y' ? Loc::getMessage('SENDER_LETTER_RCP_UI_YES') : null;
+			}
+			if
+			(
+				isset($item['DATE_SENT']) &&
+				$item['STATUS'] === PostingRecipientTable::SEND_RESULT_NONE &&
+				$item['CONSENT_STATUS'] !== ContactTable::CONSENT_STATUS_NEW &&
+				Message\Adapter::create($item['MESSAGE_CODE'])->getTransport()->isConsentAvailable()
+			)
+			{
+				switch ($item['CONSENT_STATUS'])
+				{
+					case ContactTable::CONSENT_STATUS_ACCEPT:
+						$item['STATUS'] = Loc::getMessage("SENDER_CONTACT_CONSENT_APPLY");
+						break;
+					case ContactTable::CONSENT_STATUS_DENY:
+						$item['STATUS'] = Loc::getMessage("SENDER_CONTACT_CONSENT_REJECT");
+						break;
+					case ContactTable::CONSENT_STATUS_WAIT:
+						$item['STATUS'] = Loc::getMessage("SENDER_CONTACT_CONSENT_WAIT");
+						break;
+				}
+			}
+			else
+			{
+				$item['STATUS'] = $statusList[$item['STATUS']];
+			}
+			return $item;
+		};
+	}
 	protected function prepareExport()
 	{
 		$list = PostingRecipientTable::getList([
@@ -82,20 +113,10 @@ class SenderContactRecipientComponent extends CBitrixComponent
 			'filter' => $this->getDataFilter(),
 			'order' => $this->getGridOrder()
 		]);
-		$statusList = PostingRecipientTable::getStatusList();
-
 		DataExport::toCsv(
 			$this->getUiGridColumns(),
 			$list,
-			function ($item) use ($statusList)
-			{
-				foreach (['IS_READ', 'IS_CLICK', 'IS_UNSUB'] as $key)
-				{
-					$item[$key] = $item[$key] === 'Y' ? Loc::getMessage('SENDER_LETTER_RCP_UI_YES') : null;
-				}
-				$item['STATUS'] = $statusList[$item['STATUS']];
-				return $item;
-			}
+			$this->getCsvClosure()
 		);
 	}
 
@@ -114,7 +135,7 @@ class SenderContactRecipientComponent extends CBitrixComponent
 			);
 		}
 
-		if (!Security\Access::current()->canViewSegments())
+		if (!Security\Access::getInstance()->canViewSegments())
 		{
 			Security\AccessChecker::addError($this->errors);
 			return false;
@@ -181,10 +202,34 @@ class SenderContactRecipientComponent extends CBitrixComponent
 			{
 				$item[$key] = $item[$key] === 'Y' ? Loc::getMessage('SENDER_LETTER_RCP_UI_YES') : null;
 			}
-			$item['STATUS'] = $statusList[$item['STATUS']];
+			if
+			(
+				isset($item['DATE_SENT']) &&
+				$item['STATUS'] === PostingRecipientTable::SEND_RESULT_NONE &&
+				$item['CONSENT_STATUS'] !== ContactTable::CONSENT_STATUS_NEW &&
+				$this->letter->getMessage()->getTransport()->isConsentAvailable()
+			)
+			{
+				switch ($item['CONSENT_STATUS'])
+				{
+					case ContactTable::CONSENT_STATUS_ACCEPT:
+						$item['STATUS'] = Loc::getMessage("SENDER_CONTACT_CONSENT_APPLY");
+						break;
+					case ContactTable::CONSENT_STATUS_DENY:
+						$item['STATUS'] = Loc::getMessage("SENDER_CONTACT_CONSENT_REJECT");
+						break;
+					case ContactTable::CONSENT_STATUS_WAIT:
+						$item['STATUS'] = Loc::getMessage("SENDER_CONTACT_CONSENT_WAIT");
+						break;
+				}
+			}
+			else
+			{
+				$item['STATUS'] = $statusList[$item['STATUS']];
+			}
 			$message = Message\Factory::getMessage($item['MESSAGE_CODE']);
 			$item['MESSAGE_CODE'] = $message ? $message->getName() : $item['MESSAGE_CODE'];
-
+			$item['NAME'] = $item['NAME'] || $item['CODE'] ? $item['NAME'] : Loc::getMessage('SENDER_CONTACT_DELETED') ;
 			$item['URLS'] = [
 				'LETTER_EDIT' => in_array($item['MESSAGE_CODE'], Message\Factory::getMailingMessageCodes())
 					?
@@ -211,6 +256,7 @@ class SenderContactRecipientComponent extends CBitrixComponent
 			'ID', 'NAME' => 'CONTACT.NAME', 'CODE' => 'CONTACT.CODE',
 			'LETTER_TITLE' => 'POSTING.LETTER.TITLE',
 			'LETTER_ID' => 'POSTING.LETTER.ID',
+			'CONSENT_STATUS' => 'CONTACT.CONSENT_STATUS',
 			'MESSAGE_CODE' => 'POSTING.LETTER.MESSAGE_CODE',
 			'DATE_SENT', 'STATUS',
 			'IS_READ', 'IS_CLICK', 'IS_UNSUB'
@@ -243,7 +289,22 @@ class SenderContactRecipientComponent extends CBitrixComponent
 		}
 		if (isset($requestFilter['STATUS']) && $requestFilter['STATUS'])
 		{
-			$filter['=STATUS'] = $requestFilter['STATUS'];
+			if ($requestFilter['STATUS'] === 'APPLY')
+			{
+				$filter['!==DATE_SENT'] = null;
+				$filter['=STATUS'] = PostingRecipientTable::SEND_RESULT_NONE ;
+				$filter['=CONSENT_STATUS'] = ContactTable::CONSENT_STATUS_ACCEPT;
+			}
+			elseif($requestFilter['STATUS'] === 'REJECT')
+			{
+				$filter['!==DATE_SENT'] = null;
+				$filter['=STATUS'] = PostingRecipientTable::SEND_RESULT_NONE;
+				$filter['=CONSENT_STATUS'] = ContactTable::CONSENT_STATUS_DENY;
+			}
+			else
+			{
+				$filter['=STATUS'] = $requestFilter['STATUS'];
+			}
 		}
 		if (isset($requestFilter['IS_READ']) && in_array($requestFilter['IS_READ'], ['Y', 'N']))
 		{
@@ -285,7 +346,7 @@ class SenderContactRecipientComponent extends CBitrixComponent
 		$sorting = $gridOptions->getSorting(array('sort' => $defaultSort));
 
 		$by = key($sorting['sort']);
-		$order = strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
+		$order = mb_strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
 
 		$list = array();
 		foreach ($this->getUiGridColumns() as $column)
@@ -425,6 +486,12 @@ class SenderContactRecipientComponent extends CBitrixComponent
 				"type" => "list",
 				"default" => false,
 				"items" => PostingRecipientTable::getStatusList()
+				+ (!($this->letter->getMessage()->getTransport()->isConsentAvailable())?
+					[]:
+					[
+						'REJECT' => Loc::getMessage("SENDER_CONTACT_CONSENT_REJECT"),
+						'APPLY' => Loc::getMessage("SENDER_CONTACT_CONSENT_APPLY")
+					])
 			],
 		];
 		if ($this->letter->getMessage()->hasStatistics())
@@ -453,6 +520,21 @@ class SenderContactRecipientComponent extends CBitrixComponent
 	protected function getUiFilterPresets()
 	{
 		$list = [];
+		if ($this->letter->getMessage()->getTransport()->isConsentAvailable())
+		{
+			$list['filter_recipient_apply'] = [
+				'name' => Loc::getMessage('SENDER_LETTER_RCP_UI_PRESET_APPLY'),
+				'fields' => [
+					'STATUS' => 'APPLY',
+				]
+			];
+			$list['filter_recipient_reject'] = [
+				'name' => Loc::getMessage('SENDER_LETTER_RCP_UI_PRESET_REJECT'),
+				'fields' => [
+					'STATUS' => 'REJECT'
+				]
+			];
+		}
 		if ($this->letter->getMessage()->hasStatistics())
 		{
 			$list['filter_recipient_read'] = [
@@ -538,20 +620,7 @@ class SenderContactRecipientComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
-
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
 
 		if (!$this->prepareResult())
 		{
@@ -560,5 +629,15 @@ class SenderContactRecipientComponent extends CBitrixComponent
 		}
 
 		$this->includeComponentTemplate();
+	}
+
+	public function getEditAction()
+	{
+		return ActionDictionary::ACTION_SEGMENT_CLIENT_EDIT;
+	}
+
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_SEGMENT_CLIENT_VIEW;
 	}
 }

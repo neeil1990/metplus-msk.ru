@@ -5,6 +5,7 @@ BX.ready(function()
 {
 	var createFolderEl = BX('landing-create-folder');
 	var recycleBin = BX('landing-recycle-bin');
+	var folderGrid = BX('grid-tile-inner');
 
 	if (scriptIsLoaded)
 	{
@@ -72,88 +73,160 @@ BX.ready(function()
 	BX.addCustomEvent('BX.Main.Filter:apply', BX.delegate(landingFilterCallback));
 	BX.addCustomEvent('BX.Landing.Filter:apply', BX.delegate(landingFilterCallback));
 
-		// create folder
-	BX.bind(
-		createFolderEl,
-		'click',
-		function()
-		{
-			if (BX.hasClass(createFolderEl, 'ui-btn-disabled'))
-			{
-				return;
+	// create folder
+	if (createFolderEl)
+	{
+		var createFolderText = BX.create('input', {
+			props: {
+				type: 'text',
 			}
-			var createFolderText = BX.create('input', {
-				props: {
-					type: 'text',
-					className: 'landing-filter-folder-input'
-				}
-			});
-			BX.focus(createFolderText);
-			BX.Landing.UI.Tool.ActionDialog.getInstance()
-				.show({
-					title: createFolderEl.getAttribute('title'),
-					content: createFolderText,
-					confirm: BX.data(createFolderEl, 'action')
-				})
-				.then(
-					function() {
-						BX.ajax({
-							url: '/bitrix/tools/landing/ajax.php?' + '' +
-									'action=Landing::add&folder=Y&' +
-									'type=' + BX.data(createFolderEl, 'type'),
-							method: 'POST',
-							data: {
-								data: {
-									fields: {
-										TITLE: createFolderText.value,
-										FOLDER: 'Y',
-										SITE_ID: BX.data(createFolderEl, 'siteId')
-									}
-								},
-								sessid: BX.message('bitrix_sessid')
-							},
-							dataType: 'json',
-							onsuccess: function(data)
-							{
-								if (
-									typeof data.type !== 'undefined' &&
-									typeof data.result !== 'undefined'
-								)
+		});
+
+		function ajaxAddFolder() {
+			BX.ajax({
+				url: '/bitrix/tools/landing/ajax.php?' + '' +
+					'action=Site::addFolder&' +
+					'type=' + BX.data(createFolderEl, 'type'),
+				method: 'POST',
+				data: {
+					data: {
+						siteId: BX.data(createFolderEl, 'siteId'),
+						fields: {
+							TITLE: createFolderText.value,
+							PARENT_ID: BX.data(createFolderEl, 'folderId')
+						}
+					},
+					sessid: BX.message('bitrix_sessid')
+				},
+				dataType: 'json',
+				onsuccess: function(data)
+				{
+					if (
+						typeof data.type !== 'undefined' &&
+						typeof data.result !== 'undefined'
+					)
+					{
+						if (data.type === 'error')
+						{
+							var msg = BX.Landing.UI.Tool.ActionDialog.getInstance();
+							msg.show({
+								content: data.result[0].error_description,
+								confirm: 'OK',
+								type: 'alert'
+							}).then(
+								function()
 								{
-									if (data.type === 'error')
+									if (data.result[0].error === 'FOLDER_IS_NOT_UNIQUE')
 									{
-										var msg = BX.Landing.UI.Tool.ActionDialog.getInstance();
-										msg.show({
-											content: data.result[0].error_description,
-											confirm: 'OK',
-											type: 'alert'
-										}).then(
-											function()
-											{
-												BX.fireEvent(createFolderEl, 'click');
-											}
-										);
+										createFolderText.value = '';
+										createFolderText.focus();
 									}
 									else
 									{
-										var url = BX.util.add_url_param(
-											window.location.href,
-											{
-												folderId: data.result
-											}
-										);
-										window.location.href = url;
+										BX.fireEvent(createFolderEl, 'click');
 									}
 								}
-							}
-						});
-					},
-					function(error) {
-						//
+							);
+						}
+						else
+						{
+							window.location.reload();
+						}
 					}
-				);
+				}
+			});
 		}
-	);
+
+		createFolderText.addEventListener('keydown', function(event) {
+			if (event.keyCode === 13)
+			{
+				ajaxAddFolder();
+			}
+		})
+
+		createFolderText.addEventListener('blur', function() {
+			if (createFolderText.value.length !== 0)
+			{
+				ajaxAddFolder();
+			}
+		});
+
+		var folderCard = BX.create('div', {
+			props: {
+				className: 'landing-item landing-item-folder'
+			},
+			children: [
+				BX.create('div', {
+					props: {
+						className: 'landing-title'
+					},
+					children: [
+						BX.create('div', {
+							props: {
+								className: 'landing-title-wrap'
+							},
+							children: [
+								BX.create('div', {
+									props: {
+										className: 'landing-title-overflow --create-folder-input'
+									},
+									children: [
+										createFolderText,
+									]
+								}),
+							]
+						}),
+					]
+				}),
+				BX.create('div', {
+					props: {
+						className: 'landing-item-cover'
+					},
+					children: [
+						BX.create('div', {
+							props: {
+								className: 'landing-item-preview'
+							},
+						}),
+						BX.create('div', {
+							props: {
+								className: 'landing-item-folder-corner'
+							},
+							children: [
+								BX.create('div', {
+									props: {
+										className: 'landing-item-folder-dropdown'
+									},
+								}),
+							]
+						}),
+					]
+				}),
+			]
+		});
+		folderCard.style.display = 'none';
+
+		BX.insertAfter(folderCard, document.body.querySelector(".landing-folder-placeholder"))
+
+		BX.bind(
+			createFolderEl,
+			'click',
+			function()
+			{
+				if (!folderCard.prepareNode)
+				{
+					BX.insertAfter(folderCard, document.body.querySelector(".landing-folder-placeholder"))
+				}
+				if (BX.hasClass(createFolderEl, 'ui-btn-disabled'))
+				{
+					return;
+				}
+
+				folderCard.style.display = 'block';
+				BX.focus(createFolderText);
+			}
+		);
+	}
 
 	// settings button
 	var onSettingsClick = function(event) {
@@ -177,10 +250,17 @@ BX.ready(function()
 		};
 		if (landingSettingsButtons.length === 1)
 		{
-			BX.SidePanel.Instance.open(landingSettingsButtons[0]['href'], {
-				allowChangeHistory: false,
-				events: events
-			});
+			var skipSlider =
+				landingSettingsButtons[0]['dataset'] && landingSettingsButtons[0]['dataset']['skipSlider'] === true
+			;
+
+			if (!skipSlider)
+			{
+				BX.SidePanel.Instance.open(landingSettingsButtons[0]['href'], {
+					allowChangeHistory: false,
+					events: events
+				});
+			}
 		}
 		else
 		{
@@ -188,16 +268,21 @@ BX.ready(function()
 			{
 				landingSettingsButtons[i]['onclick'] = function(event, item)
 				{
-					BX.SidePanel.Instance.open(item.href, {
-						allowChangeHistory: false,
-						events: events
-					});
-					BX.PreventDefault(event);
+					var skipSlider = item && item.dataset && item.dataset.skipSlider === true;
+					if (!skipSlider)
+					{
+						BX.SidePanel.Instance.open(item.href, {
+							allowChangeHistory: false,
+							events: events
+						});
+
+						BX.PreventDefault(event);
+					}
 				};
 			}
 			var menu = (
 				BX.PopupMenu.getMenuById('landing-menu-settings') ||
-				new BX.Landing.UI.Tool.Menu({
+				BX.Main.MenuManager.create({
 					id: 'landing-menu-settings',
 					bindElement: event.currentTarget,
 					autoHide: true,
@@ -229,7 +314,7 @@ BX.ready(function()
 		}
 		var menu = (
 			BX.PopupMenu.getMenuById('landing-menu-action') ||
-			new BX.Landing.UI.Tool.Menu({
+			BX.Main.MenuManager.create({
 				id: 'landing-menu-action',
 				bindElement: event.currentTarget,
 				autoHide: true,

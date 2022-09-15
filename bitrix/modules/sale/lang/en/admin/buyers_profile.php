@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["BUYERS_DETAIL_DESCR"] = "View order details";
 $MESS["BUYERS_FROM"] = "from ";
 $MESS["BUYERS_H_ACCOUNT_NUMBER"] = "Order #";
@@ -14,7 +14,7 @@ $MESS["BUYERS_H_SUM"] = "Total";
 $MESS["BUYERS_ORDER_DETAIL_PAGE"] = "Order details";
 $MESS["BUYERS_ORDER_EDIT"] = "Double click to view order details";
 $MESS["BUYERS_ORDER_LIST"] = "Orders";
-$MESS["BUYERS_PAY_ALL"] = "All";
+$MESS["BUYERS_PAY_ALL"] = "all";
 $MESS["BUYERS_PAY_NO"] = "No";
 $MESS["BUYERS_PAY_YES"] = "Yes";
 $MESS["BUYERS_PREF"] = "No.";
@@ -28,7 +28,7 @@ $MESS["BUYER_BASKET_DESC"] = "Customer's shopping cart";
 $MESS["BUYER_BASKET_F_LID"] = "Website";
 $MESS["BUYER_BASKET_F_NAME"] = "Name";
 $MESS["BUYER_BASKET_F_STATUS"] = "Status";
-$MESS["BUYER_BASKET_F_STATUS_ALL"] = "All";
+$MESS["BUYER_BASKET_F_STATUS_ALL"] = "all";
 $MESS["BUYER_BASKET_F_STATUS_AVAIL"] = "In stock";
 $MESS["BUYER_BASKET_F_STATUS_DELAY"] = "Saved for later";
 $MESS["BUYER_BASKET_F_STATUS_NO"] = "Out of stock";
@@ -59,7 +59,6 @@ $MESS["BUYER_DONT_CAN_BUY"] = "out of stock";
 $MESS["BUYER_EDIT"] = "Edit customer";
 $MESS["BUYER_FILED_ADRES"] = "Address";
 $MESS["BUYER_FILED_FIO"] = "Full name";
-$MESS["BUYER_FILED_GROUP"] = "User groups";
 $MESS["BUYER_FILED_GROUP1"] = "User's active groups";
 $MESS["BUYER_FILED_LAST_LOGIN"] = "Last logged in";
 $MESS["BUYER_FILED_LOGIN"] = "Login";
@@ -146,7 +145,7 @@ $MESS["BUYER_VIEWED_BASKET_ERROR_TO_ORDER"] = "Shopping cart contains products f
 $MESS["BUYER_VIEWED_ERROR_PRODUCT_FAIL"] = "The product is out of stock.";
 $MESS["BUYER_VIEWED_MESS_BASKET"] = "Added to your shopping cart";
 $MESS["BUYER_VIEW_ALL_ORDERS"] = "View all orders";
-$MESS["BUYER_VIEW_F_ALL"] = "All";
+$MESS["BUYER_VIEW_F_ALL"] = "all";
 $MESS["BUYER_VIEW_F_DATE"] = "Viewed on";
 $MESS["BUYER_VIEW_F_LID"] = "Website";
 $MESS["BUYER_VIEW_PRODUCT"] = "Viewed products";
@@ -195,4 +194,3 @@ $MESS["SOB_SHIPMENTS_DEDUCTED"] = "Shipped";
 $MESS["SOB_SHIPMENTS_MARKED"] = "Marked";
 $MESS["SOB_SHIPMENTS_NOT_ALLOW_DELIVERY"] = "Shipment not approved";
 $MESS["SOB_SHIPMENTS_STATUS"] = "Status";
-?>

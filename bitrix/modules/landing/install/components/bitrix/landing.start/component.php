@@ -6,7 +6,6 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
 
 use \Bitrix\Crm\WebForm\Preset;
 use \Bitrix\Landing\Rights;
-use \Bitrix\Landing\Role;
 use \Bitrix\Landing\Block;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Main\Localization\Loc;
@@ -45,7 +44,6 @@ if (Loader::includeModule('crm'))
 }
 
 // refresh block repo
-Manager::checkRepositoryVersion();
 Block::getRepository();
 $arParams['TYPE'] = isset($arParams['TYPE']) ? $arParams['TYPE'] : '';
 $arParams['STRICT_TYPE'] = isset($arParams['STRICT_TYPE']) ? $arParams['STRICT_TYPE'] : 'N';
@@ -65,6 +63,7 @@ if (!\Bitrix\Landing\Site\Type::isEnabled($arParams['TYPE']))
 );
 
 // check rights
+\Bitrix\Landing\Role::checkRequiredRoles();
 if (Loader::includeModule('bitrix24'))
 {
 	if (
@@ -78,7 +77,7 @@ if (Loader::includeModule('bitrix24'))
 		return;
 	}
 }
-if (!Rights::hasAdditionalRight(Rights::ADDITIONAL_RIGHTS['menu24']))
+if (!Rights::hasAdditionalRight(Rights::ADDITIONAL_RIGHTS['menu24'], null, true))
 {
 	Manager::getApplication()->showAuthForm(
 		Loc::getMessage('LANDING_CMP_ACCESS_DENIED2')
@@ -86,47 +85,50 @@ if (!Rights::hasAdditionalRight(Rights::ADDITIONAL_RIGHTS['menu24']))
 	return;
 }
 
-// preset paths and sef
+// preset paths and sef (.parameters.php)
 $defaultUrlTemplates404 = array(
 	'sites' => '',
 	'site_show' => 'site/#site_show#/',
 	'site_edit' => 'site/edit/#site_edit#/',
+	'site_design' => 'site/design/#site_edit#/',
+	'site_settings' => 'site/settings/#site_edit#/',
+	'site_master' => 'site/master/#site_edit#/',
+	'site_contacts' => 'site/contacts/#site_edit#/',
+	'site_domain' => 'site/domain/#site_edit#/',
+	'site_domain_switch' => 'site/domain_switch/#site_edit#/',
+	'site_cookies' => 'site/cookies/#site_edit#/',
 	'landing_edit' => 'site/#site_show#/edit/#landing_edit#/',
+	'landing_design' => 'site/#site_show#/design/#landing_edit#/',
 	'landing_view' => 'site/#site_show#/view/#landing_edit#/',
+	'landing_settings' => 'site/#site_show#/settings/#landing_edit#/',
 	'domains' => 'domains/',
 	'domain_edit' => 'domain/edit/#domain_edit#/',
 	'roles' => 'roles/',
-	'role_edit' => 'role/edit/#role_edit#/'
+	'notes' => 'notes/',
+	'role_edit' => 'role/edit/#role_edit#/',
+	'folder_edit' => 'folder/edit/#folder_edit#/'
 );
-$defaultVariableAliases = array(
-	'site_show' => 'site_show',
-	'site_edit' => 'site_edit',
-	'landing_edit' => 'landing_edit',
-	'landing_view' => 'landing_view',
-	'domain_edit' => 'domain_edit',
-	'domains' => 'domains',
-	'role_edit' => 'role_edit',
-	'roles' => 'roles'
-);
-$varToTpl = array(
-	'domains' => 'domains',
-	'landing_edit' => 'landing_edit',
-	'landing_view' => 'landing_view',
-	'site_show' => 'site_show',
-	'site_edit' => 'site_edit',
-	'domain_edit' => 'domain_edit',
-	'role_edit' => 'role_edit'
-);
-$utlTpls = array(
+$urlTpls = array(
 	'sites' => array(),
 	'site_show' => array('site_show'),
 	'site_edit' => array('site_edit'),
+	'site_settings' => array('site_edit'),
+	'site_design' => array('site_edit'),
+	'site_master' => array('site_edit'),
+	'site_contacts' => array('site_edit'),
+	'site_domain' => array('site_edit'),
+	'site_domain_switch' => array('site_edit'),
+	'site_cookies' => array('site_edit'),
 	'landing_edit' => array('landing_edit', 'site_show'),
+	'landing_design' => array('landing_edit', 'site_show'),
 	'landing_view' => array('landing_edit', 'site_show'),
+	'landing_settings' => array('landing_edit', 'site_show'),
 	'domains' => array(),
 	'domain_edit' => array('domain_edit'),
 	'roles' => array(),
-	'role_edit' => array('role_edit')
+	'notes' => array(),
+	'role_edit' => array('role_edit'),
+	'folder_edit' => array('folder_edit')
 );
 
 // init vars
@@ -135,13 +137,13 @@ $componentPage = '';
 $curPage = '';
 $request = Application::getInstance()->getContext()->getRequest();
 $uriString = $request->getRequestUri();
+$uriPage = $request->getRequestedPage();
 $landingTypes = \Bitrix\Landing\Site::getTypes();
 
 // template vars
 $arResult['AGREEMENT'] = array();
-$arResult['CHECK_FEATURE_PERM'] = Manager::checkFeature(
-	Manager::FEATURE_PERMISSIONS_AVAILABLE
-);
+$arResult['AGREEMENT_ACCEPTED'] = false;
+$arResult['CHECK_FEATURE_PERM'] = \Bitrix\Landing\Restriction\Manager::isAllowed('limit_sites_access_permissions');
 $arParams['ACTION_FOLDER'] = isset($arParams['ACTION_FOLDER']) ? $arParams['ACTION_FOLDER'] : 'folderId';
 $arParams['SEF_MODE'] = isset($arParams['SEF_MODE']) ? $arParams['SEF_MODE'] : 'Y';
 $arParams['SEF_FOLDER'] = isset($arParams['SEF_FOLDER']) ? $arParams['SEF_FOLDER'] : '/';
@@ -173,114 +175,79 @@ if (!isset($arParams['SHOW_MENU']))
 // sef / not sef modes
 if ($arParams['SEF_MODE'] == 'Y')
 {
-	$defaultVariableAliases404 = array();
-	$componentVariables = array();
-
-	$urlTemplates = \CComponentEngine::MakeComponentUrlTemplates(
+	$defaultVariableAliases404 = [];
+	$componentVariables = [];
+	// resolve variables, values and template page
+	$urlTemplates = \CComponentEngine::makeComponentUrlTemplates(
 		$defaultUrlTemplates404,
 		$arParams['SEF_URL_TEMPLATES']
 	);
-	$variableAliases = \CComponentEngine::MakeComponentVariableAliases(
+	$variableAliases = \CComponentEngine::makeComponentVariableAliases(
 		$defaultVariableAliases404,
 		$arParams['VARIABLE_ALIASES']
 	);
-	$componentPage = \CComponentEngine::ParseComponentPath(
+	$componentPage = \CComponentEngine::parseComponentPath(
 		$arParams['SEF_FOLDER'],
 		$urlTemplates,
 		$variables
 	);
-
-	\CComponentEngine::InitComponentVariables(
+	\CComponentEngine::initComponentVariables(
 		$componentPage,
 		$componentVariables,
 		$variableAliases,
 		$variables
 	);
-
 	// build urls by rules
-	foreach ($utlTpls as $code => $var)
+	foreach ($urlTpls as $code => $var)
 	{
-		$arParams['PAGE_URL_' . strtoupper($code)] = $arParams['SEF_FOLDER'] . $urlTemplates[$code];
+		$arParams['PAGE_URL_'.mb_strtoupper($code)] = $arParams['SEF_FOLDER'] . $urlTemplates[$code];
 	}
 }
 else
 {
-	$componentVariables = array();
-	foreach ($defaultVariableAliases as $var)
+	// default variable aliases
+	$defaultVariableAliases = [
+		'page' => 'page'
+	];
+	foreach ($urlTpls as $key => $vars)
 	{
-		$componentVariables[] = isset($arParams['VARIABLE_ALIASES'][$var])
-								? $arParams['VARIABLE_ALIASES'][$var]
-								: $var;
+		foreach ($vars as $var)
+		{
+			$defaultVariableAliases[$var] = $var;
+		}
 	}
-
-	$variableAliases = \CComponentEngine::MakeComponentVariableAliases(
+	// resolve variables and values
+	$variableAliases = \CComponentEngine::makeComponentVariableAliases(
 		$defaultVariableAliases,
 		$arParams['VARIABLE_ALIASES']
 	);
-
-	\CComponentEngine::InitComponentVariables(
+	\CComponentEngine::initComponentVariables(
 		false,
-		$componentVariables,
+		$defaultVariableAliases,
 		$variableAliases,
 		$variables
 	);
-
-	foreach ($varToTpl as $var => $tpl)
+	// resolve template page
+	if (isset($variables['page']) && isset($urlTpls[$variables['page']]))
 	{
-		if (isset($variables[$var]))
+		$componentPage = $variables['page'];
+		if (!$defaultUrlTemplates404[$componentPage])
 		{
-			$componentPage = $tpl;
-			break;
-		}
-	}
-
-	// vars for clear from url
-	$deleteUrl = array();
-	foreach ($utlTpls as $code => $var)
-	{
-		if (empty($var))
-		{
-			$deleteUrl[] = isset($arParams['VARIABLE_ALIASES'][$code])
-							? $arParams['VARIABLE_ALIASES'][$code]
-							: $code;
-		}
-		else
-		{
-			foreach ($var as $v)
-			{
-				$deleteUrl[] = isset($arParams['VARIABLE_ALIASES'][$v])
-								? $arParams['VARIABLE_ALIASES'][$v]
-								: $v;
-			}
+			$componentPage = '';
 		}
 	}
 	// build urls by rules
-	foreach ($utlTpls as $code => $var)
+	foreach ($urlTpls as $code => $vars)
 	{
-		$paramCode = 'PAGE_URL_' . strtoupper($code);
-		$uri = new Uri($uriString);
-		$uri->deleteParams($deleteUrl);
-		if (empty($var))
+		$paramCode = 'PAGE_URL_' . mb_strtoupper($code);
+		$uri = new Uri($uriPage);
+		$uri->addParams(['page' => $code]);
+
+		foreach ($vars as $var)
 		{
-			if (isset($arParams['VARIABLE_ALIASES'][$code]))
+			if (isset($defaultVariableAliases[$var]))
 			{
-				$code = $arParams['VARIABLE_ALIASES'][$code];
-			}
-			$uri->addParams(array(
-				$code => 'Y'
-			));
-		}
-		else
-		{
-			foreach ($var as $v)
-			{
-				if (isset($arParams['VARIABLE_ALIASES'][$v]))
-				{
-					$v = $arParams['VARIABLE_ALIASES'][$v];
-				}
-				$uri->addParams(array(
-					$v => '#' . $v . '#'
-				));
+				$uri->addParams([$var => '#' . $var . '#']);
 			}
 		}
 		$arParams[$paramCode] = urldecode($uri->getUri());
@@ -308,7 +275,7 @@ if (
 			'ID'
 		),
 		'filter' => array(
-			'SITE_ID' => SITE_ID,
+			'=SITE_ID' => SITE_ID,
 			'=CONDITION' => $condition
 		)
 	));
@@ -373,34 +340,50 @@ if (
 }
 
 $currentLang = LANGUAGE_ID;
+$currentZone = Manager::getZone();
 $agreementCode = 'landing_agreement';
 $agreementsId = array();
 $agreements = array(
-	'ru' => array(),
-	'es' => array(),
 	'en' => array(),
 	$currentLang => array()
 );
 $virtualLangs = array(
 	'ua' => 'ru',
 	'by' => 'ru',
-	'kz' => 'ru',
-	'la' => 'es'
+	'kz' => 'ru'
 );
+
+if (isset($agreements['es']))
+{
+	$virtualLangs['la'] = 'es';
+}
+
+// lang zone is in CIS
+$cis = $currentZone == 'by' || $currentZone == 'kz';
 
 // actual from lang-file
 foreach ($agreements as $lng => $item)
 {
-	if (file_exists(__DIR__ . '/lang/' . $lng . '/component.php'))
+	if ($cis)
 	{
-		include __DIR__ . '/lang/' . $lng . '/component.php';
+		$mess = Loc::loadLanguageFile(
+			__DIR__ . '/component_' . $currentZone . '.php',
+			'ru'
+		);
+	}
+	else
+	{
+		$mess = Loc::loadLanguageFile(__FILE__, $lng);
+	}
+	if ($mess)
+	{
 		$agreements[$lng] = array(
 			'ID' => 0,
-			'NAME' => isset($MESS['LANDING_CMP_AGREEMENT_NAME'])
-						? $MESS['LANDING_CMP_AGREEMENT_NAME']
+			'NAME' => isset($mess['LANDING_CMP_AGREEMENT_NAME'])
+						? $mess['LANDING_CMP_AGREEMENT_NAME']
 						: '',
-			'TEXT' => isset($MESS['LANDING_CMP_AGREEMENT_TEXT2'])
-						? $MESS['LANDING_CMP_AGREEMENT_TEXT2']
+			'TEXT' => isset($mess['LANDING_CMP_AGREEMENT_TEXT4'])
+						? $mess['LANDING_CMP_AGREEMENT_TEXT4']
 						: '',
 			'LANGUAGE_ID' => $lng
 		);
@@ -451,13 +434,15 @@ while ($row = $res->fetch())
 		AgreementTable::update($row['ID'], [
 			'NAME' => $actual['NAME'],
 			'AGREEMENT_TEXT' => $actual['TEXT'],
-			'LABEL_TEXT' => Loc::getMessage('LANDING_CMP_AGREEMENT_LABEL')
+			'LABEL_TEXT' => Loc::getMessage('LANDING_CMP_AGREEMENT_LABEL'),
+			'IS_AGREEMENT_TEXT_HTML' => 'Y'
 		]);
 	}
 	else if (!$row['LABEL_TEXT'])
 	{
 		AgreementTable::update($row['ID'], [
-			'LABEL_TEXT' => Loc::getMessage('LANDING_CMP_AGREEMENT_LABEL')
+			'LABEL_TEXT' => Loc::getMessage('LANDING_CMP_AGREEMENT_LABEL'),
+			'IS_AGREEMENT_TEXT_HTML' => 'Y'
 		]);
 	}
 	$agreements[$row['LANGUAGE_ID']]['ID'] = $row['ID'];
@@ -474,7 +459,8 @@ foreach ($agreements as $lng => $agreement)
 			'TYPE' => Agreement::TYPE_CUSTOM,
 			'NAME' => $agreement['NAME'],
 			'AGREEMENT_TEXT' => $agreement['TEXT'],
-			'LABEL_TEXT' => Loc::getMessage('LANDING_CMP_AGREEMENT_LABEL')
+			'LABEL_TEXT' => Loc::getMessage('LANDING_CMP_AGREEMENT_LABEL'),
+			'IS_AGREEMENT_TEXT_HTML' => 'Y'
 		));
 		if ($res->isSuccess())
 		{
@@ -507,7 +493,7 @@ elseif (
 }
 else
 {
-	$redirectIfUnAcept = true;
+	$redirectIfUnAccept = true;
 }
 
 // check accepted
@@ -519,8 +505,8 @@ $res = ConsentTable::getList(array(
 ));
 if ($res->fetch())
 {
-	$redirectIfUnAcept = false;
-	$arResult['AGREEMENT'] = array();
+	$redirectIfUnAccept = false;
+	$arResult['AGREEMENT_ACCEPTED'] = true;
 }
 
 // accept
@@ -538,11 +524,23 @@ if (
 
 // if not accept and don't exist agreement
 if (
-	isset($redirectIfUnAcept) &&
-	$redirectIfUnAcept === true
+	isset($redirectIfUnAccept) &&
+	$redirectIfUnAccept === true
 )
 {
 	LocalRedirect(SITE_DIR, true);
+}
+
+if (!empty($arParams['PAGE_URL_SITE_SHOW']))
+{
+	$url = Manager::getOption('tmp_last_show_url', '');
+	if ($url !== $arParams['PAGE_URL_SITE_SHOW'])
+	{
+		Manager::setOption(
+			'tmp_last_show_url',
+			$arParams['PAGE_URL_SITE_SHOW']
+		);
+	}
 }
 
 $this->IncludeComponentTemplate($componentPage);

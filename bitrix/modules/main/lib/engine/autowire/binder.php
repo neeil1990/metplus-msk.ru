@@ -2,9 +2,9 @@
 
 namespace Bitrix\Main\Engine\AutoWire;
 
-use Bitrix\Main\ArgumentException;
+use Bitrix\Main\Result;
 
-final class Binder
+class Binder
 {
 	const STATUS_FOUND     = true;
 	const STATUS_NOT_FOUND = false;
@@ -129,14 +129,31 @@ final class Binder
 	 */
 	public static function registerGlobalAutoWiredParameter(Parameter $parameter)
 	{
-		if (static::$globalAutoWiredParameters === null)
+		if (self::$globalAutoWiredParameters === null)
 		{
-			static::$globalAutoWiredParameters = new \SplObjectStorage();
+			self::$globalAutoWiredParameters = new \SplObjectStorage();
 		}
 
-		if (!static::$globalAutoWiredParameters->contains($parameter))
+		if (!self::$globalAutoWiredParameters->contains($parameter))
 		{
-			static::$globalAutoWiredParameters[$parameter] = $parameter;
+			self::$globalAutoWiredParameters[$parameter] = $parameter;
+		}
+	}
+
+	/**
+	 * @param Parameter $parameter
+	 * @return void
+	 */
+	public static function unRegisterGlobalAutoWiredParameter(Parameter $parameter): void
+	{
+		if (self::$globalAutoWiredParameters === null)
+		{
+			return;
+		}
+
+		if (self::$globalAutoWiredParameters->contains($parameter))
+		{
+			self::$globalAutoWiredParameters->detach($parameter);
 		}
 	}
 
@@ -288,12 +305,28 @@ final class Binder
 	private function getAllAutoWiredParameters()
 	{
 		$list = $this->getAutoWiredParameters();
-		foreach (static::$globalAutoWiredParameters as $globalAutoWiredParameter)
+		if (self::$globalAutoWiredParameters)
 		{
-			$list[] = $globalAutoWiredParameter;
+			foreach (self::$globalAutoWiredParameters as $globalAutoWiredParameter)
+			{
+				$list[] = $globalAutoWiredParameter;
+			}
 		}
 
 		return $list;
+	}
+
+	protected function constructValue(\ReflectionParameter $parameter, Parameter $autoWireParameter, Result $captureResult): Result
+	{
+		$result = new Result();
+
+		$constructedValue = $autoWireParameter->constructValue($parameter, $captureResult);
+
+		$result->setData([
+			'value' => $constructedValue,
+		]);
+
+		return $result;
 	}
 
 	private function getParameterValue(\ReflectionParameter $parameter)
@@ -303,13 +336,34 @@ final class Binder
 		{
 			foreach ($this->getAutoWiredByClass($parameter) as $autoWireParameter)
 			{
-				$result = $autoWireParameter->captureData($parameter, $sourceParameters);
+				$result = $autoWireParameter->captureData($parameter, $sourceParameters, $this->getAllAutoWiredParameters());
 				if (!$result->isSuccess())
 				{
 					continue;
 				}
 
-				return $autoWireParameter->constructValue($parameter, $result);
+				$constructedValue = null;
+				$constructResult = $this->constructValue($parameter, $autoWireParameter, $result);
+				if ($constructResult->isSuccess())
+				{
+					['value' => $constructedValue] = $constructResult->getData();
+				}
+
+				if ($constructedValue === null)
+				{
+					if ($parameter->isDefaultValueAvailable())
+					{
+						return $parameter->getDefaultValue();
+					}
+
+					throw new BinderArgumentException(
+						"Could not construct parameter {{$parameter->getName()}}",
+						$parameter,
+						$constructResult->getErrors(),
+					);
+				}
+
+				return $constructedValue;
 			}
 
 			if ($parameter->isDefaultValueAvailable())
@@ -323,7 +377,7 @@ final class Binder
 				$exceptionMessage = $result->getErrorMessages()[0];
 			}
 
-			throw new ArgumentException(
+			throw new BinderArgumentException(
 				$exceptionMessage,
 				$parameter
 			);
@@ -334,12 +388,23 @@ final class Binder
 		{
 			if ($parameter->isDefaultValueAvailable())
 			{
-				$value = $parameter->getDefaultValue();
+				return $parameter->getDefaultValue();
 			}
-			else
+
+			throw new BinderArgumentException(
+				"Could not find value for parameter {{$parameter->getName()}}",
+				$parameter
+			);
+		}
+		elseif ($parameter->getType() instanceof \ReflectionNamedType)
+		{
+			/** @var \ReflectionNamedType $reflectionType */
+			$reflectionType = $parameter->getType();
+			$declarationChecker = new TypeDeclarationChecker($reflectionType, $value);
+			if (!$declarationChecker->isSatisfied())
 			{
-				throw new ArgumentException(
-					"Could not find value for parameter {{$parameter->getName()}}",
+				throw new BinderArgumentException(
+					"Invalid value {{$value}} to match with parameter {{$parameter->getName()}}. Should be value of type {$reflectionType->getName()}.",
 					$parameter
 				);
 			}

@@ -13,6 +13,7 @@ use Bitrix\Main\Result;
 use Bitrix\Main\UI\FileInputUtility;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\Entity;
+use Bitrix\Sender\Transport\TimeLimiter;
 
 Loc::loadMessages(__FILE__);
 
@@ -96,7 +97,12 @@ class MessageAudioCall implements Message\iBase, Message\iMailable, Message\iAud
 					);
 					return ob_get_clean();
 				},
+				'readonly_view' => function($value)
+				{
+					return Service::getFormattedOutputNumber($value);
+				},
 				'required' => true,
+				'show_in_list' => true,
 			),
 			array(
 				'type' => 'audio',
@@ -111,6 +117,8 @@ class MessageAudioCall implements Message\iBase, Message\iMailable, Message\iAud
 			),
 
 		));
+
+		TimeLimiter::prepareMessageConfiguration($this->configuration);
 	}
 
 	/**
@@ -126,6 +134,7 @@ class MessageAudioCall implements Message\iBase, Message\iMailable, Message\iAud
 		Entity\Message::create()
 			->setCode($this->getCode())
 			->loadConfiguration($id, $this->configuration);
+		TimeLimiter::prepareMessageConfigurationView($this->configuration);
 
 		return $this->configuration;
 	}
@@ -182,16 +191,18 @@ class MessageAudioCall implements Message\iBase, Message\iMailable, Message\iAud
 	{
 		$valueIsCorrect = false;
 
-		if (strlen($newValue))
+		if($newValue <> '')
 		{
 			$audio = (new Audio())
 				->withValue($newValue)
 				->withMessageCode($this->getCode());
 
-			if ($audio->createdFromPreset())
+			if($audio->createdFromPreset())
 			{
-				if ($audio->getFileUrl()) // preset $newValue is really exists
+				if($audio->getFileUrl()) // preset $newValue is really exists
+				{
 					$valueIsCorrect = true;
+				}
 			}
 			else
 			{
@@ -200,14 +211,14 @@ class MessageAudioCall implements Message\iBase, Message\iMailable, Message\iAud
 					->withJsonString($oldValue->getValue())
 					->withMessageCode($this->getCode());
 
-				if ($oldAudio->getFileId() == $newValue) // file wasn't changed
+				if($oldAudio->getFileId() == $newValue) // file wasn't changed
 				{
 					$audio = $oldAudio;
 					$valueIsCorrect = true;
 				}
 				else
 				{
-					if (
+					if(
 						$audio->getDuration() && // check if new file is really mp3
 						FileInputUtility::instance()->checkFiles($optionCode, [$newValue]) // check if file was uploaded by current user
 					)

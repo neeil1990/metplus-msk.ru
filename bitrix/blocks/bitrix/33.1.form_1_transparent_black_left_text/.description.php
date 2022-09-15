@@ -8,11 +8,10 @@ use \Bitrix\Main\Localization\Loc;
 
 return array(
 	'block' => array(
-		'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1'),
+		'name' => Loc::getMessage('LANDING_BLOCK_FORM_33_1'),
 		'section' => array('forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'type' => ['page', 'store'],
 	),
 	'cards' => array(
 		'.landing-block-node-card-contact' => array(
@@ -33,6 +32,7 @@ return array(
 			'type' => 'img',
 			'dimensions' => array('width' => 1920, 'height' => 1080),
 			'allowInlineEdit' => false,
+			'create2xByDefault' => false,
 		),
 		'.landing-block-node-main-title' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_TITLE'),
@@ -70,7 +70,7 @@ return array(
 		'nodes' => array(
 			'.landing-block-node-main-title' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_TITLE'),
-				'type' => array('typo', 'animation'),
+				'type' => ['typo', 'animation', 'heading'],
 			),
 			'.landing-block-card-contact-icon-container' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_ICON'),
@@ -78,7 +78,7 @@ return array(
 			),
 			'.landing-block-node-title' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_SUBTITLE'),
-				'type' => 'typo',
+				'type' => ['typo', 'heading'],
 			),
 			'.landing-block-node-text' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_TEXT'),
@@ -92,10 +92,6 @@ return array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_LINK'),
 				'type' => 'typo',
 			),
-			'.landing-block-node-form' => array(
-				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_FORM'),
-				'type' => 'animation',
-			),
 			'.landing-block-card-linkcontact-link' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_CONTACT_LINK'),
 				'type' => 'typo-link',
@@ -104,9 +100,10 @@ return array(
 				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.1_NODE_BGIMG'),
 				'type' => 'background-attachment',
 			),
+			'.landing-block-node-row' => array(
+				'name' => Loc::getMessage('LANDING_BLOCK_FORM_33_1_NODE_BLOCK'),
+				'type' => 'align-items',
+			),
 		),
-	),
-	'assets' => array(
-		'ext' => array('landing_form'),
 	),
 );

@@ -25,7 +25,7 @@ $context = $instance->getContext();
 $lang = $context->getLanguage();
 $request = $context->getRequest();
 
-$oSort = new CAdminSorting($tableId, "ID", "asc");
+$oSort = new CAdminUiSorting($tableId, "ID", "asc");
 $lAdmin = new CAdminUiList($tableId, $oSort);
 
 $filterFields = array(
@@ -73,7 +73,9 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 	foreach ($ids as $id)
 	{
 		if ((int)$id <= 0)
+		{
 			continue;
+		}
 
 		switch ($_REQUEST['action'])
 		{
@@ -81,7 +83,24 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 				if ($id == \Bitrix\Sale\Cashbox\Cashbox1C::getId())
 				{
 					$lAdmin->AddGroupError(GetMessage("SPSAN_ERROR_DELETE_1C"), $id);
-					continue;
+					continue 2;
+				}
+
+				$service = Cashbox\Manager::getObjectById($id);
+
+				if (Cashbox\Manager::isPaySystemCashbox($service->getField('HANDLER')))
+				{
+					$lAdmin->AddGroupError(
+						GetMessage(
+							"SPSAN_ERROR_DELETE_CASHBOX_PAYSYSTEM",
+							[
+								"#CASHBOX_NAME#" => $service::getName(),
+							]
+						),
+						$id
+					);
+
+					continue 2;
 				}
 
 				$result = Cashbox\Manager::delete($id);
@@ -92,11 +111,32 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 					else
 						$lAdmin->AddGroupError(GetMessage("SPSAN_ERROR_DELETE"), $id);
 				}
+				else
+				{
+					AddEventToStatFile('sale', 'deleteCashbox', '', $service::getCode());
+				}
 
 				break;
 
 			case "activate":
 			case "deactivate":
+
+				$service = Cashbox\Manager::getObjectById($id);
+
+				if (Cashbox\Manager::isPaySystemCashbox($service->getField('HANDLER')))
+				{
+					$lAdmin->AddGroupError(
+						GetMessage(
+							"SPSAN_ERROR_ACTIVE_CASHBOX_PAYSYSTEM",
+							[
+								"#CASHBOX_NAME#" => $service::getName(),
+							]
+						),
+						$id
+					);
+
+					continue 2;
+				}
 
 				$arFields = array(
 					"ACTIVE" => ($_REQUEST['action'] == 'activate') ? 'Y' : 'N'
@@ -123,12 +163,6 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 		$adminSidePanelHelper->sendSuccessResponse();
 	}
 }
-
-if ($publicMode)
-{
-	$filter['!ID'] = Cashbox\Cashbox1C::getId();
-}
-
 $params = array(
 	'select' => array('*'),
 	'filter' => $filter
@@ -186,7 +220,12 @@ while ($cashbox = $dbResultList->Fetch())
 			"DEFAULT" => true,
 		),
 	);
-	if ($saleModulePermissions >= "W")
+
+
+	if (
+		$saleModulePermissions >= "W"
+		&& !Cashbox\Manager::isPaySystemCashbox($cashbox['HANDLER'])
+	)
 	{
 		$arActions[] = array("SEPARATOR" => true);
 		$arActions[] = array(
@@ -256,20 +295,58 @@ else
 	<script language="JavaScript">
 		BX.message(
 			{
-				SALE_CASHBOX_COPY: '<?=Loc::getMessage("SALE_CASHBOX_COPY")?>',
-				SALE_CASHBOX_WINDOW_TITLE: '<?=Loc::getMessage("SALE_CASHBOX_WINDOW_TITLE")?>',
-				SALE_CASHBOX_WINDOW_STEP_1: '<?=Loc::getMessage("SALE_CASHBOX_WINDOW_STEP_1")?>',
-				SALE_CASHBOX_WINDOW_STEP_2: '<?=Loc::getMessage("SALE_CASHBOX_WINDOW_STEP_2")?>',
+				SALE_CASHBOX_COPY: "<?=Loc::getMessage("SALE_CASHBOX_COPY")?>",
+				SALE_CASHBOX_WINDOW_TITLE: "<?=Loc::getMessage("SALE_CASHBOX_WINDOW_TITLE")?>",
+				SALE_CASHBOX_WINDOW_STEP_1: "<?=Loc::getMessage("SALE_CASHBOX_WINDOW_STEP_1")?>",
+				SALE_CASHBOX_WINDOW_STEP_2: "<?=Loc::getMessage("SALE_CASHBOX_WINDOW_STEP_2")?>",
 			}
 		);
 	</script>
 	<?
+	$ffdCheckNeeded = true;
+	Cashbox\Cashbox::init();
 
-	if (!Cashbox\Manager::isSupportedFFD105())
+	$cashboxList = Cashbox\Manager::getListFromCache();
+	$cashboxesByCountry = [
+		'RU' => [],
+		'UA' => [],
+	];
+
+	foreach ($cashboxList as $cashbox)
 	{
-		Cashbox\Cashbox::init();
+		$handler = $cashbox['HANDLER'];
+		if ($cashbox['ACTIVE'] === 'N' || $handler === '\Bitrix\Sale\Cashbox\CashboxRest')
+		{
+			continue;
+		}
 
-		$cashboxList = Cashbox\Manager::getListFromCache();
+		$handler = $cashbox['HANDLER'];
+
+		if ($handler === '\Bitrix\Sale\Cashbox\CashboxCheckbox')
+		{
+			$country = 'UA';
+		}
+		else
+		{
+			$country = 'RU';
+		}
+
+		$cashboxesByCountry[$country][] = htmlspecialcharsbx($cashbox['NAME']);
+	}
+
+	if (!(empty($cashboxesByCountry['RU']) || empty($cashboxesByCountry['UA'])))
+	{
+		$ffdCheckNeeded = false;
+		$note = BeginNote();
+		$note .= Loc::getMessage('SALE_CASHBOX_ZONE_CONFLICT');
+		$note .= Loc::getMessage('SALE_CASHBOX_ZONE_CONFLICT_RU_LIST', ['#CASHBOXES#' => implode(', ', $cashboxesByCountry['RU'])]);
+		$note .= Loc::getMessage('SALE_CASHBOX_ZONE_CONFLICT_UA_LIST', ['#CASHBOXES#' => implode(', ', $cashboxesByCountry['UA'])]);
+		$note .= EndNote();
+		echo $note;
+	}
+
+	if ($ffdCheckNeeded && !Cashbox\Manager::isSupportedFFD105())
+	{
 		$cashboxFfd105 = array();
 		$cashboxNoFfd105 = array();
 		foreach ($cashboxList as $cashbox)
@@ -279,7 +356,27 @@ else
 
 			/** @var Cashbox\Cashbox $handler */
 			$handler = $cashbox['HANDLER'];
-			if ($handler::isSupportedFFD105())
+			if (!class_exists($handler))
+			{
+				continue;
+			}
+
+			$isRestHandler = $handler === '\Bitrix\Sale\Cashbox\CashboxRest';
+			if ($isRestHandler)
+			{
+				$handlerCode = $cashbox['SETTINGS']['REST']['REST_CODE'];
+				$restHandlers = Cashbox\Manager::getRestHandlersList();
+				$currentHandler = $restHandlers[$handlerCode];
+				if ($currentHandler['SETTINGS']['SUPPORTS_FFD105'] !== 'Y')
+				{
+					$cashboxNoFfd105[] = htmlspecialcharsbx($cashbox['NAME']);
+				}
+				else
+				{
+					$cashboxFfd105[] = htmlspecialcharsbx($cashbox['NAME']);
+				}
+			}
+			elseif ($handler::isSupportedFFD105())
 			{
 				$cashboxFfd105[] = htmlspecialcharsbx($cashbox['NAME']);
 			}
@@ -303,6 +400,48 @@ else
 			echo $note;
 		}
 	}
+
+	if (Cashbox\Manager::isEnabledPaySystemPrint())
+	{
+		$cashboxPaySystem = [];
+		$cashboxNoPaySystem = [];
+
+		foreach ($cashboxList as $cashbox)
+		{
+			if ($cashbox['ACTIVE'] === 'N')
+			{
+				continue;
+			}
+
+			if (!class_exists($cashbox['HANDLER']))
+			{
+				continue;
+			}
+
+			if (Cashbox\Manager::isPaySystemCashbox($cashbox['HANDLER']))
+			{
+				$cashboxPaySystem[] = htmlspecialcharsbx($cashbox['NAME']);
+			}
+			else
+			{
+				$cashboxNoPaySystem[] = htmlspecialcharsbx($cashbox['NAME']);
+			}
+		}
+
+		if ($cashboxPaySystem && $cashboxNoPaySystem)
+		{
+			$note = BeginNote();
+			$note .= Loc::getMessage(
+				'SALE_CASHBOX_MODE_CONFLICT',
+				array(
+					'#CASHBOX_PAYSYSTEM#' => implode(', ', $cashboxPaySystem),
+				)
+			);
+			$note .= EndNote();
+			echo $note;
+		}
+	}
+
 	$lAdmin->DisplayFilter($filterFields);
 	$lAdmin->DisplayList();
 }

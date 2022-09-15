@@ -29,11 +29,30 @@ class CatalogSectionComponent extends ElementList
 	{
 		parent::__construct($component);
 		$this->setExtendedMode(false)->setMultiIblockMode(false)->setPaginationMode(true);
+		$this->setSeparateLoading(true);
 	}
 
 	public function onPrepareComponentParams($params)
 	{
 		$params = parent::onPrepareComponentParams($params);
+
+		if (
+			empty($this->globalFilter)
+			&& !empty($params['EXTERNAL_PRODUCT_IDS'])
+			&& is_array($params['EXTERNAL_PRODUCT_IDS'])
+		)
+		{
+			$params['EXTERNAL_PRODUCT_MAP'] = static::getProductsMap($params['EXTERNAL_PRODUCT_IDS']);
+			if (!empty($params['EXTERNAL_PRODUCT_MAP']))
+			{
+				$this->globalFilter = [
+					'ID' => array_unique(array_values($params['EXTERNAL_PRODUCT_MAP']))
+				];
+			}
+		}
+
+		unset($params['EXTERNAL_PRODUCT_IDS']);
+
 		$params['IBLOCK_TYPE'] = isset($params['IBLOCK_TYPE']) ? trim($params['IBLOCK_TYPE']) : '';
 
 		if ((int)$params['SECTION_ID'] > 0 && (int)$params['SECTION_ID'].'' != $params['SECTION_ID'] && Loader::includeModule('iblock'))
@@ -137,7 +156,7 @@ class CatalogSectionComponent extends ElementList
 
 		// Hidden tricky parameter USED to display linked
 		// by default it is not set
-		if ($this->arParams['BY_LINK'] === 'Y')
+		if (isset($this->arParams['BY_LINK']) && $this->arParams['BY_LINK'] === 'Y')
 		{
 			$sectionResult = array(
 				'ID' => 0,
@@ -151,14 +170,14 @@ class CatalogSectionComponent extends ElementList
 			$sectionIterator->SetUrlTemplates('', $this->arParams['SECTION_URL']);
 			$sectionResult = $sectionIterator->GetNext();
 		}
-		elseif (strlen($this->arParams['SECTION_CODE']) > 0)
+		elseif ($this->arParams['SECTION_CODE'] <> '')
 		{
 			$filterFields['=CODE'] = $this->arParams['SECTION_CODE'];
 			$sectionIterator = CIBlockSection::GetList(array(), $filterFields, false, $selectFields);
 			$sectionIterator->SetUrlTemplates('', $this->arParams['SECTION_URL']);
 			$sectionResult = $sectionIterator->GetNext();
 		}
-		elseif (strlen($this->arParams['SECTION_CODE_PATH']) > 0)
+		elseif (isset($this->arParams['SECTION_CODE_PATH']) && $this->arParams['SECTION_CODE_PATH'] <> '')
 		{
 			$sectionId = CIBlockFindTools::GetSectionIDByCodePath($this->arParams['IBLOCK_ID'], $this->arParams['SECTION_CODE_PATH']);
 			if ($sectionId)
@@ -302,7 +321,7 @@ class CatalogSectionComponent extends ElementList
 			$filterFields['SECTION_GLOBAL_ACTIVE'] = 'Y';
 		}
 
-		if ($this->arParams['BY_LINK'] !== 'Y')
+		if (!isset($this->arParams['BY_LINK']) || $this->arParams['BY_LINK'] !== 'Y')
 		{
 			if ($this->arResult['ID'])
 			{
@@ -320,6 +339,58 @@ class CatalogSectionComponent extends ElementList
 		}
 
 		return $filterFields;
+	}
+
+	protected function editTemplateItems(&$items)
+	{
+		$items = $this->prepareItemsByExternalProductMap($items);
+		parent::editTemplateItems($items);
+	}
+
+	protected function prepareItemsByExternalProductMap(array $items): array
+	{
+		if (!empty($this->arParams['EXTERNAL_PRODUCT_MAP']) && is_array($this->arParams['EXTERNAL_PRODUCT_MAP']))
+		{
+			$itemsByProductId = array_column($items, null, 'ID');
+			$newItems = [];
+
+			foreach ($this->arParams['EXTERNAL_PRODUCT_MAP'] as $offerId => $productId)
+			{
+				$nextItem = $itemsByProductId[$productId] ?? null;
+				if ($nextItem === null)
+				{
+					continue;
+				}
+
+				// offer id not specified
+				if ($offerId === $productId)
+				{
+					$found = true;
+				}
+				else
+				{
+					$found = false;
+					foreach ($nextItem['OFFERS'] as $offer)
+					{
+						if ($offer['ID'] === $offerId)
+						{
+							$nextItem['OFFER_ID_SELECTED'] = $offerId;
+							$found = true;
+							break;
+						}
+					}
+				}
+
+				if ($found)
+				{
+					$newItems[] = $nextItem;
+				}
+			}
+
+			$items = $newItems;
+		}
+
+		return $items;
 	}
 
 	protected function makeOutputResult()
@@ -362,7 +433,7 @@ class CatalogSectionComponent extends ElementList
 			{
 				$urlDeleteSectionButton = '';
 
-				if ($arResult['IBLOCK_SECTION_ID'] > 0)
+				if (isset($arResult['IBLOCK_SECTION_ID']) && $arResult['IBLOCK_SECTION_ID'] > 0)
 				{
 					$sectionIterator = CIBlockSection::GetList(
 						array(),
@@ -385,9 +456,7 @@ class CatalogSectionComponent extends ElementList
 
 				$returnUrl = array(
 					'add_section' => (
-					strlen($this->arParams['SECTION_URL'])
-						? $this->arParams['SECTION_URL']
-						: CIBlock::GetArrayByID($this->arParams['IBLOCK_ID'], 'SECTION_PAGE_URL')
+					$this->arParams['SECTION_URL'] <> ''? $this->arParams['SECTION_URL'] : CIBlock::GetArrayByID($this->arParams['IBLOCK_ID'], 'SECTION_PAGE_URL')
 					),
 					'delete_section' => $urlDeleteSectionButton,
 				);
@@ -430,23 +499,26 @@ class CatalogSectionComponent extends ElementList
 
 				if ($this->arParams['SET_TITLE'] || isset($arResult[$this->arParams['BROWSER_TITLE']]))
 				{
-					$this->storage['TITLE_OPTIONS'] = array(
-						'ADMIN_EDIT_LINK' => $buttons['submenu']['edit_section']['ACTION'],
-						'PUBLIC_EDIT_LINK' => $buttons['edit']['edit_section']['ACTION'],
-						'COMPONENT_NAME' => $this->getName(),
-					);
+					if (isset($buttons['submenu']['edit_section']))
+					{
+						$this->storage['TITLE_OPTIONS'] = array(
+							'ADMIN_EDIT_LINK' => $buttons['submenu']['edit_section']['ACTION'],
+							'PUBLIC_EDIT_LINK' => $buttons['edit']['edit_section']['ACTION'],
+							'COMPONENT_NAME' => $this->getName(),
+						);
+					}
 				}
 			}
 		}
 	}
-	
+
 	protected function initMetaData()
 	{
 		global $APPLICATION;
 
 		if ($this->arParams['SET_TITLE'])
 		{
-			if ($this->arResult['IPROPERTY_VALUES']['SECTION_PAGE_TITLE'] != '')
+			if (isset($this->arResult['IPROPERTY_VALUES']['SECTION_PAGE_TITLE']) && $this->arResult['IPROPERTY_VALUES']['SECTION_PAGE_TITLE'] != '')
 			{
 				$APPLICATION->SetTitle($this->arResult['IPROPERTY_VALUES']['SECTION_PAGE_TITLE'], $this->storage['TITLE_OPTIONS']);
 			}
@@ -539,7 +611,7 @@ class CatalogSectionComponent extends ElementList
 
 		if (
 			!empty($elementIterator)
-			&& $this->arParams['BY_LINK'] !== 'Y'
+			&& (!isset($this->arParams['BY_LINK']) || $this->arParams['BY_LINK'] !== 'Y')
 			&& !$this->arParams['SHOW_ALL_WO_SECTION']
 			&& !$this->arParams['USE_MAIN_ELEMENT_SECTION']
 		)
@@ -608,7 +680,7 @@ class CatalogSectionComponent extends ElementList
 	{
 		$sections =& $this->storage['sections'];
 
-		if ($this->arParams['BY_LINK'] === 'Y')
+		if (isset($this->arParams['BY_LINK']) && $this->arParams['BY_LINK'] === 'Y')
 		{
 			if (!isset($sections[$element['IBLOCK_SECTION_ID']]))
 			{

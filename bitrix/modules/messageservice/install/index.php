@@ -13,13 +13,11 @@ Class messageservice extends CModule
 	var $MODULE_CSS;
 	var $MODULE_GROUP_RIGHTS = "Y";
 
-	function messageservice()
+	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		$path = str_replace("\\", "/", __FILE__);
-		$path = substr($path, 0, strlen($path) - strlen("/index.php"));
-		include($path."/version.php");
+		include(__DIR__.'/version.php');
 
 		$this->MODULE_VERSION = $arModuleVersion["VERSION"];
 		$this->MODULE_VERSION_DATE = $arModuleVersion["VERSION_DATE"];
@@ -31,11 +29,11 @@ Class messageservice extends CModule
 
 	function InstallDB($install_wizard = true)
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 
 		$errors = null;
 		if (!$DB->Query("SELECT 'x' FROM b_messageservice_message", true))
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/".$DBType."/install.sql");
+			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/mysql/install.sql");
 
 		if (!empty($errors))
 		{
@@ -53,6 +51,7 @@ Class messageservice extends CModule
 		COption::SetOptionString("messageservice", "clean_up_period", "14");
 
 		CAgent::AddAgent('\Bitrix\MessageService\Queue::cleanUpAgent();',"messageservice", "Y", 86400);
+		CAgent::AddAgent('\Bitrix\MessageService\IncomingMessage::cleanUpAgent();', 'messageservice', 'Y', 86400);
 
 		if (CModule::IncludeModule('messageservice'))
 		{
@@ -64,12 +63,12 @@ Class messageservice extends CModule
 
 	function UnInstallDB($arParams = Array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 
 		$errors = null;
 		if(array_key_exists("savedata", $arParams) && $arParams["savedata"] != "Y")
 		{
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/".$DBType."/uninstall.sql");
+			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/messageservice/install/db/mysql/uninstall.sql");
 
 			if (!empty($errors))
 			{

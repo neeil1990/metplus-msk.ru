@@ -2,9 +2,12 @@
 
 namespace Bitrix\Sale\CrmSiteMaster\Steps;
 
-use Bitrix\Main,
-	Bitrix\Main\Application,
-	Bitrix\Main\Localization\Loc;
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
@@ -35,7 +38,7 @@ class BackupStep extends \CWizardStep
 		if (isset($steps["NEXT_STEP"]))
 		{
 			$this->SetNextStep($steps["NEXT_STEP"]);
-			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_" . strtoupper($shortClassName) . "_NEXT"));
+			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName) . "_NEXT"));
 		}
 	}
 
@@ -64,17 +67,8 @@ class BackupStep extends \CWizardStep
 			return false;
 		}
 
-		try
-		{
-			$languageId = $this->getLanguageId();
-		}
-		catch (\Exception $ex)
-		{
-			$languageId = "ru";
-		}
-
 		$instructionLink = "https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=35&CHAPTER_ID=04833&LESSON_PATH=3906.4833";
-		if ($languageId && $languageId !== "ru")
+		if (!in_array($this->component->getLanguageId(), ["ru", "ua"]))
 		{
 			$instructionLink = "https://training.bitrix24.com/support/training/course/index.php?COURSE_ID=20&LESSON_ID=1188";
 		}
@@ -88,7 +82,7 @@ class BackupStep extends \CWizardStep
 				]) ?></p>
 			<p><?= Loc::getMessage("SALE_CSM_WIZARD_BACKUPSTEP_DESCR_NEXT") ?></p>
 		</div>
-		<?
+		<?php
 		$content = ob_get_contents();
 		ob_end_clean();
 
@@ -113,13 +107,11 @@ class BackupStep extends \CWizardStep
 					<?= Loc::getMessage("SALE_CSM_WIZARD_BACKUPSTEP_ALL_DONE") ?>
 				</label>
 			</span>
-			<input type="hidden" name="<?= $this->GetWizard()->nextStepHiddenID ?>"
-				   value="<?= $this->GetNextStepID() ?>">
-			<button type="submit" class="ui-btn ui-btn-primary ui-btn-disabled"
-					name="<?= $this->GetWizard()->nextButtonID ?>" disabled>
+			<input type="hidden" name="<?= $this->GetWizard()->nextStepHiddenID ?>" value="<?= $this->GetNextStepID() ?>">
+			<button type="submit" class="ui-btn ui-btn-primary ui-btn-disabled" name="<?= $this->GetWizard()->nextButtonID ?>" disabled>
 				<?= $this->GetNextCaption() ?>
 			</button>
-			<?
+			<?php
 		}
 		$content = ob_get_contents();
 		ob_end_clean();
@@ -129,29 +121,5 @@ class BackupStep extends \CWizardStep
 			"NEED_WRAPPER" => true,
 			"CENTER" => false,
 		];
-	}
-
-	/**
-	 * @return string
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	private function getLanguageId()
-	{
-		$languageId = '';
-
-		$siteIterator = Main\SiteTable::getList([
-			'select' => ['LID', 'LANGUAGE_ID'],
-			'filter' => ['=DEF' => 'Y', '=ACTIVE' => 'Y']
-		]);
-		if ($site = $siteIterator->fetch())
-		{
-			$languageId = (string)$site['LANGUAGE_ID'];
-		}
-
-		unset($site, $siteIterator);
-
-		return $languageId;
 	}
 }

@@ -6,6 +6,7 @@ $pathLang = BX_ROOT.'/modules/main';
 //WARNING: Don't use CUserOptions here! CJSCore::Init can be called from php_interface/init.php where no $USER exists
 
 $amChartsPath = '/bitrix/js/main/amcharts/3.21/';
+$amCharts4Path = '/bitrix/js/main/amcharts/4.8.5/';
 
 $arJSCoreConfig = array(
 	'ajax' => array(
@@ -33,7 +34,7 @@ $arJSCoreConfig = array(
 	'autosave' => array(
 		'js' => $pathJS.'/core_autosave.js',
 		'lang' => $pathLang.'/js_core_autosave.php',
-		'rel' => array('ajax'),
+		'rel' => array('ajax', 'main.pageobject'),
 	),
 	'fx' => array(
 		'js' => $pathJS.'/core_fx.js',
@@ -88,18 +89,19 @@ $arJSCoreConfig = array(
 		'js' => $pathJS.'/core_window.js',
 		//'css' => $pathCSS.'/core_window.css',
 		'css' => $pathCSSPanel.'/popup.css',
-		'rel' => array('ajax'),
+		'rel' => array('ajax', 'main.pageobject'),
+		'lang' => $pathLang.'/js_core.php',
 	),
 	'access' => array(
 		'js' => $pathJS.'/core_access.js',
 		'css' => $pathCSS.'/core_access.css',
-		'rel' => array('popup', 'ajax', 'finder'),
+		'rel' => array('popup', 'ajax', 'finder', 'ui.design-tokens'),
 		'lang' => $pathLang.'/js_core_access.php',
 	),
 	'finder' => array(
 		'js' => $pathJS.'/core_finder.js',
 		'css' => $pathCSS.'/core_finder.css',
-		'rel' => array('popup', 'ajax', 'db_indexeddb'),
+		'rel' => array('popup', 'ajax', 'db_indexeddb', 'ui.design-tokens'),
 	),
 	'user' => array(
 		'js' => $pathJS.'/core_user.js',
@@ -134,7 +136,7 @@ $arJSCoreConfig = array(
 		'js' => $pathJS.'/core_avatar_editor.js',
 		'css' => $pathCSS.'/core_avatar_editor.css',
 		'lang' => $pathLang.'/js_core_avatar_editor.php',
-		'rel' => array('canvas', 'popup', 'dd', 'uploader', 'webrtc'),
+		'rel' => array('canvas', 'popup', 'dd', 'uploader', 'webrtc', 'ui.design-tokens'),
 	),
 	'canvas' => array(
 		'js' => $pathJS.'/core_canvas.js',
@@ -166,16 +168,14 @@ $arJSCoreConfig = array(
 		'lang' => $pathLang.'/js_site_speed.php',
 		'rel' => array('amcharts_serial', 'ajax', "date")
 	),
-	'qrcode' => array(
-		'js' => array(
-			'/bitrix/js/main/qrcode/qrcode.js'
-		)
-	),
+	'qrcode' => [
+		'rel' => ['main.qrcode']
+	],
 	'fileinput' => array(
 		'js' => $pathJS.'/core_fileinput.js',
 		'css' => $pathCSS.'/core_fileinput.css',
 		'lang' => $pathLang.'/js_core_fileinput.php',
-		'rel' => array("ajax", "window", "popup", "uploader", "canvas", "dd")
+		'rel' => array("ajax", "window", "popup", "uploader", "canvas", "dd", "ui.design-tokens")
 	),
 	'clipboard' => array(
 		'js' => $pathJS.'/core_clipboard.js',
@@ -203,7 +203,7 @@ $arJSCoreConfig = array(
 	'ui_factory' => array(
 		'js' => $pathJS.'/core_ui_factory.js',
 		'css' => $pathCSS.'/core_ui_control.css',
-		'rel' => array('decl')
+		'rel' => array('decl', 'ui.design-tokens')
 	),
 	'ui' => array(
 		'rel' => array(
@@ -238,7 +238,7 @@ $arJSCoreConfig = array(
 			'/bitrix/js/main/colorpicker/css/colorpicker.css',
 		),
 		'lang' => $pathLang.'/js/colorpicker.php',
-		'rel' => array('popup'),
+		'rel' => array('popup', 'ui.design-tokens'),
 	),
 	'masked_input' => array(
 		'js' => array(
@@ -262,7 +262,7 @@ $arJSCoreConfig = array(
 			'/bitrix/js/main/sidepanel/slider.js'
 		),
 		'css' => '/bitrix/js/main/sidepanel/css/sidepanel.css',
-		'rel' => array('ajax', 'fx'),
+		'rel' => array('ajax', 'fx', 'main.pageobject', 'clipboard'),
 		'lang' => $pathLang.'/js/sidepanel.php',
 		'bundle_js' => 'sidepanel',
 		'bundle_css' => 'sidepanel'
@@ -349,27 +349,27 @@ $arJSCoreConfig = array(
 
 	/* external libs */
 	'jquery' => array(
-		'js' => '/bitrix/js/main/jquery/jquery-1.8.3.min.js',
+		'js' => '/bitrix/js/main/jquery/jquery-1.12.4.min.js',
 		'skip_core' => true,
 	),
 	'jquery_src' => array(
-		'js' => '/bitrix/js/main/jquery/jquery-1.8.3.js',
+		'js' => '/bitrix/js/main/jquery/jquery-1.12.4.js',
 		'skip_core' => true,
 	),
 	'jquery2' => array(
-		'js' => '/bitrix/js/main/jquery/jquery-2.1.3.min.js',
+		'js' => '/bitrix/js/main/jquery/jquery-2.2.4.min.js',
 		'skip_core' => true,
 	),
 	'jquery2_src' => array(
-		'js' => '/bitrix/js/main/jquery/jquery-2.1.3.js',
+		'js' => '/bitrix/js/main/jquery/jquery-2.2.4.js',
 		'skip_core' => true,
 	),
 	'jquery3' => array(
-		'js' => '/bitrix/js/main/jquery/jquery-3.3.1.min.js',
+		'js' => '/bitrix/js/main/jquery/jquery-3.6.0.min.js',
 		'skip_core' => true,
 	),
 	'jquery3_src' => array(
-		'js' => '/bitrix/js/main/jquery/jquery-3.3.1.js',
+		'js' => '/bitrix/js/main/jquery/jquery-3.6.0.js',
 		'skip_core' => true,
 	),
 	'json' => array(
@@ -424,6 +424,31 @@ $arJSCoreConfig = array(
 		'rel' => array('amcharts'),
 		'skip_core' => true,
 	),
+	'amcharts4_core' => array(
+		'js' => [
+			$amCharts4Path.'core.js',
+			$amCharts4Path.'init.js',
+		],
+		'skip_core' => true,
+	),
+	'amcharts4' => array(
+		'js' => [
+			$amCharts4Path.'charts.js',
+		],
+		'skip_core' => true,
+		'rel' => array('amcharts4_core')
+	),
+	'amcharts4_theme_animated' => array(
+		'js' => [
+			$amCharts4Path.'themes/animated.js',
+		],
+		'skip_core' => true,
+		'rel' => array('amcharts4_core')
+	),
+	'amcharts4_maps' => array(
+		'js' => $amCharts4Path.'maps.js',
+		'skip_core' => true,
+	),
 	'lamejs' => array(
 		'js' => '/bitrix/js/main/recorder/recorder.js'
 	),
@@ -432,6 +457,8 @@ $arJSCoreConfig = array(
 \Bitrix\Main\Page\Asset::getInstance()->addJsKernelInfo(
 	'main',
 	array(
+		'/bitrix/js/main/pageobject/pageobject.js',
+		'/bitrix/js/main/core/core.js',
 		'/bitrix/js/main/core/core_tooltip.js',
 		'/bitrix/js/main/date/main.date.js',
 		'/bitrix/js/main/core/core_date.js',
@@ -452,7 +479,6 @@ $arJSCoreConfig = array(
 \Bitrix\Main\Page\Asset::getInstance()->addCssKernelInfo(
 	'main',
 	array(
-		'/bitrix/js/main/core/css/core.css',
 		'/bitrix/js/main/core/css/core_tooltip.css',
 		'/bitrix/js/main/core/css/core_date.css',
 		'/bitrix/js/main/core/css/core_uf.css'

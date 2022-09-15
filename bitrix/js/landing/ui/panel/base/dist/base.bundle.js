@@ -1,22 +1,16 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
 this.BX.Landing.UI = this.BX.Landing.UI || {};
-(function (exports,main_core) {
+(function (exports,main_core,main_core_events) {
 	'use strict';
 
-	function _templateObject() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class=\"landing-ui-panel landing-ui-hide\" data-id=\"", "\"></div>\n\t\t"]);
+	var _templateObject;
+	/**
+	 * @memberOf BX.Landing.UI.Panel
+	 */
 
-	  _templateObject = function _templateObject() {
-	    return data;
-	  };
-
-	  return data;
-	}
-	var BasePanel =
-	/*#__PURE__*/
-	function (_Event$EventEmitter) {
-	  babelHelpers.inherits(BasePanel, _Event$EventEmitter);
+	var BasePanel = /*#__PURE__*/function (_EventEmitter) {
+	  babelHelpers.inherits(BasePanel, _EventEmitter);
 	  babelHelpers.createClass(BasePanel, null, [{
 	    key: "makeId",
 	    value: function makeId() {
@@ -25,7 +19,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	  }, {
 	    key: "createLayout",
 	    value: function createLayout(id) {
-	      return main_core.Tag.render(_templateObject(), id);
+	      return main_core.Tag.render(_templateObject || (_templateObject = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class=\"landing-ui-panel landing-ui-hide\" data-id=\"", "\"></div>\n\t\t"])), id);
 	    }
 	  }]);
 
@@ -119,11 +113,16 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    value: function clear() {
 	      main_core.Dom.clean(this.layout);
 	    }
+	  }, {
+	    key: "setLayoutClass",
+	    value: function setLayoutClass(className) {
+	      main_core.Dom.addClass(this.layout, className);
+	    }
 	  }]);
 	  return BasePanel;
-	}(main_core.Event.EventEmitter);
+	}(main_core_events.EventEmitter);
 
 	exports.BasePanel = BasePanel;
 
-}((this.BX.Landing.UI.Panel = this.BX.Landing.UI.Panel || {}),BX));
+}((this.BX.Landing.UI.Panel = this.BX.Landing.UI.Panel || {}),BX,BX.Event));
 //# sourceMappingURL=base.bundle.js.map

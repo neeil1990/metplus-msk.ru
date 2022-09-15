@@ -56,7 +56,8 @@
 		search: 'search',
 		input: 'input',
 		searcherCategoryClick: 'popup-category-click',
-		searcherItemClick: 'popup-item-click'
+		searcherItemClick: 'popup-item-click',
+		searcherInit: 'popup-search-init',
 	};
 	TileSelector.getById = function (id)
 	{
@@ -81,6 +82,7 @@
 		this.manualInputEnd = params.manualInputEnd;
 		this.caption = params.caption;
 		this.captionMore = params.captionMore;
+		this.tilesLimit = (!!params.tilesLimit ? parseInt(params.tilesLimit) : 10);
 
 		this.attributeId = 'data-bx-id';
 		this.attributeData = 'data-bx-data';
@@ -89,6 +91,7 @@
 		this.input = Helper.getNode('tile-input', this.context);
 		this.buttonAdd = Helper.getNode('tile-add', this.context);
 		this.buttonSelect = Helper.getNode('tile-select', this.context);
+		this.buttonMore = Helper.getNode('tile-more', this.context);
 
 		if (!this.context || !this.input)
 		{
@@ -122,6 +125,11 @@
 			BX.bind(this.tileContainer, 'click', this.onButtonSelect.bind(this));
 		}
 		BX.bind(this.input, 'input', this.onInput.bind(this));
+		if (this.buttonMore)
+		{
+			BX.bind(this.buttonMore, 'click', this.onButtonMore.bind(this));
+		}
+
 		if (!this.manualInputEnd)
 		{
 			BX.bind(this.input, 'blur', this.onInputEnd.bind(this));
@@ -168,6 +176,7 @@
 				'context': this.context,
 				'title': title || ''
 			});
+			this.fire(this.events.searcherInit, [this.searcher]);
 		}
 
 		this.searcher.filterByName();
@@ -280,6 +289,24 @@
 		BX.remove(tile.node);
 		this.fire(this.events.tileRemove, [tile]);
 		this.recalcButtonSelectText();
+
+		if (this.buttonMore.style.display != 'none')
+		{
+			this.recalcMore();
+		}
+	};
+	TileSelector.prototype.recalcMore = function ()
+	{
+		if (this.checkTilesLimit({
+			action: 'remove'
+		}))
+		{
+			this.buttonMore.style.display = 'none';
+		}
+
+		Helper.getNodes('tile-item', this.context).forEach(function(item, index) {
+			item.style.display = (index >= this.tilesLimit ? 'none' : '');
+		}.bind(this));
 	};
 	TileSelector.prototype.getTile = function (id)
 	{
@@ -323,17 +350,32 @@
 			return null;
 		}
 
+		id = id || '';
+
 		if (!this.multiple)
 		{
-			this.removeTiles();
 			if (this.isSearcherInit())
 			{
 				this.hideSearcher();
 			}
+
+			if (this.list.length > 0)
+			{
+				var existingTile = this.list[0];
+				if (
+					existingTile
+					&& existingTile.id == id
+				)
+				{
+					return;
+				}
+			}
+
+			this.removeTiles();
 		}
 
 		data = data || {};
-		id = id || '';
+
 		color = color || '';
 		background = background || '';
 
@@ -352,6 +394,15 @@
 		if (background)
 		{
 			style += 'background-color: ' + BX.util.htmlspecialchars(background) + '; ';
+		}
+		if (
+			BX.type.isNotEmptyString(data.state)
+			&& data.state == 'init'
+		)
+		{
+			style += (this.checkTilesLimit({
+				action: 'init'
+			}) ? '' : 'display: none;');
 		}
 
 		var type = (BX.type.isNotEmptyString(data.entityType) ? data.entityType.toLowerCase() : 'none');
@@ -373,7 +424,6 @@
 			'readonly': (!!data.readonly ? 'yes' : 'no')
 		}, true);
 
-
 		var node = document.createElement('div');
 		node.innerHTML = template;
 		node = node.children[0];
@@ -384,7 +434,7 @@
 			return null;
 		}
 
-		this.input.parentNode.insertBefore(node, this.input);
+		this.buttonMore.parentNode.insertBefore(node, this.buttonMore);
 		this.fire(this.events.tileAdd, [tile]);
 		this.recalcButtonSelectText();
 
@@ -425,6 +475,23 @@
 		this.fire(this.events.tileEdit, [tile]);
 
 		return tile;
+	};
+
+	TileSelector.prototype.checkTilesLimit = function (params)
+	{
+		var
+			result = true,
+			itemsCount = Helper.getNodes('tile-item', this.context).length,
+			tileAction = (BX.type.isNotEmptyObject(params) && BX.type.isNotEmptyString(params.action) ? params.action : null);
+
+		if (itemsCount >= this.tilesLimit)
+		{
+			result = false;
+			this.buttonMore.style.display = '';
+			this.buttonMore.title = BX.message('UI_TILE_SELECTOR_MORE').replace('#NUM#', (itemsCount - this.tilesLimit + (tileAction == 'init' ? 1 : 0)));
+		}
+
+		return result;
 	};
 
 	TileSelector.prototype.fire = function (eventName, data)
@@ -476,6 +543,17 @@
 			this.fire(this.events.buttonSelectFirst, []);
 			this.isButtonSelectFired = true;
 		}
+	};
+	TileSelector.prototype.onButtonMore = function (e)
+	{
+		e.preventDefault();
+		e.stopPropagation();
+
+		Helper.getNodes('tile-item', this.context).forEach(function(item) {
+			item.style.display = ''
+		});
+
+		e.currentTarget.style.display = 'none';
 	};
 
 	TileSelector.prototype.recalcButtonSelectText = function()
@@ -840,18 +918,25 @@
 			return;
 		}
 
-		this.popup = BX.PopupWindowManager.create(
+		this.popup = BX.Main.PopupManager.create(
 			this.id,
 			this.context,
 			{
 				width: 620,
-				height: 225,
+				height: 290,
 				autoHide: true,
 				lightShadow: true,
 				closeByEsc: true,
-				closeIcon: true,
+				closeIcon: false,
 				offsetLeft: 40,
-				angle: true
+				angle: true,
+				buttons: [
+					new BX.UI.CloseButton({
+						onclick: function() {
+							this.popup.close();
+						}.bind(this),
+					})
+				]
 			}
 		);
 

@@ -23,7 +23,7 @@ class Uri implements \JsonSerializable
 	 */
 	public function __construct($url)
 	{
-		if(strpos($url, "/") === 0)
+		if(mb_strpos($url, "/") === 0)
 		{
 			//we don't support "current scheme" e.g. "//host/path"
 			$url = "/".ltrim($url, "/");
@@ -33,7 +33,7 @@ class Uri implements \JsonSerializable
 
 		if($parsedUrl !== false)
 		{
-			$this->scheme = (isset($parsedUrl["scheme"])? strtolower($parsedUrl["scheme"]) : "http");
+			$this->scheme = (isset($parsedUrl["scheme"])? mb_strtolower($parsedUrl["scheme"]) : "http");
 			$this->host = (isset($parsedUrl["host"])? $parsedUrl["host"] : "");
 			if(isset($parsedUrl["port"]))
 			{
@@ -318,8 +318,27 @@ class Uri implements \JsonSerializable
 	 * which is a value of any type other than a resource.
 	 * @since 5.4.0
 	 */
+	#[\ReturnTypeWillChange]
 	public function jsonSerialize()
 	{
 		return $this->getUri();
+	}
+
+	/**
+	 * Converts the host to punycode.
+	 * @return string|\Bitrix\Main\Error
+	 */
+	public function convertToPunycode()
+	{
+		$host = \CBXPunycode::ToASCII($this->getHost(), $encodingErrors);
+
+		if(!empty($encodingErrors))
+		{
+			return new \Bitrix\Main\Error(implode("\n", $encodingErrors));
+		}
+
+		$this->setHost($host);
+
+		return $host;
 	}
 }

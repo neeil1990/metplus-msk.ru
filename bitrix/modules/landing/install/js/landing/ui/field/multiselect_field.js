@@ -24,8 +24,6 @@
 	var findParent = BX.Landing.Utils.findParent;
 	var decodeDataValue = BX.Landing.Utils.decodeDataValue;
 	var BaseCollection = BX.Landing.Collection.BaseCollection;
-	var Popup = BX.Landing.UI.Tool.Popup;
-
 
 	function addPlaceholders(items, field, depth)
 	{
@@ -198,19 +196,22 @@
 
 		onCheckboxChange: function(checkbox)
 		{
-			var value = checkbox.getValue();
-
-			if (value.length)
+			if (checkbox instanceof BX.Landing.UI.Field.Checkbox)
 			{
-				this.addPlaceholder(checkbox.items[0]);
-				this.adjustPopupPosition();
-			}
-			else
-			{
-				this.onPlaceholderRemoveClick(checkbox.items[0], null, true);
-			}
+				var value = checkbox.getValue();
 
-			this.onValueChangeHandler(this);
+				if (value.length)
+				{
+					this.addPlaceholder(checkbox.items[0]);
+					this.adjustPopupPosition();
+				}
+				else
+				{
+					this.onPlaceholderRemoveClick(checkbox.items[0], null, true);
+				}
+
+				this.onValueChangeHandler(this);
+			}
 		},
 
 
@@ -234,10 +235,11 @@
 				return this.popup;
 			}
 
-			this.popup = new Popup({
+			this.popup = new BX.Main.Popup({
 				id: (this.selector + "_" + random()),
 				bindElement: this.input,
 				autoHide: true,
+				maxHeight: 142,
 				events: {
 					onPopupClose: function()
 					{
@@ -282,17 +284,20 @@
 			{
 				var offsetParent = findParent(this.input, {className: "landing-ui-panel-content-body-content"});
 
-				var inputTop = offsetTop(this.input, offsetParent);
-				var inputLeft = offsetLeft(this.input, offsetParent);
-				var inputRect = this.input.getBoundingClientRect();
+				if (BX.Type.isDomNode(offsetParent))
+				{
+					var inputTop = offsetTop(this.input, offsetParent);
+					var inputLeft = offsetLeft(this.input, offsetParent);
+					var inputRect = this.input.getBoundingClientRect();
 
-				var offsetY = 2;
+					var offsetY = 2;
 
-				requestAnimationFrame(function() {
-					this.popup.popupContainer.style.top = inputTop + inputRect.height + offsetY + "px";
-					this.popup.popupContainer.style.left = inputLeft + "px";
-					this.popup.popupContainer.style.width = inputRect.width + "px";
-				}.bind(this));
+					requestAnimationFrame(function() {
+						this.popup.popupContainer.style.top = inputTop + inputRect.height + offsetY + "px";
+						this.popup.popupContainer.style.left = inputLeft + "px";
+						this.popup.popupContainer.style.width = inputRect.width + "px";
+					}.bind(this));
+				}
 			}
 		},
 
@@ -380,6 +385,14 @@
 					if (item)
 					{
 						this.addPlaceholder(item);
+
+						var checkbox = this.fields.find(function(field) {
+							return field.id === itemValue;
+						}.bind(this));
+						if (checkbox)
+						{
+							checkbox.setValue([itemValue]);
+						}
 					}
 				}, this);
 			}

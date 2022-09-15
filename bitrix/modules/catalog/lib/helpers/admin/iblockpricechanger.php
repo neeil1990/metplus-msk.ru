@@ -13,7 +13,7 @@ class IblockPriceChanger
 
 	/**
 	 * IblockChangePrice constructor.
-	 * 
+	 *
 	 * @param array $userDialogParams
 	 * @param int $iblockId
 	 */
@@ -74,6 +74,11 @@ class IblockPriceChanger
 			}
 		}
 
+		$_SESSION['CHANGE_PRICE_PARAMS']['PRICE_TYPE'] = $userDialogParams['PRICE_TYPE'];
+		$_SESSION['CHANGE_PRICE_PARAMS']['UNITS'] = $userDialogParams['UNITS'];
+		$_SESSION['CHANGE_PRICE_PARAMS']['FORMAT_RESULTS'] = $userDialogParams['FORMAT_RESULTS'];
+		$_SESSION['CHANGE_PRICE_PARAMS']['INITIAL_PRICE_TYPE'] = $userDialogParams['INITIAL_PRICE_TYPE'];
+
 		return $this->userDialogParams = $userDialogParams;
 	}
 
@@ -91,7 +96,7 @@ class IblockPriceChanger
 				"IBLOCK_ID" => $this->iblockId,
 				"WF_PARENT_ELEMENT_ID" => NULL,
 				"INCLUDE_SUBSECTIONS"=>"Y",
-				"CHECK_PERMISSIONS" => "Y", 
+				"CHECK_PERMISSIONS" => "Y",
 				"MIN_PERMISSION" => "W"
 			),
 			false,
@@ -178,7 +183,7 @@ class IblockPriceChanger
 	private function calculateResultPrice($price)
 	{
 		$userDialogParams = $this->userDialogParams;
-		$valueChangingPrice = $this->userDialogParams['VALUE_CHANGING'];
+		$valueChangingPrice = $userDialogParams['VALUE_CHANGING'];
 
 		if ($userDialogParams['UNITS'] === "percent")
 		{
@@ -213,6 +218,8 @@ class IblockPriceChanger
 				break;
 		}
 
+		unset($userDialogParams);
+
 		return $price;
 	}
 
@@ -228,7 +235,7 @@ class IblockPriceChanger
 
 		if ($this->userDialogParams == false)
 		{
-			$result->addError( 
+			$result->addError(
 				new Main\Error("IBLIST_CHPRICE_ERROR_WRONG_INPUT_VALUE", null)
 			);
 			return  $result;
@@ -446,7 +453,7 @@ class IblockPriceChanger
 			}
 			if (!empty($destinationPrice))
 			{
-				if ($destinationPrice['PRICE'] <= 0)
+				if ($destinationPrice['PRICE'] < 0)
 				{
 					$result->addError(
 						new Main\Error("IBLIST_CHPRICE_ERROR_WRONG_VALUE_".$destinationPrice['PRODUCT_TYPE_CODE'],
@@ -483,7 +490,7 @@ class IblockPriceChanger
 						];
 						if ($basePriceId == $targetType)
 						{
-							$data['actions']['PARENT_PRICE'] = true;
+							$data['actions']['RECOUNT_PRICES'] = true;
 						}
 						$priceResult = Catalog\Model\Price::update($destinationPrice['ID'], $data);
 						unset($data);

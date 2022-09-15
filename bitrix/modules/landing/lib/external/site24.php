@@ -131,11 +131,19 @@ class Site24
 		$params['host'] = trim($params['host']);
 
 		if (
-			strpos($params['host'], 'http://') === 0 ||
-			strpos($params['host'], 'https://') === 0
+			mb_strpos($params['host'], 'http://') === 0 ||
+			mb_strpos($params['host'], 'https://') === 0
 		)
 		{
-			$params['host'] = parse_url($params['host'])['host'];
+			$parseHost = parse_url($params['host']);
+			if (isset($parseHost['host']))
+			{
+				$params['host'] = $parseHost['host'];
+				if (isset($parseHost['port']))
+				{
+					$params['host'] .= ':' . $parseHost['port'];
+				}
+			}
 		}
 
 		if (!isset($params['lang']) || !$params['lang'])
@@ -157,7 +165,7 @@ class Site24
 			$result = $httpClient->getResult();
 		}
 
-		if (strlen($result) > 0)
+		if ($result <> '')
 		{
 			try
 			{
@@ -168,7 +176,7 @@ class Site24
 				throw new SystemException('Bad response');
 			}
 
-			if ($result['result'] == 'Bad license')
+			if ($result['result'] === 'Bad license')
 			{
 				throw new SystemException('Bad license');
 			}

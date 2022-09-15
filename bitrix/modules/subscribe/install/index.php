@@ -14,13 +14,11 @@ class subscribe extends CModule
 
 	var $errors;
 
-	function subscribe()
+	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		$path = str_replace("\\", "/", __FILE__);
-		$path = substr($path, 0, strlen($path) - strlen("/index.php"));
-		include($path."/version.php");
+		include(__DIR__.'/version.php');
 
 		if (is_array($arModuleVersion) && array_key_exists("VERSION", $arModuleVersion))
 		{
@@ -156,10 +154,10 @@ class subscribe extends CModule
 
 		if(
 			array_key_exists("install_public", $arParams) && ($arParams["install_public"] == "Y")
-			&& array_key_exists("public_dir", $arParams) && strlen($arParams["public_dir"])
+			&& array_key_exists("public_dir", $arParams) && mb_strlen($arParams["public_dir"])
 		)
 		{
-			$rsSite = CSite::GetList(($by="sort"),($order="asc"));
+			$rsSite = CSite::GetList();
 			while ($site = $rsSite->Fetch())
 			{
 				$source = $_SERVER['DOCUMENT_ROOT']."/bitrix/modules/subscribe/public/";
@@ -219,7 +217,7 @@ class subscribe extends CModule
 		$POST_RIGHT = $APPLICATION->GetGroupRight("subscribe");
 		if($POST_RIGHT == "W")
 		{
-			$step = IntVal($step);
+			$step = intval($step);
 			if($step < 2)
 			{
 				$APPLICATION->IncludeAdminFile(GetMessage("inst_inst_title"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/subscribe/install/inst1.php");
@@ -248,7 +246,7 @@ class subscribe extends CModule
 		$POST_RIGHT = $APPLICATION->GetGroupRight("subscribe");
 		if($POST_RIGHT == "W")
 		{
-			$step = IntVal($step);
+			$step = intval($step);
 			if($step < 2)
 			{
 				$APPLICATION->IncludeAdminFile(GetMessage("inst_uninst_title"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/subscribe/install/uninst1.php");
@@ -275,7 +273,7 @@ class subscribe extends CModule
 		COption::SetOptionString('subscribe', 'mail_additional_parameters', '');
 	}
 
-	function OnGetTableSchema()
+	public static function OnGetTableSchema()
 	{
 		return array(
 			"subscribe" => array(

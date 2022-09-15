@@ -50,7 +50,20 @@ Loc::loadMessages(__FILE__);
  * </ul>
  *
  * @package Bitrix\Catalog
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Discount_Query query()
+ * @method static EO_Discount_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Discount_Result getById($id)
+ * @method static EO_Discount_Result getList(array $parameters = array())
+ * @method static EO_Discount_Entity getEntity()
+ * @method static \Bitrix\Catalog\EO_Discount createObject($setDefaultValues = true)
+ * @method static \Bitrix\Catalog\EO_Discount_Collection createCollection()
+ * @method static \Bitrix\Catalog\EO_Discount wakeUpObject($row)
+ * @method static \Bitrix\Catalog\EO_Discount_Collection wakeUpCollection($rows)
+ */
 
 class DiscountTable extends Main\Entity\DataManager
 {
@@ -404,17 +417,15 @@ class DiscountTable extends Main\Entity\DataManager
 		{
 			case self::VALUE_TYPE_FIX:
 			case self::VALUE_TYPE_SALE:
-				$discount['VALUE'] = roundEx(
-					\CCurrencyRates::convertCurrency($discount['VALUE'], $discount['CURRENCY'], $currency),
-					CATALOG_VALUE_PRECISION
+				$discount['VALUE'] = round(
+					\CCurrencyRates::convertCurrency($discount['VALUE'], $discount['CURRENCY'], $currency)
 				);
 				$discount['CURRENCY'] = $currency;
 				break;
 			case self::VALUE_TYPE_PERCENT:
 				if ($discount['MAX_DISCOUNT'] > 0)
-					$discount['MAX_DISCOUNT'] = roundEx(
-						\CCurrencyRates::convertCurrency($discount['MAX_DISCOUNT'], $discount['CURRENCY'], $currency),
-						CATALOG_VALUE_PRECISION
+					$discount['MAX_DISCOUNT'] = round(
+						\CCurrencyRates::convertCurrency($discount['MAX_DISCOUNT'], $discount['CURRENCY'], $currency)
 					);
 				$discount['CURRENCY'] = $currency;
 				break;

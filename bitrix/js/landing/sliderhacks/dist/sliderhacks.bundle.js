@@ -11,9 +11,11 @@ this.BX = this.BX || {};
 
 	  return data;
 	}
-	var SliderHacks =
-	/*#__PURE__*/
-	function () {
+	/**
+	 * @memberOf BX.Landing
+	 */
+
+	var SliderHacks = /*#__PURE__*/function () {
 	  function SliderHacks() {
 	    babelHelpers.classCallCheck(this, SliderHacks);
 	  }
@@ -73,6 +75,13 @@ this.BX = this.BX || {};
 	          });
 	          main_core.Dom.insertAfter(frame, srcFrame);
 	          main_core.Event.bind(frame, 'load', function (event) {
+	            // clone nav history
+	            if (!main_core.Type.isUndefined(srcFrame.contentWindow.BX.Landing.Pub) && !main_core.Type.isUndefined(srcFrame.contentWindow.BX.Landing.Pub.TopPanel) && main_core.Type.isArrayFilled(srcFrame.contentWindow.BX.Landing.Pub.TopPanel.history) && main_core.Type.isNumber(srcFrame.contentWindow.BX.Landing.Pub.TopPanel.historyState)) {
+	              frame.contentWindow.BX.Landing.Pub.TopPanel.history = srcFrame.contentWindow.BX.Landing.Pub.TopPanel.history;
+	              frame.contentWindow.BX.Landing.Pub.TopPanel.historyState = srcFrame.contentWindow.BX.Landing.Pub.TopPanel.historyState;
+	              frame.contentWindow.BX.Landing.Pub.TopPanel.checkNavButtonsActivity();
+	            }
+
 	            if (main_core.Type.isFunction(slider.handleFrameLoad)) {
 	              slider.handleFrameLoad(event);
 	            } else {

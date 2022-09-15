@@ -211,12 +211,12 @@ class OrderCreate extends Base
 		foreach($shipments as $shipment)
 		{
 			$shipmentParams = AdditionalHandler::getShipmentParams($shipment, $this->deliveryService->getServiceType());
-			$deliveryConfig = $shipment->getDelivery()->getConfig();
+			$deliveryConfig = $shipment->getDelivery() ? $shipment->getDelivery()->getConfig() : [];
 			$shipmentId = $shipment->getId();
 
 			$mailType = $deliveryConfig['MAIN']['ITEMS']['OTPRAVKA_RPO']['VALUE'];
 
-			if(strlen($mailType) <=0)
+			if($mailType == '')
 			{
 				$shpResult = new Requests\ShipmentResult($shipmentId);
 				$shpResult->addError(
@@ -257,7 +257,7 @@ class OrderCreate extends Base
 
 			$mailCategory = $rpoCategory[$shipmentParams['DELIVERY_SERVICE_CONFIG']['MAIN']['CATEGORY']];
 
-			if(strlen($mailCategory) <= 0)
+			if($mailCategory == '')
 				$mailCategory = 'ORDINARY';
 
 			$item = array(
@@ -341,45 +341,61 @@ class OrderCreate extends Base
 			$price = ($shipmentParams['PRICE'] + $shipmentParams['PRICE_DELIVERY']) * 100; //rubles -> kopeck
 
 			if($shipmentParams['DELIVERY_SERVICE_CONFIG']['MAIN']['CATEGORY'] == 2 || $shipmentParams['DELIVERY_SERVICE_CONFIG']['MAIN']['CATEGORY'] == 4)
-				$item['insr-value'] = $price;
+				$item['insr-value'] = $price; // https://www.pochta.ru/support/post-rules/valuable-departure
 
 			if($shipmentParams['DELIVERY_SERVICE_CONFIG']['MAIN']['CATEGORY'] == 4)
 				$item['payment'] = $price;
 
-			if(!empty($shipmentParams['LOCATION_TO_TYPES']['REGION']))
-				$item['region-to'] = $shipmentParams['LOCATION_TO_TYPES']['REGION'];
+			if (!empty($shipmentParams['LOCATION_TO_TYPES']['REGION']))
+			{
+				$item['region-to'] = $this->convertLocationTypeToString($shipmentParams['LOCATION_TO_TYPES']['REGION']);
+			}
 
-			if(!empty($shipmentParams['LOCATION_TO_TYPES']['SUBREGION']))
-				$item['area-to'] = $shipmentParams['LOCATION_TO_TYPES']['SUBREGION'];
+			if (!empty($shipmentParams['LOCATION_TO_TYPES']['SUBREGION']))
+			{
+				$item['area-to'] = $this->convertLocationTypeToString($shipmentParams['LOCATION_TO_TYPES']['SUBREGION']);
+			}
 
-			if(!empty($shipmentParams['LOCATION_TO_TYPES']['STREET']))
-				$item['street-to'] = $shipmentParams['LOCATION_TO_TYPES']['STREET'];
+			if (!empty($shipmentParams['LOCATION_TO_TYPES']['STREET']))
+			{
+				$item['street-to'] = $this->convertLocationTypeToString($shipmentParams['LOCATION_TO_TYPES']['STREET']);
+			}
 
-			if(!empty($shipmentParams['LOCATION_TO_TYPES']['VILLAGE']))
-				$item['place-to'] = $shipmentParams['LOCATION_TO_TYPES']['VILLAGE'];
-			elseif(!empty($shipmentParams['LOCATION_TO_TYPES']['CITY']))
-				$item['place-to'] = $shipmentParams['LOCATION_TO_TYPES']['CITY'];
+			if (!empty($shipmentParams['LOCATION_TO_TYPES']['VILLAGE']))
+			{
+				$item['place-to'] = $this->convertLocationTypeToString($shipmentParams['LOCATION_TO_TYPES']['VILLAGE']);
+			}
+			elseif (!empty($shipmentParams['LOCATION_TO_TYPES']['CITY']))
+			{
+				$item['place-to'] = $this->convertLocationTypeToString($shipmentParams['LOCATION_TO_TYPES']['CITY']);
+			}
 
-			if(!empty($shipmentParams['ZIP_TO']))
+			if (!empty($shipmentParams['ZIP_TO']))
+			{
 				$item['index-to'] = $shipmentParams['ZIP_TO'];
+			}
 
 			$address = '';
-			$types = array('COUNTRY', 'REGION', 'SUBREGION', 'CITY', 'VILLAGE', 'STREET');
+			$types = ['COUNTRY', 'REGION', 'SUBREGION', 'CITY', 'VILLAGE', 'STREET'];
 
 			foreach($types as $type)
 			{
-				if(empty($shipmentParams['LOCATION_TO_TYPES'][$type]))
+				if (empty($shipmentParams['LOCATION_TO_TYPES'][$type]))
+				{
 					continue;
+				}
 
-				if(strlen($address) > 0)
+				if ($address <> '')
+				{
 					$address .= ', ';
+				}
 
-				$address .= $shipmentParams['LOCATION_TO_TYPES'][$type];
+				$address .= $this->convertLocationTypeToString($shipmentParams['LOCATION_TO_TYPES'][$type]);
 			}
 
 			if(!empty($shipmentParams['ADDRESS']))
 			{
-				if(strlen($address) > 0)
+				if($address <> '')
 					$address .= ', ';
 
 				$address .= $shipmentParams['ADDRESS'];
@@ -509,5 +525,14 @@ class OrderCreate extends Base
 			$result->addError(new Error(Loc::getMessage('SALE_DLVRS_ADD_DREQ_ROC_DATA_EMPTY')));
 
 		return $result;
+	}
+
+	/**
+	 * @param array $locationTypeComponent
+	 * @return string
+	 */
+	private function convertLocationTypeToString(array $locationTypeComponent): string
+	{
+		return implode(', ', $locationTypeComponent);
 	}
 }

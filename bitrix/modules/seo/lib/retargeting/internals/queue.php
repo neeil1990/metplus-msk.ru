@@ -15,6 +15,22 @@ use Bitrix\Seo\Retargeting\Service;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class QueueTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Queue_Query query()
+ * @method static EO_Queue_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Queue_Result getById($id)
+ * @method static EO_Queue_Result getList(array $parameters = array())
+ * @method static EO_Queue_Entity getEntity()
+ * @method static \Bitrix\Seo\Retargeting\Internals\EO_Queue createObject($setDefaultValues = true)
+ * @method static \Bitrix\Seo\Retargeting\Internals\EO_Queue_Collection createCollection()
+ * @method static \Bitrix\Seo\Retargeting\Internals\EO_Queue wakeUpObject($row)
+ * @method static \Bitrix\Seo\Retargeting\Internals\EO_Queue_Collection wakeUpCollection($rows)
+ */
 class QueueTable extends Entity\DataManager
 {
 	const MODULE_ID = 'seo';
@@ -56,6 +72,9 @@ class QueueTable extends Entity\DataManager
 			'AUDIENCE_ID' => array(
 				'data_type' => 'string',
 				'required' => true,
+			),
+			'PARENT_ID' => array(
+				'data_type' => 'string',
 			),
 			'CONTACT_TYPE' => array(
 				'data_type' => 'string',
@@ -172,6 +191,7 @@ class QueueTable extends Entity\DataManager
 
 			$isRemove = $queueItem['ACTION'] == self::ACTION_REMOVE ? 'Y' : 'N';
 			$queryId = $queueItem['TYPE'];
+			$queryId .= '_' . $queueItem['PARENT_ID'];
 			$queryId .= '_' . $queueItem['CLIENT_ID'];
 			$queryId .= '_' . $queueItem['ACCOUNT_ID'];
 			$queryId .= '_' . $queueItem['AUDIENCE_ID'];
@@ -183,6 +203,7 @@ class QueueTable extends Entity\DataManager
 					'CLIENT_ID' => $queueItem['CLIENT_ID'],
 					'ACCOUNT_ID' => $queueItem['ACCOUNT_ID'],
 					'AUDIENCE_ID' => $queueItem['AUDIENCE_ID'],
+					'PARENT_ID' => $queueItem['PARENT_ID'],
 					'IS_REMOVE' => $isRemove,
 					'CONTACTS' => array(),
 					'DELETE_ID_LIST' => array(),
@@ -359,7 +380,8 @@ class QueueTable extends Entity\DataManager
 			));
 			if (!$agentsDb->Fetch())
 			{
-				$agent->AddAgent($agentName, self::MODULE_ID, "N", 300, null, "Y", "");
+				$interval = ($type == 'yandex' ? 900 : 30); // yandex queues must be processed rarely
+				$agent->AddAgent($agentName, self::MODULE_ID, "N", $interval, null, "Y", "");
 			}
 		}
 

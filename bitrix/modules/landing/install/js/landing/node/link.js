@@ -60,7 +60,7 @@
 
 			this.getField().setValue(this.getValue());
 		},
-		
+
 		isMenuMode: function()
 		{
 			return this.manifest.menuMode === true;
@@ -228,12 +228,19 @@
 			{
 				var allowedTypes = [
 					BX.Landing.UI.Field.LinkURL.TYPE_BLOCK,
-					BX.Landing.UI.Field.LinkURL.TYPE_PAGE
+					BX.Landing.UI.Field.LinkURL.TYPE_PAGE,
+					BX.Landing.UI.Field.LinkURL.TYPE_CRM_FORM,
+					BX.Landing.UI.Field.LinkURL.TYPE_CRM_PHONE
 				];
 
 				if (BX.Landing.Main.getInstance().options.params.type === BX.Landing.Main.TYPE_STORE)
 				{
 					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_CATALOG);
+				}
+
+				if (BX.Landing.Main.getInstance().options.features.includes('diskFile'))
+				{
+					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_DISK_FILE);
 				}
 
 				this.field = new BX.Landing.UI.Field.Link({
@@ -243,10 +250,7 @@
 					content: value,
 					options: {
 						siteId: BX.Landing.Main.getInstance().options.site_id,
-						landingId: BX.Landing.Main.getInstance().id,
-						filter: {
-							'=TYPE': BX.Landing.Main.getInstance().options.params.type
-						}
+						landingId: BX.Landing.Main.getInstance().id
 					},
 					allowedTypes: allowedTypes
 				});
@@ -259,6 +263,9 @@
 					this.field.content = value;
 					this.field.hrefInput.content = value.href;
 					this.field.hrefInput.makeDisplayedHrefValue();
+					this.field.hrefInput.setHrefTypeSwitcherValue(
+						this.field.hrefInput.getHrefStringType()
+					);
 					this.field.hrefInput.removeHrefTypeFromHrefString();
 				}
 			}

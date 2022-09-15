@@ -1,6 +1,12 @@
 <?php
 namespace Bitrix\Landing;
 
+use Bitrix\Main\Loader;
+use Bitrix\Landing\Subtype;
+use Bitrix\Landing\Internals\BlockTable;
+use Bitrix\Crm\WebForm;
+use Bitrix\Main\Type\DateTime;
+
 class Agent
 {
 	/**
@@ -10,7 +16,7 @@ class Agent
 	 * @param int $time Time in seconds for executing period.
 	 * @return void
 	 */
-	public static function addUniqueAgent($funcName, array $params = [], $time = 7200)
+	public static function addUniqueAgent(string $funcName, array $params = [], int $time = 7200): void
 	{
 		if (!method_exists(__CLASS__, $funcName))
 		{
@@ -45,12 +51,91 @@ class Agent
 	}
 
 	/**
-	 * Clear recycle bin for scope.
-	 * @param string $scope Scope code.
-	 * @param int $days After this time items will be deleted.
+	 * Agent to remove one not resolved domain. Removes agent if such domains not exists.
 	 * @return string
 	 */
-	public static function clearRecycleScope($scope, $days = null)
+	public static function removeBadDomain(): string
+	{
+		$maxFailCount = 7;
+
+		Rights::setGlobalOff();
+
+		// only custom domain
+		$filterDomains = array_map(function($domain)
+		{
+			return '%.' . $domain;
+		}, Domain::B24_DOMAINS);
+		$filterDomains[] = '%' . Manager::getHttpHost();
+
+		$customDomainExist = false;
+		$resDomain = Domain::getList([
+			'select' => [
+				'ID', 'DOMAIN', 'FAIL_COUNT'
+			],
+			'filter' => [
+				'!DOMAIN' => $filterDomains
+			],
+			'limit' => 5,
+			'order' => [
+				'DATE_MODIFY' => 'asc'
+			]
+		]);
+		while ($domain = $resDomain->fetch())
+		{
+			$customDomainExist = true;
+			if (Domain\Register::isDomainActive($domain['DOMAIN']))
+			{
+				Domain::update($domain['ID'], [
+					'FAIL_COUNT' => null
+				])->isSuccess();
+			}
+			else
+			{
+				// remove domain
+				if ($domain['FAIL_COUNT'] >= $maxFailCount - 1)
+				{
+					// wee need site for randomize domain
+					$resSite = Site::getList([
+						'select' => [
+							'ID', 'DOMAIN_ID', 'DOMAIN_NAME' => 'DOMAIN.DOMAIN'
+						],
+						'filter' => [
+							'DOMAIN_ID' => $domain['ID']
+						]
+					]);
+					if ($rowSite = $resSite->fetch())
+					{
+						Debug::log('removeBadDomain-randomizeDomain', var_export($rowSite, true));
+						Site::randomizeDomain($rowSite['ID']);
+					}
+					// site not exist, delete domain
+					/*else
+					{
+						Debug::log('removeBadDomain-Domain::delete', var_export($rowSite, true));
+						Domain::delete($domain['ID'])->isSuccess();
+					}*/
+				}
+				else
+				{
+					Domain::update($domain['ID'], [
+						'FAIL_COUNT' => intval($domain['FAIL_COUNT']) + 1
+					])->isSuccess();
+				}
+			}
+		}
+
+		Rights::setGlobalOn();
+
+		return $customDomainExist ? __CLASS__ . '::' . __FUNCTION__ . '();' : '';
+	}
+
+	/**
+	 * Clear recycle bin for scope.
+	 * @param string $scope Scope code.
+	 * @param int|null $days After this time items will be deleted.
+	 * @return string
+	 */
+	public static function clearRecycleScope(string $scope, ?int $days = null): string
 	{
 		Site\Type::setScope($scope);
 
@@ -60,26 +145,66 @@ class Agent
 	}
 
 	/**
+	 * Returns all sub folders for the folder.
+	 * @param int $folderId Folder id.
+	 * @return array
+	 */
+	protected static function getSubFolders(int $folderId): array
+	{
+		$folders = [];
+		$res = Folder::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => [
+				'PARENT_ID' => $folderId
+			]
+		]);
+		while ($row = $res->fetch())
+		{
+			$folders[] = $row['ID'];
+			$folders = array_merge($folders, self::getSubFolders($row['ID']));
+		}
+		return $folders;
+	}
+
+	/**
 	 * Clear recycle bin.
-	 * @param int $days After this time items will be deleted.
+	 * @param int|null $days After this time items will be deleted.
 	 * @return string
 	 */
-	public static function clearRecycle($days = null)
+	public static function clearRecycle(?int $days = null): string
 	{
-		Rights::setOff();
+		Rights::setGlobalOff();
+
 		$days = !is_null($days)
-				? (int) $days
+				? $days
 				: (int) Manager::getOption('deleted_lifetime_days');
 
 		$date = new \Bitrix\Main\Type\DateTime;
 		$date->add('-' . $days . ' days');
-		$folders = [];
+
+		// check folders to delete
+		$foldersToDelete = [-1];
+		$res = Folder::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => [
+				'=DELETED' => 'Y',
+				'<DATE_MODIFY' => $date
+			]
+		]);
+		while ($row = $res->fetch())
+		{
+			$foldersToDelete[] = $row['ID'];
+			$foldersToDelete = array_merge($foldersToDelete, self::getSubFolders($row['ID']));
+		}
 
 		// first delete landings
-		Rights::setOff();//@tmp, because override
 		$res = Landing::getList([
 			'select' => [
-				'ID', 'FOLDER'
+				'ID', 'FOLDER_ID'
 			],
 			'filter' => [
 				[
@@ -91,6 +216,9 @@ class Agent
 					[
 						'=SITE.DELETED' => 'Y',
 						'<SITE.DATE_MODIFY' => $date
+					],
+					[
+						'FOLDER_ID' => $foldersToDelete
 					]
 				],
 				'=DELETED' => ['Y', 'N'],
@@ -103,48 +231,20 @@ class Agent
 		]);
 		while ($row = $res->fetch())
 		{
-			Rights::setOff();//@tmp, because override
-			if ($row['FOLDER'] == 'Y')
-			{
-				$folders[] = $row['ID'];
-				continue;
-			}
-			$resDel = Landing::delete($row['ID'], true);
-			$resDel->isSuccess();// for trigger
+			Lock::lockDeleteLanding($row['ID'], false);
+			Landing::delete($row['ID'], true)->isSuccess();
 		}
 
-		// delete from folders
-		if ($folders)
+		// delete folders
+		foreach (array_unique($foldersToDelete) as $folderId)
 		{
-			Rights::setOff();//@tmp, because override
-			$res = Landing::getList([
-				'select' => [
-					'ID'
-				],
-				'filter' => [
-					'FOLDER_ID' => $folders,
-					'=DELETED' => ['Y', 'N'],
-					'=SITE.DELETED' => ['Y', 'N'],
-					'CHECK_PERMISSIONS' => 'N'
-				],
-				'order' => [
-					'DATE_MODIFY' => 'desc'
-				]
-			]);
-			while ($row = $res->fetch())
+			if ($folderId > 0)
 			{
-				array_unshift($folders, $row['ID']);
-			}
-			foreach ($folders as $folderId)
-			{
-				Rights::setOff();//@tmp, because override
-				$resDel = Landing::delete($folderId, true);
-				$resDel->isSuccess();// for trigger
+				Folder::delete($folderId)->isSuccess();
 			}
 		}
 
 		// then delete sites
-		Rights::setOff();//@tmp, because override
 		$res = Site::getList([
 			'select' => [
 				'ID'
@@ -160,27 +260,128 @@ class Agent
 		]);
 		while ($row = $res->fetch())
 		{
-			Rights::setOff();//@tmp, because override
-			$resDel = Site::delete($row['ID']);
-			$resDel->isSuccess();// for trigger
+			Lock::lockDeleteSite($row['ID'], false);
+			Site::delete($row['ID'])->isSuccess();
 		}
 
-		Rights::setOn();
+		Rights::setGlobalOn();
 
 		return __CLASS__ . '::' . __FUNCTION__ . '();';
 	}
 
 	/**
 	 * Remove marked for deleting files.
-	 * @param int $count Count of files wich will be deleted per once.
+	 * @param int|null $count Count of files wich will be deleted per once.
 	 * @return string
 	 */
-	public static function clearFiles($count = null)
+	public static function clearFiles(?int $count = null): string
 	{
-		$count = !is_null($count) ? (int) $count : 30;
+		$count = !is_null($count) ? $count : 30;
 
 		File::deleteFinal($count);
 
 		return __CLASS__ . '::' . __FUNCTION__ . '(' . $count . ');';
+	}
+
+	/**
+	 * Send used rest statistic.
+	 * @return string
+	 */
+	public static function sendRestStatistic(): string
+	{
+		if (
+			\Bitrix\Main\Loader::includeModule('rest')
+			&& is_callable(['\Bitrix\Rest\UsageStatTable', 'logLanding'])
+		)
+		{
+			$statCode = [
+				\Bitrix\Landing\PublicAction::REST_USAGE_TYPE_BLOCK => 'LANDING_BLOCK',
+				\Bitrix\Landing\PublicAction::REST_USAGE_TYPE_PAGE => 'LANDING_PAGE',
+			];
+			$data = PublicAction::getRestStat(false, true);
+			foreach ($data as $type => $stat)
+			{
+				if ($statCode[$type])
+				{
+					foreach ($stat as $clientId => $count)
+					{
+						\Bitrix\Rest\UsageStatTable::logLanding($clientId, $statCode[$type], $count);
+					}
+				}
+			}
+			\Bitrix\Rest\UsageStatTable::finalize();
+		}
+
+		return __CLASS__ . '::' . __FUNCTION__ . '();';
+	}
+
+	/**
+	 * Marks all temporary files to delete.
+	 * @return string
+	 */
+	public static function clearTempFiles(): string
+	{
+		$dateTime = new DateTime();
+
+		$res = Internals\FileTable::getList([
+			'select' => [
+				'ID', 'FILE_ID'
+			],
+			'filter' => [
+				'>FILE_ID' => 0,
+				'=TEMP' => 'Y',
+				'<FILE.TIMESTAMP_X' => $dateTime->add('-60 minute')
+			]
+		]);
+		while ($row = $res->fetch())
+		{
+			Internals\FileTable::update($row['ID'], [
+				'FILE_ID' => -1 * $row['FILE_ID']
+			]);
+		}
+
+		return __CLASS__ . '::' . __FUNCTION__ . '();';
+	}
+
+	/**
+	 * Tmp agent for rebuild form's blocks.
+	 * @param int $lastLid Last item id.
+	 * @return string
+	 */
+	public static function repairFormUrls(int $lastLid = 0): string
+	{
+		if (Loader::includeModule('crm'))
+		{
+			$formQuery = WebForm\Internals\LandingTable::query()
+				->addSelect('FORM_ID')
+				->addSelect('LANDING_ID')
+				->addOrder('LANDING_ID')
+				->setLimit(50)
+				->where('LANDING_ID', '>', $lastLid)
+				->exec()
+			;
+			$lastLid = 0;
+			while ($form = $formQuery->fetch())
+			{
+				$blocksQuery = BlockTable::query()
+					->addSelect('ID')
+					->where('LID', $form['LANDING_ID'])
+					->where('CODE', '66.90.form_new_default')
+					->exec()
+				;
+				while ($block = $blocksQuery->fetch())
+				{
+					Subtype\Form::setFormIdToBlock($block['ID'], $form['FORM_ID']);
+				}
+				$lastLid = (int)$form['LANDING_ID'];
+			}
+
+			if ($lastLid > 0)
+			{
+				return __CLASS__ . '::' . __FUNCTION__ . '(' . $lastLid . ');';
+			}
+		}
+
+		return '';
 	}
 }

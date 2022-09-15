@@ -30,6 +30,9 @@ class BasketItem extends BasketItemBase
 	/** @var BundleCollection */
 	private $bundleCollection = null;
 
+	/** @var ReserveQuantityCollection $reserveQuantityCollection */
+	protected $reserveQuantityCollection;
+
 	/**
 	 * @return string
 	 */
@@ -52,10 +55,17 @@ class BasketItem extends BasketItemBase
 			return $result;
 		}
 
+		$reserveCollection = $this->getReserveQuantityCollection();
+		$r = $reserveCollection->save();
+		if (!$r->isSuccess())
+		{
+			return $result->addErrors($r->getErrors());
+		}
+
 		if ($this->isBundleParent())
 		{
 			$bundleCollection = $this->getBundleCollection();
-			$itemsFromDb = array();
+			$itemsFromDb = [];
 
 			$id = $this->getId();
 			if ($id != 0)
@@ -65,10 +75,10 @@ class BasketItem extends BasketItemBase
 				$basketClassName = $register->getBasketClassName();
 
 				$itemsFromDbList = $basketClassName::getList(
-					array(
-						'select' => array('ID'),
-						'filter' => array('SET_PARENT_ID' => $id),
-					)
+					[
+						'select' => ['ID'],
+						'filter' => ['SET_PARENT_ID' => $id],
+					]
 				);
 				while ($itemsFromDbItem = $itemsFromDbList->fetch())
 				{
@@ -140,7 +150,7 @@ class BasketItem extends BasketItemBase
 					'BASKET_ITEM_ADD_ERROR',
 					null,
 					$this,
-					array("ERROR" => $result->getErrorMessages())
+					["ERROR" => $result->getErrorMessages()]
 				);
 			}
 			else
@@ -161,7 +171,7 @@ class BasketItem extends BasketItemBase
 					"BASKET_SAVED",
 					$this->getId(),
 					$this,
-					array(),
+					[],
 					$orderHistory::SALE_ORDER_HISTORY_ACTION_LOG_LEVEL_1
 				);
 			}
@@ -208,7 +218,7 @@ class BasketItem extends BasketItemBase
 					'BASKET_ITEM_UPDATE_ERROR',
 					null,
 					$this,
-					array("ERROR" => $result->getErrorMessages())
+					["ERROR" => $result->getErrorMessages()]
 				);
 			}
 		}
@@ -230,7 +240,7 @@ class BasketItem extends BasketItemBase
 				"BASKET_SAVED",
 				$this->getId(),
 				$this,
-				array(),
+				[],
 				$orderHistory::SALE_ORDER_HISTORY_ACTION_LOG_LEVEL_1
 			);
 		}
@@ -251,16 +261,16 @@ class BasketItem extends BasketItemBase
 
 		$orderId = $basket->getOrderId();
 
-		$changeMeaningfulFields = array(
+		$changeMeaningfulFields = [
 			"PRODUCT_ID",
 			"QUANTITY",
 			"PRICE",
 			"DISCOUNT_VALUE",
 			"VAT_RATE",
 			"NAME",
-		);
+		];
 
-		$logFields = array();
+		$logFields = [];
 		if ($orderId > 0 && $this->isChanged())
 		{
 			$itemValues = $this->getFields();
@@ -291,43 +301,37 @@ class BasketItem extends BasketItemBase
 		/** @var BasketItemCollection $collection */
 		$collection = $this->getCollection();
 
-		/** @var Basket $basket */
-		if (!$basket = $collection->getBasket())
-		{
-			throw new ObjectNotFoundException('Entity "Basket" not found');
-		}
-
 		/** @var Order $order */
-		if ($order = $basket->getOrder())
+		$order = $collection->getBasket()->getOrder();
+
+		if ($order)
 		{
-			/** @var ShipmentCollection $shipmentCollection */
-			if ($shipmentCollection = $order->getShipmentCollection())
+			/** @var Shipment $shipment */
+			foreach ($order->getShipmentCollection() as $shipment)
 			{
-				/** @var Shipment $shipment */
-				foreach ($shipmentCollection as $shipment)
+				if ($shipment->isSystem())
 				{
-					if ($shipment->isSystem())
-					{
-						continue;
-					}
+					continue;
+				}
 
-					/** @var ShipmentItemCollection $shipmentItemCollection */
-					if ($shipmentItemCollection = $shipment->getShipmentItemCollection())
+				/** @var ShipmentItemCollection $shipmentItemCollection */
+				if ($shipmentItemCollection = $shipment->getShipmentItemCollection())
+				{
+					if ($shipmentItemCollection->getItemByBasketCode($this->getBasketCode())
+						&& $shipment->isShipped()
+					)
 					{
-						if ($shipmentItemCollection->getItemByBasketCode($this->getBasketCode()) && $shipment->isShipped())
-						{
-							$result->addError(
-								new ResultError(
-									Loc::getMessage(
-										'SALE_BASKET_ITEM_REMOVE_IMPOSSIBLE_BECAUSE_SHIPPED',
-										array('#PRODUCT_NAME#' => $this->getField('NAME'))
-									),
-									'SALE_BASKET_ITEM_REMOVE_IMPOSSIBLE_BECAUSE_SHIPPED'
-								)
-							);
+						$result->addError(
+							new ResultError(
+								Loc::getMessage(
+									'SALE_BASKET_ITEM_REMOVE_IMPOSSIBLE_BECAUSE_SHIPPED',
+									['#PRODUCT_NAME#' => $this->getField('NAME')]
+								),
+								'SALE_BASKET_ITEM_REMOVE_IMPOSSIBLE_BECAUSE_SHIPPED'
+							)
+						);
 
-							return $result;
-						}
+						return $result;
 					}
 				}
 			}
@@ -370,7 +374,39 @@ class BasketItem extends BasketItemBase
 			}
 		}
 
+		/** @var ReserveQuantity $reserve */
+		foreach ($this->getReserveQuantityCollection() as $reserve)
+		{
+			$r = $reserve->delete();
+			if (!$r->isSuccess())
+			{
+				$result->addErrors($r->getErrors());
+			}
+		}
+
 		return $result;
+	}
+
+	/**
+	 * @return ReserveQuantityCollection
+	 * @throws Main\ArgumentException
+	 * @throws Main\ArgumentTypeException
+	 * @throws Main\NotImplementedException
+	 * @throws Main\SystemException
+	 */
+	public function getReserveQuantityCollection()
+	{
+		if ($this->reserveQuantityCollection === null)
+		{
+			$registry = Registry::getInstance(static::getRegistryType());
+
+			/** @var ReserveQuantityCollection $reserveCollectionClassName */
+			$reserveCollectionClassName = $registry->getReserveCollectionClassName();
+
+			$this->reserveQuantityCollection = $reserveCollectionClassName::load($this);
+		}
+
+		return $this->reserveQuantityCollection;
 	}
 
 	/**
@@ -462,8 +498,8 @@ class BasketItem extends BasketItemBase
 				throw new ObjectNotFoundException('Entity "BasketBundleCollection" not found');
 			}
 
-			$bundleChildList = array();
-			$result = array();
+			$bundleChildList = [];
+			$result = [];
 
 			$originalQuantity = $this->getQuantity();
 			$originalValues = $this->fields->getOriginalValues();
@@ -490,10 +526,10 @@ class BasketItem extends BasketItemBase
 					$bundleQuantity = 0;
 				}
 
-				$bundleChildList[]["ITEMS"][] = array(
+				$bundleChildList[]["ITEMS"][] = [
 						"PRODUCT_ID" => $bundleBasketItem->getProductId(),
 						"QUANTITY" => $bundleQuantity
-				);
+				];
 
 			}
 
@@ -576,7 +612,7 @@ class BasketItem extends BasketItemBase
 
 		if ($this->getId() > 0)
 		{
-			return $collection->loadFromDb(array("SET_PARENT_ID" => $this->getId(), "TYPE" => false));
+			return $collection->loadFromDb(["SET_PARENT_ID" => $this->getId(), "TYPE" => false]);
 		}
 
 		return $collection;
@@ -597,7 +633,7 @@ class BasketItem extends BasketItemBase
 	{
 		global $USER;
 
-		$bundleChildList = array();
+		$bundleChildList = [];
 
 		/** @var BasketItemCollection $basket */
 		if (!$basket = $this->getCollection())
@@ -609,19 +645,19 @@ class BasketItem extends BasketItemBase
 		$order = $basket->getOrder();
 		if ($order)
 		{
-			$context = array(
+			$context = [
 				'SITE_ID' => $order->getSiteId(),
 				'USER_ID' => $order->getUserId(),
 				'CURRENCY' => $order->getCurrency(),
-			);
+			];
 		}
 		else
 		{
-			$context = array(
+			$context = [
 				'SITE_ID' => SITE_ID,
 				'USER_ID' => $USER && $USER->GetID() > 0 ? $USER->GetID() : 0,
 				'CURRENCY' => CurrencyManager::getBaseCurrency(),
-			);
+			];
 		}
 
 		$creator = Internals\ProviderCreator::create($context);
@@ -776,7 +812,7 @@ class BasketItem extends BasketItemBase
 	{
 		if ($this->getId() > 0)
 		{
-			$fields = array();
+			$fields = [];
 			/** @var Basket $basket */
 			if (!$basket = $this->getCollection())
 			{
@@ -791,11 +827,11 @@ class BasketItem extends BasketItemBase
 					{
 						return;
 					}
-					$fields = array(
+					$fields = [
 						'PRODUCT_ID' => $this->getProductId(),
 						'QUANTITY' => $this->getQuantity(),
 						'NAME' => $this->getField('NAME'),
-					);
+					];
 				}
 
 				$registry = Registry::getInstance(static::getRegistryType());
@@ -810,7 +846,8 @@ class BasketItem extends BasketItemBase
 					$value,
 					$this->getId(),
 					$this,
-					$fields);
+					$fields
+				);
 			}
 		}
 	}
@@ -842,6 +879,19 @@ class BasketItem extends BasketItemBase
 	protected static function getFieldsMap()
 	{
 		return Internals\BasketTable::getMap();
+	}
+
+	public function isChanged()
+	{
+		$isChanged = parent::isChanged();
+
+		if ($isChanged === false)
+		{
+			$reserveCollection = $this->getReserveQuantityCollection();
+			$isChanged = $reserveCollection->isChanged();
+		}
+
+		return $isChanged;
 	}
 
 	/**
@@ -890,6 +940,20 @@ class BasketItem extends BasketItemBase
 			if ($cloneEntity->contains($propertyCollection))
 			{
 				$basketItemClone->propertyCollection = $cloneEntity[$propertyCollection];
+			}
+		}
+
+		/** @var ReserveQuantityCollection $reservedCollection */
+		if ($reservedCollection = $this->getReserveQuantityCollection())
+		{
+			if (!$cloneEntity->contains($reservedCollection))
+			{
+				$cloneEntity[$reservedCollection] = $reservedCollection->createClone($cloneEntity);
+			}
+
+			if ($cloneEntity->contains($reservedCollection))
+			{
+				$basketItemClone->reserveQuantityCollection = $cloneEntity[$reservedCollection];
 			}
 		}
 
@@ -1020,7 +1084,7 @@ class BasketItem extends BasketItemBase
 	 */
 	public static function load(BasketItemCollection $basket, $data)
 	{
-		$bundleItems = array();
+		$bundleItems = [];
 		if (isset($data['ITEMS']))
 		{
 			$bundleItems = $data['ITEMS'];
@@ -1071,32 +1135,32 @@ class BasketItem extends BasketItemBase
 	}
 
 	/**
-	 * @return float|int
-	 * @throws ArgumentNullException
+	 * @return float
+	 * @throws ArgumentException
+	 * @throws Main\ArgumentTypeException
+	 * @throws Main\NotImplementedException
+	 * @throws Main\SystemException
 	 */
 	public function getReservedQuantity()
 	{
-		$reservedQuantity = 0;
+		return $this->getReserveQuantityCollection()->getQuantity();
+	}
 
-		/** @var BasketItemCollection $basketItemCollection */
-		$basketItemCollection = $this->getCollection();
+	/**
+	 * @return float
+	 */
+	public function getNotPurchasedQuantity() : float
+	{
+		$quantity = parent::getNotPurchasedQuantity();
 
 		/** @var Order $order */
-		$order = $basketItemCollection->getOrder();
+		$order = $this->getCollection()->getOrder();
 		if ($order)
 		{
-			$shipmentCollection = $order->getShipmentCollection();
-			/** @var Shipment $shipment */
-			foreach ($shipmentCollection as $shipment)
-			{
-				$shipmentItemCollection = $shipment->getShipmentItemCollection();
-				$shipmentItem = $shipmentItemCollection->getItemByBasketCode($this->getBasketCode());
-				if ($shipmentItem)
-					$reservedQuantity += $shipmentItem->getReservedQuantity();
-			}
+			$quantity -= $order->getShipmentCollection()->getBasketItemShippedQuantity($this);
 		}
 
-		return $reservedQuantity;
+		return $quantity;
 	}
 
 }

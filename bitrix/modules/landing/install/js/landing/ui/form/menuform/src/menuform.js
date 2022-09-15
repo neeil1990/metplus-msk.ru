@@ -8,6 +8,9 @@ import {Draggable} from 'ui.draganddrop.draggable';
 
 import './css/style.css';
 
+/**
+ * @memberOf BX.Landing.UI.Form
+ */
 export class MenuForm extends BaseForm
 {
 	constructor(options = {})
@@ -107,19 +110,37 @@ export class MenuForm extends BaseForm
 	{
 		event.preventDefault();
 
+		const pageType = Env.getInstance().getType();
+		const content = {
+			text: Loc.getMessage('LANDING_NEW_PAGE_LABEL'),
+			target: '_blank',
+			href: ['KNOWLEDGE', 'GROUP'].includes(pageType) ? '#landing0' : '',
+		};
+
+		const allowedTypes = [
+			BX.Landing.UI.Field.LinkURL.TYPE_BLOCK,
+			BX.Landing.UI.Field.LinkURL.TYPE_PAGE,
+			BX.Landing.UI.Field.LinkURL.TYPE_CRM_FORM,
+			BX.Landing.UI.Field.LinkURL.TYPE_CRM_PHONE,
+		];
+
+		if (pageType === 'STORE')
+		{
+			allowedTypes.push(
+				BX.Landing.UI.Field.LinkURL.TYPE_CATALOG,
+			);
+		}
+
 		const field = new BX.Landing.UI.Field.Link({
-			content: {
-				text: Loc.getMessage('LANDING_NEW_PAGE_LABEL'),
-				href: '#landing0',
-				target: '_blank',
-			},
+			content,
 			options: {
 				siteId: Env.getInstance().getSiteId(),
 				landingId: Main.getInstance().id,
 				filter: {
-					'=TYPE': Env.getInstance().getType(),
+					'=TYPE': pageType,
 				},
 			},
+			allowedTypes,
 		});
 
 		const form = new MenuItemForm({

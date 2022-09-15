@@ -8,6 +8,7 @@
 namespace Bitrix\Main\Controller;
 
 use Bitrix\Main;
+use Bitrix\Main\Component;
 use Bitrix\Main\Localization\Loc;
 
 class PhoneAuth extends Main\Engine\Controller
@@ -31,36 +32,7 @@ class PhoneAuth extends Main\Engine\Controller
 			$params["smsTemplate"] = "SMS_USER_CONFIRM_NUMBER";
 		}
 
-		$phoneNumber = Main\UserPhoneAuthTable::normalizePhoneNumber($params["phoneNumber"]);
-		$userPhone = Main\UserPhoneAuthTable::getList(["filter" => ["=PHONE_NUMBER" => $phoneNumber]])->fetchObject();
-
-		if(!$userPhone)
-		{
-			$this->addError(new Main\Error(Loc::getMessage("main_register_no_user"), "ERR_NOT_FOUND"));
-			return null;
-		}
-
-		//alowed only once in a minute
-		if($userPhone->getDateSent())
-		{
-			$currentDateTime = new Main\Type\DateTime();
-			if(($currentDateTime->getTimestamp() - $userPhone->getDateSent()->getTimestamp()) < \CUser::PHONE_CODE_RESEND_INTERVAL)
-			{
-				$this->addError(new Main\Error(Loc::getMessage("main_register_timeout"), "ERR_TIMEOUT"));
-				return null;
-			}
-		}
-
-		list($code, $phoneNumber) = \CUser::GeneratePhoneCode($userPhone->getUserId());
-
-		$sms = new Main\Sms\Event(
-			$params["smsTemplate"],
-			[
-				"USER_PHONE" => $phoneNumber,
-				"CODE" => $code,
-			]
-		);
-		$result = $sms->send(true);
+		$result = \CUser::SendPhoneCode($params["phoneNumber"], $params["smsTemplate"]);
 
 		if(!$result->isSuccess())
 		{
@@ -144,17 +116,17 @@ class PhoneAuth extends Main\Engine\Controller
 	}
 
 	/**
-	 * @param array $data 'phoneNumber' key is required
+	 * Converts the array of values to the signed string.
+	 * @param array $data Data to sign.
 	 * @return string
 	 */
 	public static function signData(array $data)
 	{
-		$signer = new Main\Security\Sign\Signer();
-		$string = base64_encode(serialize($data));
-		return $signer->sign($string, self::SIGNATURE_SALT);
+		return Component\ParameterSigner::signParameters(self::SIGNATURE_SALT, $data);
 	}
 
 	/**
+	 * Converts the signed string to the array of values.
 	 * @param string $signedData
 	 * @return bool|array
 	 */
@@ -162,9 +134,7 @@ class PhoneAuth extends Main\Engine\Controller
 	{
 		try
 		{
-			$signer = new Main\Security\Sign\Signer();
-			$string = $signer->unsign($signedData, static::SIGNATURE_SALT);
-			return unserialize(base64_decode($string));
+			return Component\ParameterSigner::unsignParameters(self::SIGNATURE_SALT, $signedData);
 		}
 		catch(Main\SystemException $exception)
 		{

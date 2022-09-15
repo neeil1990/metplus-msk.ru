@@ -35,7 +35,9 @@ BX.Kanban.Item = function(options)
 	this.layout = {
 		container: null,
 		dragTarget: null,
-		bodyContainer: null
+		bodyContainer: null,
+		checkbox: null,
+		cursor: null
 	};
 
 	/** @var {Element} **/
@@ -45,6 +47,7 @@ BX.Kanban.Item = function(options)
 
 	this.countable = true;
 	this.visible = true;
+	this.selected = null;
 
 	this.data = Object.create(null);
 
@@ -159,6 +162,10 @@ BX.Kanban.Item.prototype =
 	{
 		var bodyContainer = this.getBodyContainer();
 		BX.cleanNode(bodyContainer);
+		if (this.getGrid().isMultiSelect())
+		{
+			bodyContainer.appendChild(this.getCheckbox());
+		}
 		bodyContainer.appendChild(this.render());
 		return this.getContainer();
 	},
@@ -175,20 +182,75 @@ BX.Kanban.Item.prototype =
 
 		this.layout.container = BX.create("div", {
 			attrs: {
-				className: this.grid.firstRenderComplete ? "main-kanban-item main-kanban-item-new" : "main-kanban-item",
+				className: "main-kanban-item",
 				"data-id": this.getId(),
-				"data-type": "item"
+				"data-type": "item",
+				"data-element": "kanban-element"
 			},
 			children: [
 				this.getDragTarget(),
 				this.getBodyContainer()
-			]
+			],
+			events: {
+				click: function() {
+					if(this.getGrid().isMultiSelect())
+					{
+						this.adjustSelection();
+					}
+				}.bind(this)
+			}
 		});
+
+		if(this.grid.firstRenderComplete && !this.draftContainer)
+		{
+			this.layout.container.classList.add("main-kanban-item-new");
+		}
 
 		this.makeDraggable();
 		this.makeDroppable();
 
 		return this.layout.container;
+	},
+
+	handleClick: function() {},
+
+	adjustSelection: function()
+	{
+		if(this.selected)
+		{
+			this.unSelect();
+		}
+		else
+		{
+			this.select();
+		}
+	},
+
+	isSelected: function()
+	{
+		return this.selected;
+	},
+
+	select: function(stopEvent)
+	{
+		this.selected = true;
+		this.getContainer().classList.add("main-kanban-item-selected");
+
+		if(!stopEvent)
+		{
+			BX.onCustomEvent(this.getGrid(), "Kanban.Item:select", [this]);
+		}
+	},
+
+	unSelect: function(stopEvent)
+	{
+		this.selected = null;
+		this.getContainer().classList.remove("main-kanban-item-selected");
+
+		if(!stopEvent)
+		{
+			BX.onCustomEvent(this.getGrid(), "Kanban.Item:unSelect", [this]);
+		}
 	},
 
 	/**
@@ -232,6 +294,64 @@ BX.Kanban.Item.prototype =
 		return this.layout.bodyContainer;
 	},
 
+	getCheckbox: function()
+	{
+		if (!this.layout.checkbox)
+		{
+			this.layout.checkbox = BX.create("div", {
+				props: {
+					className: "main-kanban-item-checkbox"
+				}
+			});
+		}
+
+		return this.layout.checkbox;
+	},
+
+	animateAha: function()
+	{
+		this.getContainer().classList.add("--aha-drag");
+		this.getContainer().appendChild(this.getAhaCursor());
+		this.getColumn().getBody().style.overflow = "visible";
+		this.getColumn().getContainer().style.zIndex = "99";
+	},
+
+	unsetAnimateAha: function()
+	{
+		if(!this.getContainer().classList.contains("--aha-drag"))
+		{
+			return;
+		}
+
+		this.getContainer().classList.remove("--aha-drag");
+		this.getColumn().getBody().style.overflow = null;
+		this.getColumn().getContainer().style.zIndex = null;
+		this.getAhaCursor().parentNode.removeChild(this.getAhaCursor());
+	},
+
+	getAhaCursor: function()
+	{
+		if(this.layout.cursor)
+		{
+			return this.layout.cursor;
+		}
+
+		this.layout.cursor = BX.create("div", {
+			props: {
+				className: "main-kanban-item-aha-cursor"
+			},
+			children: [
+				BX.create("div", {
+					props: {
+						className: "main-kanban-item-aha-cursor-round"
+					}
+				})
+			]
+		});
+
+		return this.layout.cursor;
+	},
+
 	/**
 	 * Default Item Render
 	 *
@@ -252,6 +372,16 @@ BX.Kanban.Item.prototype =
 		this.layout.content.textContent = "#" + this.getId();
 
 		return this.layout.content;
+	},
+
+	disabledItem: function()
+	{
+		this.getContainer().classList.add("main-kanban-item-disabled");
+	},
+
+	unDisabledItem: function()
+	{
+		this.getContainer().classList.remove("main-kanban-item-disabled");
 	},
 
 	dispose: function()
@@ -353,7 +483,19 @@ BX.Kanban.Item.prototype =
 
 	onDragStart: function()
 	{
-		this.getContainer().classList.add("main-kanban-item-disabled");
+		if(!this.isSelected()) {
+			this.getGrid().cleanSelectedItems();
+			this.getGrid().offMultiSelect();
+		}
+
+		if(this.getGrid().isMultiSelect() && this.getGrid().getSelectedItems().length > 0) {
+			this.onDragStartMulti();
+			return;
+		}
+
+		this.disabledItem();
+
+		this.unsetAnimateAha();
 
 		if (!this.dragElement)
 		{
@@ -372,6 +514,35 @@ BX.Kanban.Item.prototype =
 		BX.onCustomEvent(this.getGrid(), "Kanban.Grid:onItemDragStart", [this]);
 	},
 
+	onDragStartMulti: function()
+	{
+		var selectItems = this.getGrid().getSelectedItems();
+
+		this.dragElement = BX.create("div", {
+			props: {
+				className: "main-kanban-item-drag-multi"
+			}
+		});
+
+		for (var i = 0; i < selectItems.length && i <= 2; i++)
+		{
+			var item = selectItems[i];
+			if(i === 0)
+			{
+				item = this;
+			}
+			var itemNode = item.getContainer().cloneNode(true);
+			itemNode.style.width = item.getContainer().offsetWidth + "px";
+			this.getContainer().maxHeight = this.getContainer().offsetHeight + "px";
+			itemNode.classList.remove('main-kanban-item-disabled');
+			itemNode.classList.remove('main-kanban-item-selected');
+			this.dragElement.appendChild(itemNode);
+		}
+
+		document.body.appendChild(this.dragElement);
+		BX.onCustomEvent(this.getGrid(), "Kanban.Grid:onItemsDragStart", [selectItems]);
+	},
+
 	/**
 	 *
 	 * @param {number} x
@@ -381,7 +552,7 @@ BX.Kanban.Item.prototype =
 	{
 		BX.onCustomEvent(this.getGrid(), "Kanban.Grid:onItemDragStop", [this]);
 
-		this.getContainer().classList.remove("main-kanban-item-disabled");
+		this.unDisabledItem();
 		BX.remove(this.dragElement);
 		this.dragElement = null;
 	},
@@ -409,10 +580,7 @@ BX.Kanban.Item.prototype =
 	onDragEnter: function(itemNode, x, y)
 	{
 		var draggableItem = this.getGrid().getItemByElement(itemNode);
-		if (draggableItem !== this)
-		{
-			this.showDragTarget(draggableItem.getBodyContainer().offsetHeight);
-		}
+		this.showDragTarget(draggableItem.getBodyContainer().offsetHeight);
 	},
 
 	/**
@@ -434,7 +602,14 @@ BX.Kanban.Item.prototype =
 	 */
 	onDragDrop: function(itemNode, x, y)
 	{
+		if(this.getGrid().getSelectedItems().length > 0)
+		{
+			this.onDragDropMulti(this.getGrid().getSelectedItems());
+			return;
+		}
+
 		this.hideDragTarget();
+
 		var draggableItem = this.getGrid().getItemByElement(itemNode);
 
 		var event = new BX.Kanban.DragEvent();
@@ -452,6 +627,50 @@ BX.Kanban.Item.prototype =
 		if (success)
 		{
 			BX.onCustomEvent(this.getGrid(), "Kanban.Grid:onItemMoved", [draggableItem, this.getColumn(), this]);
+		}
+	},
+
+	/**
+	 *
+	 * @param {Object} items
+	 * @param {number} x
+	 * @param {number} y
+	 */
+	onDragDropMulti: function(items, x, y)
+	{
+		this.hideDragTarget();
+
+		var draggableItems = items;
+		var currentItem = this;
+
+		var event = new BX.Kanban.DragEvent();
+		event.setItems(draggableItems);
+		event.setTargetColumn(this.getColumn());
+		event.setTargetItem(this);
+
+		BX.onCustomEvent(this.getGrid(), "Kanban.Grid:onBeforeItemMoved", [event]);
+		if (!event.isActionAllowed())
+		{
+			return;
+		}
+
+		var index = BX.util.array_search(currentItem, draggableItems);
+		if(index >= 0)
+		{
+			var columnItems = this.getColumn().getItems();
+			for (var i = 0; i < draggableItems.length; i++)
+			{
+				var itemColumnNum = BX.util.array_search(currentItem, columnItems);
+				currentItem = columnItems[itemColumnNum + 1];
+				if(BX.util.array_search(currentItem, draggableItems) === -1)
+					break;
+			}
+		}
+
+		var success = this.getGrid().moveItems(draggableItems, this.getColumn(), currentItem);
+		if (success)
+		{
+			BX.onCustomEvent(this.getGrid(), "Kanban.Grid:onItemsMoved", [draggableItems, this.getColumn(), currentItem]);
 		}
 	},
 
@@ -497,6 +716,7 @@ BX.Kanban.DraftItem = function(options)
 	this.asyncEventStarted = false;
 	this.draftContainer = null;
 	this.draftTextArea = null;
+	this.draftContainerText = null;
 };
 
 BX.Kanban.DraftItem.prototype = {
@@ -518,11 +738,29 @@ BX.Kanban.DraftItem.prototype = {
 				className: "main-kanban-item-draft"
 			},
 			children: [
-				this.getDraftTextArea()
+				this.getDraftTextArea(),
+				this.getGrid().getAddDraftItemInfo() ? this.getDraftInfoText() : null
 			]
 		});
 
 		return this.draftContainer;
+	},
+
+	getDraftInfoText: function()
+	{
+		if(this.draftContainerText)
+		{
+			return this.draftContainerText;
+		}
+
+		this.draftContainerText = BX.create("div", {
+			props: {
+				className: "main-kanban-item-draft-info"
+			},
+			html: this.getGrid().getAddDraftItemInfo()
+		});
+
+		return this.draftContainerText;
 	},
 
 	/**
@@ -558,6 +796,8 @@ BX.Kanban.DraftItem.prototype = {
 			}
 		});
 
+		BX.bind(window, "click", this.handleDraftTextAreaKeyDown.bind(this));
+
 		return this.draftTextArea;
 	},
 
@@ -573,6 +813,7 @@ BX.Kanban.DraftItem.prototype = {
 		var title = BX.util.trim(this.getDraftTextArea().value);
 		if (!title.length)
 		{
+			BX.onCustomEvent(this.getGrid(), "Kanban.Grid:closeDraftItem", [this]);
 			this.removeDraftItem();
 			return;
 		}
@@ -618,8 +859,8 @@ BX.Kanban.DraftItem.prototype = {
 
 			if (!draftItemExists)
 			{
-				var nextItem = newItem.getColumn().getNextItemSibling(newItem);
-				newItem.getColumn().addDraftItem(nextItem);
+				var prevItem = newItem.getColumn().getPreviousItemSibling(newItem);
+				newItem.getColumn().addDraftItem(prevItem);
 			}
 		}
 	},
@@ -659,6 +900,8 @@ BX.Kanban.DraftItem.prototype = {
 		else if (event.keyCode === 27)
 		{
 			this.removeDraftItem();
+			BX.onCustomEvent(this.getGrid(), "Kanban.Grid:removeDraftItemByEsc", [this]);
+			event.stopPropagation();
 		}
 	}
 };

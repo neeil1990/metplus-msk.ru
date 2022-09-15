@@ -62,7 +62,7 @@ class Export extends Main\Engine\Controller
 	protected $fileType = 'application/csv';
 
 	/** How long to keep temporally files. */
-	const KEEP_FILE_HOURS = 5;
+	const KEEP_FILE_HOURS = 24;
 
 	/** @var int */
 	protected $processedItems = 0;
@@ -75,6 +75,9 @@ class Export extends Main\Engine\Controller
 
 	/** Default limitation query result per page. */
 	const ROWS_PER_PAGE = 100;
+
+	/** @var int */
+	protected $lastExportedId = -1;
 
 	/** @var \CCloudStorageBucket */
 	protected $bucket;
@@ -107,6 +110,7 @@ class Export extends Main\Engine\Controller
 		'pageSize',
 		'processedItems',
 		'totalItems',
+		'lastExportedId',
 		'cloudChunkSize',
 		'bucketId',
 		'isExportCompleted',
@@ -442,6 +446,7 @@ class Export extends Main\Engine\Controller
 					'EXPORT_TYPE' => $this->exportType,
 					'STEXPORT_PAGE_SIZE' => $this->pageSize,
 					'STEXPORT_TOTAL_ITEMS' => $this->totalItems,
+					'STEXPORT_LAST_EXPORTED_ID' => $this->lastExportedId,
 					'PAGE_NUMBER' => $nextPage,
 				)
 			);
@@ -475,6 +480,11 @@ class Export extends Main\Engine\Controller
 					if ($nextPage === 1 && isset($componentResult['TOTAL_ITEMS']))
 					{
 						$this->totalItems = (int)$componentResult['TOTAL_ITEMS'];
+					}
+
+					if (isset($componentResult['LAST_EXPORTED_ID']))
+					{
+						$this->lastExportedId = (int)$componentResult['LAST_EXPORTED_ID'];
 					}
 				}
 			}
@@ -881,6 +891,7 @@ class Export extends Main\Engine\Controller
 			if ($downloadLink !== '')
 			{
 				$result['DOWNLOAD_LINK'] = $downloadLink;
+				$result['FILE_NAME'] = $this->fileName;
 				$result['DOWNLOAD_LINK_NAME'] = htmlspecialcharsbx(Loc::getMessage('MAIN_EXPORT_DOWNLOAD'));
 				$result['CLEAR_LINK_NAME'] = htmlspecialcharsbx(Loc::getMessage('MAIN_EXPORT_CLEAR'));
 			}

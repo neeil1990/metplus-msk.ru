@@ -6,22 +6,24 @@ namespace Bitrix\Sale\Controller;
 
 use Bitrix\Main\Engine;
 use Bitrix\Main\Error;
+use Bitrix\Main\Loader;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\NotImplementedException;
 use Bitrix\Rest\RestException;
 use Bitrix\Sale\Helpers\Order\Builder\SettingsContainer;
+use Bitrix\Sale\Rest\ModificationFieldsBase;
 use Bitrix\Sale\Result;
 use Bitrix\Sale\TradeBindingEntity;
 /*
  * Error code notation x(category1) xxx(category2) xxx(code category) xxxxx(code) - 2 000 403 00010
  * category1:
- * Intrnalizer - 100
- * Controller - 200
- * Externalazer - 300
+ * Intrnalizer - 1
+ * Controller - 2
+ * Externalazer - 3
  * */
 class Controller extends Engine\Controller
 {
-	protected function isB24()
+	protected function isCrmModuleInstalled()
 	{
 		return ModuleManager::isModuleInstalled('crm');
 	}
@@ -31,7 +33,7 @@ class Controller extends Engine\Controller
 		$r = $this->checkPermission($action->getName());
 		if($r->isSuccess())
 		{
-			if($this->isB24())
+			if($this->isCrmModuleInstalled() && Loader::includeModule('crm'))
 			{
 				$internalizer = \Bitrix\Crm\Order\Rest\Internalizer::buildByAction($action, [], $this->getScope());
 			}
@@ -62,15 +64,15 @@ class Controller extends Engine\Controller
 
 	protected function processAfterAction(Engine\Action $action, $result)
 	{
+		$externalizer = null;
 		if($this->errorCollection->count()==0)
 		{
-
 			if($result instanceof Engine\Response\DataType\Page || is_array($result))
 			{
 				$data = $result instanceof Engine\Response\DataType\Page ?
 					[$result->getId()=>$result->getItems()]:$result;
 
-				if($this->isB24())
+				if($this->isCrmModuleInstalled() && Loader::includeModule('crm'))
 				{
 					$externalizer = \Bitrix\Crm\Order\Rest\Externalizer::buildByAction($action, $data, $this->getScope());
 				}
@@ -78,9 +80,35 @@ class Controller extends Engine\Controller
 				{
 					$externalizer = \Bitrix\Sale\Rest\Externalizer::buildByAction($action, $data, $this->getScope());
 				}
+			}
+		}
+		else
+		{
+			return parent::processAfterAction($action, $result);
+		}
 
+		if($externalizer instanceof ModificationFieldsBase)
+		{
+			if($this->getScope() == Engine\Controller::SCOPE_REST)
+			{
+				// nothing
+			}
+			else if($this->getScope() == Engine\Controller::SCOPE_AJAX)
+			{
+				$externalizer->setFormat([
+					ModificationFieldsBase::TO_WHITE_LIST,
+					ModificationFieldsBase::SORTING_KEYS
+				]);
+			}
+
+			if($this->getScope() == Engine\Controller::SCOPE_REST)
+			{
 				return $result instanceof Engine\Response\DataType\Page ?
 					$externalizer->getPage($result):$externalizer;
+			}
+			else if($this->getScope() == Engine\Controller::SCOPE_AJAX)
+			{
+				return $externalizer->toArray();
 			}
 		}
 
@@ -117,7 +145,9 @@ class Controller extends Engine\Controller
 	{
 		$settings = $settings === null? $this->getSettingsContainerDefault():$settings;
 
-		return $this->isB24() ? new \Bitrix\Crm\Order\OrderBuilderRest($settings):new \Bitrix\Sale\Helpers\Order\Builder\OrderBuilderRest($settings);
+		return ($this->isCrmModuleInstalled() && Loader::includeModule('crm'))
+			? new \Bitrix\Crm\Order\Builder\OrderBuilderRest($settings)
+			: new \Bitrix\Sale\Helpers\Order\Builder\OrderBuilderRest($settings);
 	}
 
 	protected function getSettingsContainerDefault()
@@ -131,7 +161,7 @@ class Controller extends Engine\Controller
 			'deletePropertyValuesIfNotExists' => true,
 			'createDefaultPaymentIfNeed' => false,
 			'createDefaultShipmentIfNeed' => false,
-			'createUserIfNeed' => false,
+			'createUserIfNeed' => SettingsContainer::SET_ANONYMOUS_USER,
 			'cacheProductProviderData' => false,
 			'propsFiles' => $this->getFielsPropertyValuesFromRequest(),
 			'acceptableErrorCodes' => []
@@ -154,7 +184,7 @@ class Controller extends Engine\Controller
 						{
 							foreach ($value as $nIndex => $val)
 							{
-								if (strlen($arFileData["name"][$nIndex]) > 0)
+								if ($arFileData["name"][$nIndex] <> '')
 									$orderProperties[$orderPropId][$nIndex][$param_name] = $val;
 							}
 						}
@@ -172,7 +202,7 @@ class Controller extends Engine\Controller
 		//добавляем те поля, к существующим полям сущности, которые у неё отсутствуют
 		$fields = array_merge($fields, $this->getAdditionalFields($order));
 
-		if($this->isB24())
+		if($this->isCrmModuleInstalled() && Loader::includeModule('crm'))
 		{
 			$director = new \Bitrix\Crm\Order\Rest\Normalizer\Director();
 			$normalizer = new \Bitrix\Crm\Order\Rest\Normalizer\ObjectNormalizer($fields);

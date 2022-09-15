@@ -1,5 +1,4 @@
 <?
-$MESS["CONFRIM_REWRITE_LANG_FILES"] = "Wichtig: Die bereits existierenden Zeilen, welche in der zu importierenden Datei nicht gefunden werden, werden gelöscht. Möchten Sie die Inhalte der Sprachdateien wirklich komplett ersetzen?";
 $MESS["TRANS_PATH"] = "Pfad:";
 $MESS["TRANS_PATH_SEARCH"] = "Pfad + Suche";
 $MESS["TR_ADD_UPDATE_LANG_FILES"] = "neue Übersetzungen hinzufügen, Nachrichten in der CSV-Datei aktualisieren";
@@ -53,6 +52,7 @@ $MESS["TR_INDEX_CSV_DLG_TITLE"] = "Schritt #NUM# von #LEN#: Importierte Nachrich
 $MESS["TR_INDEX_CSV_PROGRESS"] = "Dateien verarbeitet";
 $MESS["TR_INDEX_DLG_CANCELED"] = "Indexierung wurde abgebrochen.";
 $MESS["TR_INDEX_DLG_COMPLETED"] = "Indexierung abgeschlossen.";
+$MESS["TR_INDEX_DLG_PARAM_LANGUAGES"] = "Wählen Sie die Sprachen für Indexierung aus";
 $MESS["TR_INDEX_DLG_SUMMARY"] = "Index der Lokalisierungsdateien wird neu aufgebaut. Dieser Vorgang wird einige Zeit in Anspruch nehmen.";
 $MESS["TR_INDEX_DLG_TITLE"] = "Nachrichtenindex aktualisieren";
 $MESS["TR_LIST_EXPORT_CSV"] = "Nach CSV exportieren";
@@ -60,7 +60,7 @@ $MESS["TR_LIST_IMPORT_CSV"] = "Aus CSV importieren";
 $MESS["TR_LIST_REFRESH_INDEX"] = "Indexieren";
 $MESS["TR_NO_REWRITE_LANG_FILES"] = "Nur neue Nachrichten importieren";
 $MESS["TR_REINDEX"] = "Indexieren der importierten Nachrichten:";
-$MESS["TR_REWRITE_LANG_FILES"] = "Alle existierenden Nachrichten durch neue ersetzen";
+$MESS["TR_STARTING_PATH"] = "Ordner für die Übersetzung auswählen";
 $MESS["TR_UPDATE_LANG_FILES"] = "Existierende Nachrichten aktualisieren";
 $MESS["TR_UPLOAD_CSV_FILE"] = "CSV-Datei:";
 $MESS["TR_UPLOAD_CSV_FILE_EMPTY_ERROR"] = "Geben Sie die Datei zum Hochladen an";

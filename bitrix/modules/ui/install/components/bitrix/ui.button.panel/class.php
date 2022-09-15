@@ -81,7 +81,7 @@ class UiButtonPanel extends CBitrixComponent
 			}
 			if (empty($item['CAPTION']))
 			{
-				$item['CAPTION'] = Loc::getMessage('UI_BUTTON_PANEL_' . strtoupper($item['TYPE']));
+				$item['CAPTION'] = Loc::getMessage('UI_BUTTON_PANEL_'.mb_strtoupper($item['TYPE']));
 			}
 			$item['WAIT'] = true;
 		}
@@ -183,6 +183,8 @@ class UiButtonPanel extends CBitrixComponent
 				$this->arResult['LIST'][] = $item;
 			}
 		}
+
+		$this->arResult['STICKY_CONTAINER'] = $this->arParams['STICKY_CONTAINER'];
 	}
 
 	/**

@@ -4,6 +4,7 @@ namespace Bitrix\Main\UI\Filter;
 
 use Bitrix\Main\Localization\Loc;
 
+Loc::loadMessages(__FILE__);
 
 class FieldAdapter
 {
@@ -11,7 +12,7 @@ class FieldAdapter
 	 * @param array $sourceField
 	 * @return array
 	 */
-	public static function adapt(array $sourceField)
+	public static function adapt(array $sourceField, $filterId = '')
 	{
 		$sourceField = static::normalize($sourceField);
 		switch ($sourceField["type"])
@@ -25,12 +26,12 @@ class FieldAdapter
 					{
 						if (is_array($selectItem))
 						{
-							$selectItem["VALUE"] = $selectItemValue;
+							$selectItem["VALUE"] = (string)$selectItemValue;
 							$listItem = $selectItem;
 						}
 						else
 						{
-							$listItem = array("NAME" => $selectItem, "VALUE" => $selectItemValue);
+							$listItem = ["NAME" => $selectItem, "VALUE" => (string)$selectItemValue];
 						}
 
 						$items[] = $listItem;
@@ -91,32 +92,11 @@ class FieldAdapter
 					NumberType::SINGLE,
 					array(),
 					$sourceField["name"],
-					$sourceField["placeholder"]
+					$sourceField["placeholder"],
+					($sourceField["exclude"] ?? []),
+					($sourceField["include"] ?? []),
+					($sourceField["messages"] ?? [])
 				);
-
-				$subTypes = array();
-				$subType = is_array($field["SUB_TYPE"]) ? $field["SUB_TYPE"]["VALUE"] : $field["SUB_TYPE"];
-				$dateTypesList = NumberType::getList();
-
-				foreach ($dateTypesList as $key => $type)
-				{
-					$subTypes[] = array(
-						"NAME" => Loc::getMessage("MAIN_UI_FILTER__NUMBER_".$key),
-						"PLACEHOLDER" => "",
-						"VALUE" => $type
-					);
-
-					if ($type === $subType)
-					{
-						$field["SUB_TYPE"] = array(
-							"NAME" => Loc::getMessage("MAIN_UI_FILTER__NUMBER_".$key),
-							"PLACEHOLDER" => "",
-							"VALUE" => $subType
-						);
-					}
-				}
-
-				$field["SUB_TYPES"] = $subTypes;
 
 				break;
 
@@ -171,7 +151,18 @@ class FieldAdapter
 					$sourceField["placeholder"],
 					$sourceField["params"]["multiple"],
 					$sourceField["params"],
-					(isset($sourceField["lightweight"]) ? $sourceField["lightweight"] : false)
+					(isset($sourceField["lightweight"]) ? $sourceField["lightweight"] : false),
+					$filterId
+				);
+				break;
+
+			case 'entity_selector' :
+				$field = Field::entitySelector(
+					isset($sourceField['id']) ? (string)$sourceField['id'] : '',
+					isset($sourceField['name']) ? (string)$sourceField['name'] : '',
+					isset($sourceField['placeholder']) ? (string)$sourceField['placeholder'] : '',
+					(isset($sourceField['params']) && is_array($sourceField['params'])) ? $sourceField['params'] : [],
+					(string)$filterId
 				);
 				break;
 
@@ -197,6 +188,19 @@ class FieldAdapter
 		if (!empty($sourceField["html"]))
 		{
 			$field["HTML"] = $sourceField["html"];
+		}
+		if (!empty($sourceField["additionalFilter"]))
+		{
+			$field["ADDITIONAL_FILTER_ALLOWED"] = $sourceField["additionalFilter"];
+		}
+
+		if (isset($sourceField["sectionId"]) && $sourceField["sectionId"] !== '')
+		{
+			$field["SECTION_ID"] = $sourceField["sectionId"];
+		}
+		if (!empty($sourceField["icon"]))
+		{
+			$field["ICON"] = $sourceField["icon"];
 		}
 
 		return $field;

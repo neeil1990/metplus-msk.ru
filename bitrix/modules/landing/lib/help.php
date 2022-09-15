@@ -42,15 +42,18 @@ class Help
 			'de' => '6630821',
 			'es' => '6529315',
 			'br' => '7014601',
-			'fr' => '8460105'
+			'fr' => '8460105',
+			'pl' => '10187232'
 		),
 		'LANDING_EDIT' => array(
-			'ru' => 's93291',
-			'ua' => 's94173',
+			'ru' => 's105667',
+			'ua' => 's105681',
 			'en' => 's95157',
 			'de' => 's95161',
 			'es' => 's95265',
-			'br' => 's99169'
+			'br' => 's119713',
+			'fr' => 's110613',
+			'pl' => 's127232'
 		),
 		'DOMAIN_EDIT' => array(
 			'ru' => '6624333',
@@ -59,7 +62,25 @@ class Help
 			'de' => '6637101',
 			'es' => '8479199',
 			'br' => '8513557',
-			'fr' => '8460145'
+			'fr' => '8460145',
+			'pl' => '10187266'
+		),
+		'DOMAIN_BITRIX24' => array(
+			'ru' => '11341354'
+		),
+		'COOKIES_EDIT' => array(
+			'ru' => '12297162',
+			'ua' => '12300133',
+			'en' => '12299818',
+			'de' => '12300978',
+			'es' => '12304458',
+			'br' => '12309218',
+			'pl' => '12309012',
+			'fr' => '12304424'
+		),
+		'DOMAIN_FREE' => array(
+			'ru' => '11341378',
+			'ua' => '12208347'
 		),
 		'GMAP_EDIT' => array(
 			'ru' => '8203739',
@@ -72,6 +93,7 @@ class Help
 		),
 		'PIXEL' => array(
 			'ru' => '9022893',
+			'ua' => '9028735',
 			'en' => '9025097',
 			'de' => '9024719',
 			'es' => '9023659',
@@ -89,12 +111,12 @@ class Help
 		),
 		'GACOUNTER' => array(
 			'ru' => '9485227',
-			'ua' => '9490499',
-			'en' => '9510537',
+			'ua' => '13141871',
+			'en' => '9510241',
 			'de' => '9492673',
-			'es' => '9496717',
-			'br' => '9497065',
-			'fr' => '9493337'
+			'es' => '13118496',
+			'br' => '13113344',
+			'fr' => '13110090'
 		),
 		'META_GOOGLE_VERIFICATION' => array(
 			'ru' => '7908779',
@@ -103,10 +125,12 @@ class Help
 			'de' => '7920223',
 			'es' => '7993185',
 			'br' => '8828551',
-			'fr' => '9203285'
+			'fr' => '9203285',
+			'pl' => '10187376'
 		),
 		'DYNAMIC_BLOCKS' => array(
 			'ru' => '10104989',
+			'ua' => '10119783',
 			'en' => '10134346',
 			'de' => '10119494',
 			'es' => '10133942',
@@ -119,7 +143,47 @@ class Help
 			'ru' => '7919271'
 		),
 		'SPEED' => array(
-		)
+			'ru' => '11565144',
+			'ua' => '11567047',
+			'en' => '11566690',
+			'de' => '11566686',
+			'es' => '11566722',
+			'br' => '11566728',
+			'pl' => '11583638',
+			'fr' => '11566680'
+		),
+		'FORM_EDIT' => array(
+			'ru' => '12619286',
+			'en' => '12722820',
+			'es' => '12674434',
+			'pl' => '12768522'
+		),
+		'FORM_GENERAL' => array(
+			'ru' => '6875449',
+			'ua' => '5887811',
+			'en' => '9368711',
+			'de' => '8710329',
+			'es' => '8653779',
+			'br' => '9254221',
+			'pl' => '10186974',
+			'fr' => '9848565'
+		),
+		'WIDGET_GENERAL' => array(
+			'ru' => '6986667',
+			'ua' => '6904255',
+			'en' => '4112659',
+			'de' => '4116021',
+			'es' => '5471995',
+			'br' => '6345873',
+			'pl' => '10186996',
+			'fr' => '8459729'
+		),
+		'FREE_MESSAGES' => array(
+			'ru' => '13655934'
+		),
+		'FIRST_ORDER_REQUIREMENTS' => array(
+			'ru' => '15732254'
+		),
 	);
 
 	/**
@@ -132,18 +196,29 @@ class Help
 	}
 
 	/**
-	 * Gets url to help article by code.
+	 * Gets help id and help zone by code.
 	 * @param string $code Help code.
-	 * @return string
+	 * @param string|null $zone Help code zone (force mode).
+	 * @return array
 	 */
-	public static function getHelpUrl($code)
+	public static function getHelpData(string $code, ?string $zone = null): array
 	{
 		static $myZone = null;
 		static $defaultZone = self::DEFAULT_ZONE_ID;
 
+		if ($zone && isset(self::$helpUrl[$code][$zone]))
+		{
+			return [self::$helpUrl[$code][$zone], $zone];
+		}
+
 		if ($myZone === null)
 		{
 			$myZone = Manager::getZone();
+		}
+
+		if ($myZone == 'by' || $myZone == 'kz')
+		{
+			$myZone = 'ru';
 		}
 
 		$helpId = 0;
@@ -163,12 +238,24 @@ class Help
 			}
 		}
 
+		return [$helpId, $helpZone];
+	}
+
+	/**
+	 * Gets url to help article by code.
+	 * @param string $code Help code.
+	 * @return string
+	 */
+	public static function getHelpUrl(string $code): string
+	{
+		[$helpId, $helpZone] = self::getHelpData($code);
+
 		if ($helpId && $helpZone)
 		{
 			return 'https://helpdesk.' . self::$domains[$helpZone] .
 					(
-						(substr($helpId, 0, 1) == 's')
-						? ('/#section' . substr($helpId, 1))
+						(mb_substr($helpId, 0, 1) == 's')
+						? ('/section/'.mb_substr($helpId, 1) . '/')
 						: ('/open/' . $helpId . '/')
 					);
 		}
@@ -177,7 +264,7 @@ class Help
 	}
 
 	/**
-	 * Relace in content all help links by format #HELP_LINK_*CODE*#.
+	 * Replaces in content all help links by format #HELP_LINK_*CODE*#.
 	 * @param string $content Some content.
 	 * @return string
 	 */

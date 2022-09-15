@@ -1,11 +1,9 @@
 .sender-slider-frame-popup {
-	background: #eef2f4 !important;
 	padding: 0 15px 0 21px;
 }
 
 #sender-frame-popup-workarea {
 	min-height: calc(100% - 75px);
-	background: #fff;
 }
 
 
@@ -69,7 +67,8 @@ div.pagetitle-container.pagetitle-align-right-container {
 	overflow: hidden;
 }
 .pagetitle {
-	font: 26px/26px "OpenSans-Light", Helvetica, Arial, sans-serif;
+	font: 26px/26px var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-light, 300);
 	margin: 0;
 	padding: 21px 0 21px 5px;
 	display: block;
@@ -80,7 +79,8 @@ div.pagetitle-container.pagetitle-align-right-container {
 	display: inline-block;
 	padding: 0 10px 0 0;
 	min-width: 0;
-	height: 30px;
+	min-height: 30px;
+	max-height: 40px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -94,17 +94,19 @@ div.pagetitle-container.pagetitle-align-right-container {
 
 .pagetitle input.pagetitle-item {
 	flex: 1;
-	margin: -3px 0 0 0;
+	/*margin: -3px 0 0 0;*/
 	display: inline-block;
 	box-sizing: border-box;
 	padding: 0;
 	width: calc(100% - 500px);
+	height: 36px;
 	border: none;
 	border-bottom: 1px solid #cfd6da;
 	background-color: transparent;
 	color: #000;
 	word-wrap: break-word;
-	font: 26px/27px "OpenSans-Light", Helvetica, Arial, sans-serif;
+	font: 26px/27px var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-light, 300);
 	outline: none;
 }
 

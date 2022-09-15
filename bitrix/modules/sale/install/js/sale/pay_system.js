@@ -168,14 +168,17 @@
 				{
 					CloseWaitWindow();
 
-					if (result && !result.ERROR)
+					if (result)
 					{
 						if (result.HTML)
+						{
 							BX.Sale.PaySystem.insertAjaxRestrictionHtml(result.HTML);
-					}
-					else
-					{
-						alert(result.ERROR);
+						}
+						
+						if (result.ERROR)
+						{
+							alert(result.ERROR);
+						}
 					}
 				},
 
@@ -416,9 +419,9 @@
 								img = BX.create('img', {
 									attrs: {
 										'src': result.LOGOTIP.PATH,
-										'height': 55
 									}
 								});
+								img.style.maxHeight = "55px";
 								BX.insertAfter(img, parent);
 								BX.insertAfter(BX.create('br'), parent);
 							}
@@ -430,11 +433,14 @@
 
 							logo.previousElementSibling.innerHTML = BX.message('JSADM_FILE');
 						}
+
+						this.updateVerificationBlock(result.DOMAIN_VERIFICATION);
 					}
 					else
 					{
 						BX.debug(result.ERROR);
-					}},
+					}
+				}.bind(this),
 
 				onfailure: function ()
 				{
@@ -527,6 +533,166 @@
 					BX.Sale.PaySystem.toggleNextSiblings(rowsToHide[i], 4, true);
 			}
 			window.parent.BX.onCustomEvent('onAdminTabsChange');
-		}
+		},
+
+		updateVerificationBlock: function(verificationData)
+		{
+			var validationDomainNode = BX('pay_system_validation_domain');
+			validationDomainNode.style.display = (verificationData.NEED_VERIFICATION) ? "" : "none";
+
+			if (verificationData.NEED_VERIFICATION)
+			{
+				var domainVerificationLinkNode = BX('domain-verification-link');
+				domainVerificationLinkNode.setAttribute('onclick', 'BX.Sale.PaySystem.openVerificationForm(\'' + verificationData.FORM_LINK + '\')');
+			}
+		},
+
+		openVerificationForm: function(url)
+		{
+			BX.SidePanel.Instance.open(url, {
+				width: 750
+			});
+		},
+
+		addRestrictionProductSection: function(id, name, nodeId)
+		{
+			name = BX.util.htmlspecialcharsback(name);
+			name = name.replace(/&#039;/g, "'").replace(/&nbsp;/g, ' ');
+
+			var alreadyExist = BX(nodeId + '-' + id);
+			if (alreadyExist)
+			{
+				return;
+			}
+
+			var self = this;
+
+			var category = BX.create('tr', {
+				props: {
+					id: nodeId+ '-' + id,
+					className: 'adm-s-product-category-restriction-delcat'
+				},
+				children: [
+					BX.create('td', {
+						children: [
+							BX.create('span', {
+								html: " - "+ BX.util.htmlspecialchars(name)
+							}),
+							BX.create('input', {
+								props: {
+									type: 'hidden',
+									name: 'RESTRICTION[CATEGORIES][]',
+									value: id
+								}
+							})
+						]
+					}),
+					BX.create('td', {
+						props: {
+							align: 'right'
+						},
+						children: [
+							BX.create('text', {
+								html: '&nbsp;'
+							}),
+							BX.create('a', {
+								props: {
+									href: 'javascript:void(0);',
+									className: 'adm-s-bus-morelinkqhsw'
+								},
+								text: BX.message('SALE_PRODUCT_CATEGORY_INP_DELETE'),
+								events: {
+									click: function() {
+										self.deleteRestrictionProductSection(id, nodeId);
+									}
+								}
+							})
+						]
+					})
+				]
+			});
+
+			BX(nodeId + '-content').appendChild(category);
+		},
+
+		deleteRestrictionProductSection: function(id, nodeId)
+		{
+			var node = BX(nodeId + '-' + id);
+
+			if (node)
+			{
+				node.parentNode.removeChild(node);
+			}
+		},
+
+		addRestrictionByConcreteProduct: function (nodeId, id, name)
+		{
+			name = BX.util.htmlspecialcharsback(name);
+			name = name.replace(/&#039;/g, "'").replace(/&nbsp;/g, ' ');
+
+			var alreadyExist = BX(nodeId + '-' + id);
+
+			if (alreadyExist)
+			{
+				return;
+			}
+
+			var self = this;
+
+			var product = BX.create('tr', {
+				props: {
+					id: nodeId + '-' + id,
+					className: 'adm-s-concrete-product-restriction-delprod'
+				},
+				children: [
+					BX.create('td', {
+						children: [
+							BX.create('span', {
+								text: " - "+ BX.util.htmlspecialchars(name)
+							}),
+							BX.create('input', {
+								props: {
+									type: 'hidden',
+									name: 'RESTRICTION[PRODUCTS][]',
+									value: id
+								}
+							})
+						]
+					}),
+					BX.create('td', {
+						props: {
+							align: 'right'
+						},
+						children: [
+							BX.create('text', {html: '&nbsp;'}),
+							BX.create('a', {
+								props: {
+									href: 'javascript:void(0);',
+									className: 'adm-s-bus-morelinkqhsw'
+								},
+								text: BX.message('SALE_CONCRETE_PRODUCT_INP_DELETE'),
+								events: {
+									click: function() {
+										self.deleteRestrictionByConcreteProduct(nodeId, id);
+									}
+								}
+							})
+						]
+					})
+				]
+			});
+
+			BX(nodeId + '-content').appendChild(product);
+		},
+
+		deleteRestrictionByConcreteProduct: function (nodeId, id)
+		{
+			var node = BX(nodeId + '-' + id);
+
+			if (node)
+			{
+				node.parentNode.removeChild(node);
+			}
+		},
 	}
 })(window);

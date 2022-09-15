@@ -1,13 +1,21 @@
-<?
-use Bitrix\Main\Application,
-	Bitrix\Main\Localization\Loc,
-	Bitrix\Main\Type\Collection,
-	Bitrix\Iblock,
-	Bitrix\Catalog;
+<?php
 
-Loc::loadMessages(__FILE__);
+use Bitrix\Main\Application;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Type\Collection;
+use Bitrix\Iblock;
+use Bitrix\Catalog;
 
+/**
+ * @deprecated
+ * @see CCatalogSku
+ */
 class CAllCatalogSku
+{
+
+}
+
+class CCatalogSku extends CAllCatalogSku
 {
 	const TYPE_CATALOG = 'D';
 	const TYPE_PRODUCT = 'P';
@@ -432,9 +440,18 @@ class CAllCatalogSku
 	 * @param array $fields
 	 * @param array $propertyFilter
 	 * @param array $options
+	 * @param array $order
 	 * @return array|bool
 	 */
-	public static function getOffersList($productID, $iblockID = 0, $skuFilter = array(), $fields = array(), $propertyFilter = array(), $options = array())
+	public static function getOffersList(
+		$productID,
+		$iblockID = 0,
+		$skuFilter = array(),
+		$fields = array(),
+		$propertyFilter = array(),
+		$options = array(),
+		$order = array()
+	)
 	{
 		static $propertyCache = array();
 
@@ -600,6 +617,12 @@ class CAllCatalogSku
 		}
 		unset($offersIblock);
 
+		if (empty($order))
+		{
+			$order = array('ID' => 'ASC');
+		}
+		$orderFields = array_keys($order);
+
 		$result = array_fill_keys($productID, array());
 
 		foreach ($iblockProduct as $iblockID => $productList)
@@ -610,13 +633,14 @@ class CAllCatalogSku
 			$iblockFilter['='.$skuProperty] = $productList;
 			$iblockFields = $fields;
 			$iblockFields[] = $skuProperty;
+			$iblockFields = array_merge($iblockFields, $orderFields);
 			$skuProperty .= '_VALUE';
 			$skuPropertyId = $skuProperty.'_ID';
 			$offersLinks = array();
 			$needProperties = !empty($iblockProperties[$iblockSku[$iblockID]['IBLOCK_ID']]);
 
 			$offersIterator = CIBlockElement::GetList(
-				array('ID' => 'ASC'),
+				$order,
 				$iblockFilter,
 				false,
 				false,
@@ -837,9 +861,4 @@ class CAllCatalogSku
 		self::$arIBlockCache = array();
 		self::$parentCache = array();
 	}
-}
-
-class CCatalogSku extends CAllCatalogSku
-{
-
 }

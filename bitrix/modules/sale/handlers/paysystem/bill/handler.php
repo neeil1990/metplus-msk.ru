@@ -10,6 +10,7 @@ use Bitrix\Main\Type\Date;
 use Bitrix\Sale;
 use Bitrix\Sale\Payment;
 use Bitrix\Sale\PaySystem;
+use Bitrix\Currency;
 
 Loc::loadMessages(__FILE__);
 /**
@@ -42,7 +43,7 @@ class BillHandler
 
 		return $this->showTemplate($payment, $template);
 	}
-	
+
 	/**
 	 * @param Sale\Payment|null $payment
 	 * @param string $template
@@ -108,7 +109,7 @@ class BillHandler
 		if ($userColumns !== null)
 		{
 			$extraParams['USER_COLUMNS'] = array();
-			$userColumns = unserialize($userColumns);
+			$userColumns = unserialize($userColumns, ['allowed_classes' => false]);
 			if ($userColumns)
 			{
 				foreach ($userColumns as $id => $columns)
@@ -192,7 +193,21 @@ class BillHandler
 	 */
 	public function getCurrencyList()
 	{
-		return array('RUB');
+		$currencyList = [];
+
+		if (Loader::includeModule('currency'))
+		{
+			$currencyIterator = Currency\CurrencyTable::getList([
+				'select' => ['CURRENCY'],
+				'cache' => ['ttl' => 86400],
+			]);
+			while ($currency = $currencyIterator->fetch())
+			{
+				$currencyList[] = $currency['CURRENCY'];
+			}
+		}
+
+		return $currencyList;
 	}
 
 	/**

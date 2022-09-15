@@ -1,5 +1,5 @@
 <?
-$MESS["JS_UI_TUTOR_ARTICLE_HELP"] = "Mehr Artikel";
+$MESS["JS_UI_TUTOR_ARTICLE_HELP_TOPIC"] = "Weitere Artikel zu diesem Thema";
 $MESS["JS_UI_TUTOR_BTN_BEGIN"] = "Starten";
 $MESS["JS_UI_TUTOR_BTN_COMPLETED"] = "Schritt erledigt";
 $MESS["JS_UI_TUTOR_BTN_COMPLETED_SHORT"] = "Erledigt";

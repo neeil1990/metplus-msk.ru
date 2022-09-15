@@ -10,11 +10,8 @@ return array(
 	'block' => array(
 		'name' => Loc::getMessage('LANDING_BLOCK_16_3_TWO_COLS_MAP_TEXT_FIX--NAME'),
 		'section' => array('contacts'),
-		'version' => '18.5.0',
+		'version' => '18.5.0', // old param for backward compatibility. Can used for old versions of module via repo. Do not delete!
 		'subtype' => 'map',
-		'subtype_params' =>[
-			'required' => 'google'
-		],
 	),
 	'cards' => array(),
 	'nodes' => array(
@@ -38,7 +35,7 @@ return array(
 		),
 		'.landing-block-node-title' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_16_3_TWO_COLS_MAP_TEXT_FIX--LANDINGBLOCKNODETITLE'),
-			'type' => array('typo'),
+			'type' => ['typo', 'heading'],
 		),
 		'.landing-block-node-text' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_16_3_TWO_COLS_MAP_TEXT_FIX--LANDINGBLOCKNODETEXT'),
@@ -50,6 +47,6 @@ return array(
 		),
 	),
 	'assets' => array(
-		'ext' => array('landing_google_maps_new'),
+		'ext' => array('landing_map'),
 	),
 );

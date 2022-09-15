@@ -1,12 +1,17 @@
-import {Dom, Cache, Tag, Type, Text} from 'main.core';
+import {Dom, Cache, Tag, Type, Text, Event} from 'main.core';
 import {Loader} from 'main.loader';
 import {Content} from 'landing.ui.panel.content';
 import {Loc} from 'landing.loc';
 import {Backend} from 'landing.backend';
 import {Env} from 'landing.env';
+import {SliderHacks} from 'landing.sliderhacks';
+import {TextField} from 'landing.ui.field.textfield';
 import 'translit';
 import './css/style.css';
 
+/**
+ * @memberOf BX.Landing.UI.Panel
+ */
 export class CreatePage extends Content
 {
 	static getInstance(): CreatePage
@@ -49,20 +54,20 @@ export class CreatePage extends Content
 		this.renderTo(document.body);
 	}
 
-	getTitleField(): BX.Landing.UI.Field.Text
+	getTitleField(): TextField
 	{
 		return this.cache.remember('titleField', () => {
-			return new BX.Landing.UI.Field.Text({
+			return new TextField({
 				title: Loc.getMessage('LANDING_CREATE_PAGE_PANEL_FIELD_PAGE_TITLE'),
 				textOnly: true,
 			});
 		});
 	}
 
-	getCodeField(): BX.Landing.UI.Field.Text
+	getCodeField(): TextField
 	{
 		return this.cache.remember('codeField', () => {
-			return new BX.Landing.UI.Field.Text({
+			return new TextField({
 				title: Loc.getMessage('LANDING_CREATE_PAGE_PANEL_FIELD_PAGE_CODE'),
 				textOnly: true,
 			});
@@ -92,7 +97,7 @@ export class CreatePage extends Content
 				return BX.Landing.Block.Node.Text.currentNode;
 			}
 
-			return BX.Landing.UI.Field.Text.currentField;
+			return TextField.currentField;
 		})();
 
 		const capitalizedTitle = title.replace(/^\w/, c => c.toUpperCase());
@@ -121,18 +126,16 @@ export class CreatePage extends Content
 			.replace('#site_show#', siteId)
 			.replace('#landing_edit#', id);
 
-		return this.cache.remember('successMessage', () => {
-			return Tag.render`
-				<div class="landing-ui-panel-create-page-success">
-					<div class="landing-ui-panel-create-page-success-header">
-						${Loc.getMessage('LANDING_CREATE_PAGE_PANEL_SUCCESS_MESSAGE_TITLE')}
-					</div>
-					<div class="landing-ui-panel-create-page-actions">
-						<a href="${editLink}" target="_blank">${Loc.getMessage('LANDING_CONTENT_PANEL_TITLE')}</a> &nbsp;
-					</div>
+		return Tag.render`
+			<div class="landing-ui-panel-create-page-success">
+				<div class="landing-ui-panel-create-page-success-header">
+					${Loc.getMessage('LANDING_CREATE_PAGE_PANEL_SUCCESS_MESSAGE_TITLE')}
 				</div>
-			`;
-		});
+				<div class="landing-ui-panel-create-page-actions">
+					<a href="${editLink}" target="_blank">${Loc.getMessage('LANDING_CONTENT_PANEL_TITLE')}</a> &nbsp;
+				</div>
+			</div>
+		`;
 	}
 
 	getFailMessage()
@@ -160,13 +163,14 @@ export class CreatePage extends Content
 				replace_other: '',
 			},
 		);
+		const {folder_id: folderId} = Env.getInstance().getOptions();
 		const loader = new Loader();
 
 		this.clear();
 		loader.show(this.body);
 
 		void backend
-			.createPage({title, code})
+			.createPage({title, code, folderId})
 			.then((result) => {
 				return new Promise((resolve) => {
 					setTimeout(() => resolve(result), 500);
@@ -177,7 +181,24 @@ export class CreatePage extends Content
 
 				if (Type.isNumber(result))
 				{
-					Dom.append(this.getSuccessMessage(result), this.content);
+					const successMessage = this.getSuccessMessage(result);
+
+					if (
+						Env.getInstance().getType() === 'KNOWLEDGE'
+						|| Env.getInstance().getType() === 'GROUP'
+					)
+					{
+						const link = successMessage.querySelector('a');
+						if (link)
+						{
+							Event.bind(link, 'click', (event) => {
+								event.preventDefault();
+								void SliderHacks.reloadSlider(link.href, window.parent);
+							});
+						}
+					}
+
+					Dom.append(successMessage, this.content);
 
 					const value = {
 						href: `#landing${result}`,

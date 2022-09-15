@@ -9,12 +9,14 @@ class Domain extends \Bitrix\Landing\Internals\BaseTable
 {
 	/**
 	 * Bitrix24 domains.
+	 * @see \Bitrix\Landing\Agent::removeBadDomains
 	 */
 	const B24_DOMAINS = [
 		'bitrix24.site',
 		'bitrix24.shop',
 		'bitrix24site.by',
-		'bitrix24shop.by'
+		'bitrix24shop.by',
+		'bitrix24site.ua'
 	];
 
 	/**
@@ -46,19 +48,66 @@ class Domain extends \Bitrix\Landing\Internals\BaseTable
 	}
 
 	/**
-	 * Gets Bitrix24 sub domain name.
+	 * Returns Bitrix24 sub domain name from full domain name.
 	 * @param string $domainName Full domain name.
-	 * @return string Null, if $domainName is't sub domain of B24.
+	 * @return string Null, if $domainName isn't sub domain of B24.
 	 */
 	public static function getBitrix24Subdomain($domainName)
 	{
-		$re = '/^([a-z0-9]+)\.(' . implode('|', self::B24_DOMAINS) . ')$/i';
+		$re = '/^([^\.]+)\.(' . implode('|', self::B24_DOMAINS) . ')$/i';
 		if (preg_match($re, $domainName, $matches))
 		{
 			return $matches[1];
 		}
 
 		return null;
+	}
+
+	/**
+	 * Returns postfix for bitrix24.site.
+	 * @param string $type Site type.
+	 * @return string
+	 */
+	public static function getBitrix24Postfix(string $type): string
+	{
+		$zone = Manager::getZone();
+		$postfix = '.bitrix24.site';
+		$type = mb_strtoupper($type);
+
+		if ($type == 'STORE')
+		{
+			$postfix = ($zone == 'by')
+				? '.bitrix24shop.by'
+				: '.bitrix24.shop';
+		}
+		else if ($zone == 'by')
+		{
+			$postfix = '.bitrix24site.by';
+		}
+		else if ($zone == 'ua')
+		{
+			$postfix = '.bitrix24site.ua';
+		}
+
+		return $postfix;
+	}
+
+	/**
+	 * Returns true if remote service os available.
+	 * @return bool
+	 */
+	public static function canRegisterInBitrix24(): bool
+	{
+		try
+		{
+			Manager::getExternalSiteController()::isDomainExists('repo.bitrix24.site');
+		}
+		catch (\Bitrix\Main\SystemException $ex)
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	/**
@@ -88,7 +137,7 @@ class Domain extends \Bitrix\Landing\Internals\BaseTable
 		$res = self::getList(array(
 			'filter' => array(
 				'=ACTIVE' => 'Y',
-				'DOMAIN' => self::getDomainName()
+				'=DOMAIN' => self::getDomainName()
 			)
 		));
 		if ($row = $res->fetch())
@@ -132,12 +181,30 @@ class Domain extends \Bitrix\Landing\Internals\BaseTable
 		}
 		else
 		{
-			$host = Option::get('main', 'server_name', $request->getHttpHost()
-					? : $request->getHttpHost());
+			$host = Option::get('main', 'server_name', $request->getHttpHost());
 		}
 
 		$hostUrl = rtrim($protocol . $host, '/');
 
 		return $hostUrl;
+	}
+
+	/**
+	 * Returns top level domain by domain name.
+	 * @param string $domainName Domain name.
+	 * @return string
+	 */
+	public static function getTLD(string $domainName): string
+	{
+		$domainName = mb_strtolower(trim($domainName));
+		$domainNameParts = explode('.', $domainName);
+		$domainNameTld = $domainNameParts[count($domainNameParts) - 1];
+
+		if ($domainNameParts[count($domainNameParts) - 2] == 'com')
+		{
+			$domainNameTld = 'com.' . $domainNameTld;
+		}
+
+		return $domainNameTld;
 	}
 }

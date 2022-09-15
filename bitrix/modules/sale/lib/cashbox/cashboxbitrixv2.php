@@ -14,6 +14,12 @@ Localization\Loc::loadMessages(__FILE__);
  */
 class CashboxBitrixV2 extends CashboxBitrix
 {
+	const CODE_VAT_0 = 'vat0';
+	const CODE_VAT_10 = 'vat10';
+	const CODE_VAT_20 = 'vat20';
+	const CODE_CALC_VAT_10 = 'vat110';
+	const CODE_CALC_VAT_20 = 'vat120';
+
 	/**
 	 * @param Check $check
 	 * @return array
@@ -75,43 +81,88 @@ class CashboxBitrixV2 extends CashboxBitrix
 			];
 		}
 
-		$checkTypeMap = $this->getCheckTypeMap();
-		$paymentObjectMap = $this->getPaymentObjectMap();
-		foreach ($data['items'] as $i => $item)
+		foreach ($data['items'] as $item)
 		{
-			$vat = $this->getValueFromSettings('VAT', $item['vat']);
-			if ($vat === null)
-			{
-				$vat = $this->getValueFromSettings('VAT', 'NOT_VAT');
-			}
-
-			$position = [
-				'name' => $item['name'],
-				'price' => (float)$item['base_price'],
-				'quantity' => $item['quantity'],
-				'amount' => (float)$item['sum'],
-				'paymentMethod' => $checkTypeMap[$check::getType()],
-				'paymentObject' => $paymentObjectMap[$item['payment_object']],
-				'tax' => [
-					'type' => $vat
-				],
-			];
-
-			if (isset($item['nomenclature_code']))
-			{
-				$position['nomenclatureCode'] = base64_encode($item['nomenclature_code']);
-			}
-
-			$result['items'][] = $position;
+			$result['items'][] = $this->buildPosition($data, $item);
 		}
 
 		return $result;
 	}
 
+	protected function buildPosition(array $checkData, array $item)
+	{
+		$checkTypeMap = $this->getCheckTypeMap();
+		$paymentObjectMap = $this->getPaymentObjectMap();
+
+		$vat = $this->getValueFromSettings('VAT', $item['vat']);
+		if ($vat === null)
+		{
+			$vat = $this->getValueFromSettings('VAT', 'NOT_VAT');
+		}
+
+		$position = [
+			'type' => 'position',
+			'name' => $item['name'],
+			'price' => (float)$item['price'],
+			'quantity' => $item['quantity'],
+			'amount' => (float)$item['sum'],
+			'paymentMethod' => $checkTypeMap[$checkData['type']],
+			'paymentObject' => $paymentObjectMap[$item['payment_object']],
+			'tax' => [
+				'type' => $this->mapVatValue($checkData['type'], $vat)
+			],
+		];
+
+		if (isset($item['supplier_info']))
+		{
+			$position['supplierInfo'] = [
+				'phones' => $item['supplier_info']['phones'],
+				'name' => $item['supplier_info']['name'],
+				'vatin' => $item['supplier_info']['inn']
+			];
+		}
+
+		if (isset($item['nomenclature_code']))
+		{
+			$position['nomenclatureCode'] = base64_encode($item['nomenclature_code']);
+		}
+
+		return $position;
+	}
+
+	/**
+	 * @param $checkType
+	 * @param $vat
+	 * @return mixed
+	 */
+	protected function mapVatValue($checkType, $vat)
+	{
+		$map = [
+			self::CODE_VAT_10 => [
+				PrepaymentCheck::getType() => self::CODE_CALC_VAT_10,
+				PrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_10,
+				PrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_10,
+				FullPrepaymentCheck::getType() => self::CODE_CALC_VAT_10,
+				FullPrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_10,
+				FullPrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_10,
+			],
+			self::CODE_VAT_20 => [
+				PrepaymentCheck::getType() => self::CODE_CALC_VAT_20,
+				PrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_20,
+				PrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_20,
+				FullPrepaymentCheck::getType() => self::CODE_CALC_VAT_20,
+				FullPrepaymentReturnCheck::getType() => self::CODE_CALC_VAT_20,
+				FullPrepaymentReturnCashCheck::getType() => self::CODE_CALC_VAT_20,
+			],
+		];
+
+		return $map[$vat][$checkType] ?? $vat;
+	}
+
 	/**
 	 * @return array
 	 */
-	private function getPaymentObjectMap()
+	protected function getPaymentObjectMap()
 	{
 		return [
 			Check::PAYMENT_OBJECT_COMMODITY => 'commodity',
@@ -119,6 +170,22 @@ class CashboxBitrixV2 extends CashboxBitrix
 			Check::PAYMENT_OBJECT_JOB => 'job',
 			Check::PAYMENT_OBJECT_EXCISE => 'excise',
 			Check::PAYMENT_OBJECT_PAYMENT => 'payment',
+			Check::PAYMENT_OBJECT_GAMBLING_BET => 'gamblingBet',
+			Check::PAYMENT_OBJECT_GAMBLING_PRIZE => 'gamblingPrize',
+			Check::PAYMENT_OBJECT_LOTTERY => 'lottery',
+			Check::PAYMENT_OBJECT_LOTTERY_PRIZE => 'lotteryPrize',
+			Check::PAYMENT_OBJECT_INTELLECTUAL_ACTIVITY => 'intellectualActivity',
+			Check::PAYMENT_OBJECT_AGENT_COMMISSION => 'agentCommission',
+			Check::PAYMENT_OBJECT_COMPOSITE => 'composite',
+			Check::PAYMENT_OBJECT_ANOTHER => 'another',
+			Check::PAYMENT_OBJECT_PROPERTY_RIGHT => 'proprietaryLaw',
+			Check::PAYMENT_OBJECT_NON_OPERATING_GAIN => 'nonOperatingIncome',
+			Check::PAYMENT_OBJECT_SALES_TAX => 'merchantTax',
+			Check::PAYMENT_OBJECT_RESORT_FEE => 'resortFee',
+			Check::PAYMENT_OBJECT_COMMODITY_MARKING_NO_MARKING_EXCISE => 'excise',
+			Check::PAYMENT_OBJECT_COMMODITY_MARKING_EXCISE => 'excise',
+			Check::PAYMENT_OBJECT_COMMODITY_MARKING_NO_MARKING => 'commodity',
+			Check::PAYMENT_OBJECT_COMMODITY_MARKING => 'commodity',
 		];
 	}
 
@@ -146,6 +213,8 @@ class CashboxBitrixV2 extends CashboxBitrix
 			CreditCheck::getType() => 'credit',
 			CreditReturnCheck::getType() => 'credit',
 			CreditPaymentCheck::getType() => 'creditPayment',
+			CreditPaymentReturnCashCheck::getType() => 'creditPayment',
+			CreditPaymentReturnCheck::getType() => 'creditPayment',
 			PrepaymentCheck::getType() => 'prepayment',
 			PrepaymentReturnCheck::getType() => 'prepayment',
 			PrepaymentReturnCashCheck::getType() => 'prepayment',
@@ -225,10 +294,9 @@ class CashboxBitrixV2 extends CashboxBitrix
 				'SETTINGS' => [
 					'VAT' => [
 						'NOT_VAT' => 'none',
-						0 => 'vat0',
-						10 => 'vat10',
-						18 => 'vat18',
-						20 => 'vat20'
+						0 => self::CODE_VAT_0,
+						10 => self::CODE_VAT_10,
+						20 => self::CODE_VAT_20
 					],
 					'PAYMENT_TYPE' => [
 						Check::PAYMENT_TYPE_CASH => 'cash',
@@ -242,11 +310,11 @@ class CashboxBitrixV2 extends CashboxBitrix
 	}
 
 	/**
-	 * @return bool
+	 * @inheritDoc
 	 */
-	public static function isSupportedFFD105()
+	public static function getFfdVersion(): ?float
 	{
-		return true;
+		return 1.05;
 	}
 
 	/**

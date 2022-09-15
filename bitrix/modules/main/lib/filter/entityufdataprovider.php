@@ -1,6 +1,8 @@
 <?php
 namespace Bitrix\Main\Filter;
 
+use Bitrix\Main\UserField\Types\EnumType;
+
 class EntityUFDataProvider extends DataProvider
 {
 	/** @var EntitySettings|null */
@@ -38,14 +40,16 @@ class EntityUFDataProvider extends DataProvider
 	{
 		global $USER_FIELD_MANAGER;
 
-		static $result = null;
-		if ($result === null)
+		static $result = [];
+
+		$entityId = $this->getUserFieldEntityID();
+		if (!isset($result[$entityId]))
 		{
-			$result = $USER_FIELD_MANAGER->getUserFields($this->getUserFieldEntityID(), 0, LANGUAGE_ID, false);
-			$result = $this->postFilterFields($result);
+			$result[$entityId] = $USER_FIELD_MANAGER->getUserFields($entityId, 0, LANGUAGE_ID, false);
+			$result[$entityId] = $this->postFilterFields($result[$entityId]);
 		}
 
-		return $result;
+		return $result[$entityId];
 	}
 
 	/**
@@ -80,7 +84,7 @@ class EntityUFDataProvider extends DataProvider
 					$fieldLabel = $userField['EDIT_FORM_LABEL'];
 				}
 			}
-			if (strlen($fieldLabel) <= 0)
+			if ($fieldLabel == '')
 			{
 				$fieldLabel = $fieldName;
 			}
@@ -100,7 +104,16 @@ class EntityUFDataProvider extends DataProvider
 			{
 				$result[$fieldName] = $this->createField(
 					$fieldName,
-					array('type' => 'text', 'name' => $fieldLabel)
+					[
+						'type' => 'text',
+						'name' => $fieldLabel,
+						'data' => [
+							'additionalFilter' => [
+								'isEmpty',
+								'hasAnyValue',
+							],
+						],
+					]
 				);
 				continue;
 			}
@@ -108,7 +121,16 @@ class EntityUFDataProvider extends DataProvider
 			{
 				$result[$fieldName] = $this->createField(
 					$fieldName,
-					array('type' => 'number', 'name' => $fieldLabel)
+					[
+						'type' => 'number',
+						'name' => $fieldLabel,
+						'data' => [
+							'additionalFilter' => [
+								'isEmpty',
+								'hasAnyValue',
+							],
+						],
+					]
 				);
 				continue;
 			}
@@ -127,26 +149,48 @@ class EntityUFDataProvider extends DataProvider
 			{
 				$result[$fieldName] = $this->createField(
 					$fieldName,
-					array(
+					[
 						'type' => 'date',
 						'name' => $fieldLabel,
-						'data' => array('time' => $typeID === 'datetime')
-					)
+						'data' =>
+						[
+							'time' => $typeID === 'datetime',
+							'additionalFilter' => [
+								'isEmpty',
+								'hasAnyValue',
+							],
+						],
+					]
 				);
 			}
-			elseif($typeID === 'enumeration'
-				|| $typeID === 'iblock_element'
-				|| $typeID === 'iblock_section'
-				|| $typeID === 'crm_status'
+			elseif(
+				($typeID === 'enumeration' || $typeID === 'crm_status')
+				&& $userField['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_DIALOG
 			)
 			{
 				$result[$fieldName] = $this->createField(
 					$fieldName,
-					array(
+					[
+						'type' => 'entity_selector',
+						'name' => $fieldLabel,
+						'partial' => true,
+					]
+				);
+			}
+			elseif(
+				$typeID === 'enumeration'
+				|| $typeID === 'crm_status'
+				|| $typeID === 'iblock_element'
+				|| $typeID === 'iblock_section'
+			)
+			{
+				$result[$fieldName] = $this->createField(
+					$fieldName,
+					[
 						'type' => 'list',
 						'name' => $fieldLabel,
-						'partial' => true
-					)
+						'partial' => true,
+					]
 				);
 			}
 			elseif($typeID === 'crm')
@@ -222,6 +266,37 @@ class EntityUFDataProvider extends DataProvider
 				{
 					$items[$ary['ID']] = $ary['VALUE'];
 				}
+			}
+
+			if ($userField['SETTINGS']['DISPLAY'] === EnumType::DISPLAY_DIALOG)
+			{
+				$dialogItems = [];
+				foreach ($items as $itemId => $itemTitle)
+				{
+					$dialogItems[] = [
+						'id' => $itemId,
+						'entityId' =>  $userField['FIELD_NAME'],
+						'title' => $itemTitle,
+						'tabs' => $userField['FIELD_NAME'],
+					];
+				}
+				return [
+					'params' => [
+						'multiple' => 'Y',
+						'dialogOptions' => [
+							'items' => $dialogItems,
+							'height' => 200,
+							'dropdownMode' => true,
+							'compactView' => true,
+							'tabs' => [
+								[
+									'id' => $userField['FIELD_NAME'],
+									'title' => $userField['EDIT_FORM_LABEL'],
+								],
+							],
+						],
+					],
+				];
 			}
 
 			return array(

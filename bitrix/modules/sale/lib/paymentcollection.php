@@ -144,47 +144,92 @@ class PaymentCollection extends Internals\EntityCollection
 			break;
 
 			case "PRICE":
-				if (($order = $this->getOrder()) && !$order->isCanceled())
+				$payment = $this->getItemForAutoEdit($oldValue);
+				if ($payment !== null)
 				{
-					$currentPayment = false;
-					$allowSumChange = false;
-					if (count($this->collection) == 1)
+					$r = $payment->setField("SUM", $value);
+					if (!$r->isSuccess())
 					{
-						/** @var Payment $currentPayment */
-						if ($currentPayment = $this->rewind())
-						{
-							$allowSumChange = (bool)(!$currentPayment->isPaid() && !$currentPayment->isReturn() && ($currentPayment->getSum() == $oldValue));
-							
-							if ($allowSumChange)
-							{
-								if ($paySystemService = $currentPayment->getPaysystem())
-								{
-									$allowSumChange = $paySystemService->isAllowEditPayment();
-								}
-							}
-						}
+						$result->addErrors($r->getErrors());
 					}
 
-					if ($allowSumChange && $currentPayment)
+					$service = $payment->getPaySystem();
+					if ($service)
 					{
-						$r = $currentPayment->setField("SUM", $value);
-						if (!$r->isSuccess())
-						{
-							$result->addErrors($r->getErrors());
-						}
-
-						$service = $currentPayment->getPaySystem();
-						if ($service)
-						{
-							$price = $service->getPaymentPrice($currentPayment);
-							$currentPayment->setField('PRICE_COD', $price);
-						}
+						$price = $service->getPaymentPrice($payment);
+						$payment->setField('PRICE_COD', $price);
 					}
 				}
 			break;
 		}
 
 		return $result;
+	}
+
+	public function onBeforeBasketItemDelete(BasketItem $basketItem) : Result
+	{
+		$result = new Result();
+
+		/** @var Payment $payment */
+		foreach ($this->collection as $payment)
+		{
+			$r = $payment->onBeforeBasketItemDelete($basketItem);
+			if (!$r->isSuccess())
+			{
+				$result->addErrors($r->getErrors());
+			}
+		}
+
+		return $result;
+	}
+
+	protected function isAllowAutoEdit()
+	{
+		if (
+			!$this->getOrder()->isCanceled()
+			&&
+			$this->count() === 1
+		)
+		{
+			/** @var Payment $payment */
+			foreach ($this as $payment)
+			{
+				$isAllowEditPayment =
+					!$payment->isPaid()
+					&&
+					!$payment->isReturn()
+				;
+
+				if ($isAllowEditPayment)
+				{
+					if ($service = $payment->getPaySystem())
+					{
+						$isAllowEditPayment = $service->isAllowEditPayment();
+					}
+				}
+
+				return $isAllowEditPayment;
+			}
+		}
+
+		return false;
+	}
+
+	private function getItemForAutoEdit($previousOrderSum) :? Payment
+	{
+		if ($this->isAllowAutoEdit())
+		{
+			/** @var Payment $payment */
+			foreach ($this as $payment)
+			{
+				if ($payment->getSum() === $previousOrderSum)
+				{
+					return $payment;
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -426,7 +471,9 @@ class PaymentCollection extends Internals\EntityCollection
 			}
 
 			if (isset($itemsFromDb[$payment->getId()]))
+			{
 				unset($itemsFromDb[$payment->getId()]);
+			}
 		}
 
 		foreach ($itemsFromDb as $k => $v)

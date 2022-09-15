@@ -109,21 +109,19 @@ BX.TileGrid.Grid.prototype =
 
 			this.setBackspaceButton(event);
 			this.setEnterButton(event);
-			this.processButtonSelection();
-			if (this.isKeyPressedDelete() && !this.isKeyPressedShift() && !this.isKeyControlKey())
-			{
-				this.removeSelectedItems(event);
-			}
-			else if (this.backspaceButton && this.isFocusOnTile())
-			{
-				this.handleBackspace();
-			}
-
 			if (this.isFocusOnTile())
 			{
+				this.processButtonSelection();
+				if (this.isKeyPressedDelete() && !this.isKeyPressedShift() && !this.isKeyControlKey())
+				{
+					this.removeSelectedItems(event);
+				}
+				else if (this.backspaceButton)
+				{
+					this.handleBackspace();
+				}
 				this.handleEnter(event);
 			}
-
 		}.bind(this));
 		BX.bind(window, 'keyup', function(event) {
 			// after refactoring
@@ -293,6 +291,11 @@ BX.TileGrid.Grid.prototype =
 		for (var i = 0; i < this.items.length; i++) {
 			if (this.items[i].id.toString() === itemId.toString()) return this.items[i];
 		}
+	},
+
+	getItemHeight: function()
+	{
+		return this.itemHeight;
 	},
 
 	changeTileSize: function(tileSize)

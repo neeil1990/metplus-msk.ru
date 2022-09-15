@@ -1,3 +1,26 @@
+.BARCODE .sale-order-shipment-barcode,
+.BARCODE .sale-order-shipment-barcode.exists,
+.BARCODE .sale-order-shipment-barcode.not-exists{
+	border: none;
+}
+
+.BARCODE .sale-order-shipment-barcode.exists input{
+	border-color: green;
+}
+
+.BARCODE .sale-order-shipment-barcode.not-exists input{
+	border-color: red;
+}
+
+.BARCODE th{
+	font-weight: normal;
+	font-style: italic;
+	background-color: #e2ebee;
+	text-align: center;
+	padding: 5px;
+}
+
+
 .sale-shipment-basket-barcodes-dialog .sale-order-shipment-barcode,
 .sale-shipment-basket-barcodes-dialog .sale-order-shipment-barcode.exists,
 .sale-shipment-basket-barcodes-dialog .sale-order-shipment-barcode.not-exists{
@@ -23,28 +46,5 @@
 	font-style: italic;
 	background-color: #e2ebee;
 	text-align: center;
-}
-
-
-.BARCODE .sale-order-shipment-barcode,
-.BARCODE .sale-order-shipment-barcode.exists,
-.BARCODE .sale-order-shipment-barcode.not-exists{
-	border: none;
-}
-
-.BARCODE .sale-order-shipment-barcode.exists input{
-	border-color: green;
-}
-
-.BARCODE .sale-order-shipment-barcode.not-exists input{
-	border-color: red;
-}
-
-.BARCODE th{
-	font-weight: normal;
-	font-style: italic;
-	background-color: #e2ebee;
-	text-align: center;
-	padding: 5px;
 }
 

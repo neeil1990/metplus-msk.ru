@@ -1,5 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\CrmSiteMaster\Steps;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main,
 	Bitrix\Main\Application,
@@ -71,12 +77,12 @@ class SiteStep extends \CWizardStep
 		if (isset($steps["NEXT_STEP"]))
 		{
 			$this->SetNextStep($steps["NEXT_STEP"]);
-			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".strtoupper($shortClassName)."_NEXT"));
+			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName)."_NEXT"));
 		}
 		if (isset($steps["PREV_STEP"]))
 		{
 			$this->SetPrevStep($steps["PREV_STEP"]);
-			$this->SetPrevCaption(Loc::getMessage("SALE_CSM_WIZARD_".strtoupper($shortClassName)."_PREV"));
+			$this->SetPrevCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName)."_PREV"));
 		}
 	}
 
@@ -235,9 +241,6 @@ class SiteStep extends \CWizardStep
 
 		$this->component->setCrmSiteId($crmSite);
 
-		// set site for person types
-		$this->preparePersonTypes($crmSite);
-
 		if ($this->GetErrors())
 		{
 			return false;
@@ -251,12 +254,6 @@ class SiteStep extends \CWizardStep
 	 */
 	private function checkSite()
 	{
-		if (trim($this->request->get("DOC_ROOT")) === $_SERVER["DOCUMENT_ROOT"])
-		{
-			$error = Loc::getMessage("SALE_CSM_WIZARD_SITESTEP_DOC_ROOT_ERROR");
-			throw new Main\SystemException($error);
-		}
-
 		if ($this->request->get("CRM_SITE") !== "new")
 		{
 			$site = Main\SiteTable::getList([
@@ -266,21 +263,25 @@ class SiteStep extends \CWizardStep
 
 			if (!empty($site["DIR"]) && $site["DIR"] !== "/")
 			{
-				$error = Loc::getMessage("SALE_CSM_WIZARD_SITESTEP_SITE_DIR_ERROR", [
-					"#SITE_NAME#" => $site["NAME"]
-				]);
+				$error = Loc::getMessage("SALE_CSM_WIZARD_SITESTEP_SITE_DIR_ERROR");
 				throw new Main\SystemException($error);
 			}
 
-			$documentRoot = $site["DOC_ROOT"].$site["DIR"];
+			$documentRoot = trim($site["DOC_ROOT"].$site["DIR"]);
 		}
 		else
 		{
-			$documentRoot = $this->request->get("DOC_ROOT")."/";
+			$documentRoot = trim($this->request->get("DOC_ROOT"));
 		}
 
 		$documentRoot = Rel2Abs($_SERVER["DOCUMENT_ROOT"], $documentRoot);
+		if (rtrim($documentRoot, "/") === $_SERVER["DOCUMENT_ROOT"])
+		{
+			$error = Loc::getMessage("SALE_CSM_WIZARD_SITESTEP_DOC_ROOT_ERROR");
+			throw new Main\SystemException($error);
+		}
 
+		$documentRoot = $documentRoot."/";
 		if (!$this->isDocumentRootExists($documentRoot))
 		{
 			$error = Loc::getMessage("SALE_CSM_WIZARD_SITESTEP_DOC_ROOT_NOT_EXISTS");
@@ -527,16 +528,8 @@ class SiteStep extends \CWizardStep
 	 */
 	private function prepareSite($lid)
 	{
-		if ($this->copyWizard(self::WIZARD_NAME) === false)
-		{
-			$this->SetError(Loc::getMessage("SALE_CSM_WIZARD_SITESTEP_WIZARD_COPY_ERROR",
-				[
-					"#WIZARD_NAME#" => self::WIZARD_NAME
-				]
-			));
-		}
-
 		$this->setAuthComponentsTemplate($lid);
+		$this->setLandingOption($lid);
 	}
 
 	/**
@@ -568,29 +561,31 @@ class SiteStep extends \CWizardStep
 	}
 
 	/**
-	 * Copy wizard files
-	 *
-	 * @param $wizardName
-	 * @return bool
-	 */
-	private function copyWizard($wizardName)
-	{
-		return CopyDirFiles(
-			$_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/'.self::WIZARD_PATH.$wizardName,
-			$_SERVER["DOCUMENT_ROOT"]."/bitrix/wizards/bitrix/".$wizardName,
-			true,
-			true,
-			false
-		);
-	}
-
-	/**
 	 * @param $siteId
 	 * @throws Main\ArgumentOutOfRangeException
 	 */
 	private function setAuthComponentsTemplate($siteId)
 	{
 		Option::set("main", "auth_components_template", "", $siteId);
+	}
+
+	/**
+	 * @param $siteId
+	 * @throws Main\ArgumentException
+	 * @throws Main\ArgumentOutOfRangeException
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	private function setLandingOption($siteId)
+	{
+		$crmSite = \Bitrix\Main\SiteTable::getList([
+			"select" => ["SERVER_NAME"],
+			"filter" => ["=LID" => $siteId],
+		])->fetch();
+		if ($crmSite && !empty($crmSite["SERVER_NAME"]))
+		{
+			Option::set("landing", "portal_url", $crmSite["SERVER_NAME"]);
+		}
 	}
 
 	/**
@@ -823,31 +818,6 @@ class SiteStep extends \CWizardStep
 		}
 
 		return $param;
-	}
-
-	/**
-	 * Set site for person types
-	 *
-	 * @param $siteId
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	public function preparePersonTypes($siteId)
-	{
-		$personTypePreparer = new Tools\PersonTypePreparer();
-		$personTypeList = $personTypePreparer->getPersonTypeList();
-
-		$result = $personTypePreparer->preparePersonType($siteId, $personTypeList);
-
-		if (!$result)
-		{
-			$errors = $personTypePreparer->getErrors();
-			foreach ($errors as $error)
-			{
-				$this->SetError($error);
-			}
-		}
 	}
 
 	/**

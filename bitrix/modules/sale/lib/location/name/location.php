@@ -14,6 +14,22 @@ use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class LocationTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Location_Query query()
+ * @method static EO_Location_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Location_Result getById($id)
+ * @method static EO_Location_Result getList(array $parameters = array())
+ * @method static EO_Location_Entity getEntity()
+ * @method static \Bitrix\Sale\Location\Name\EO_Location createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sale\Location\Name\EO_Location_Collection createCollection()
+ * @method static \Bitrix\Sale\Location\Name\EO_Location wakeUpObject($row)
+ * @method static \Bitrix\Sale\Location\Name\EO_Location_Collection wakeUpCollection($rows)
+ */
 class LocationTable extends NameEntity
 {
 	public static function getFilePath()
@@ -28,7 +44,7 @@ class LocationTable extends NameEntity
 
 	public static function add(array $data)
 	{
-		if(strlen($data['NAME']))
+		if($data['NAME'] <> '')
 		{
 			$data['NAME_UPPER'] = ToUpper($data['NAME']); // bitrix to upper
 
@@ -43,7 +59,7 @@ class LocationTable extends NameEntity
 
 	public static function update($primary, array $data)
 	{
-		if(strlen($data['NAME']))
+		if($data['NAME'] <> '')
 		{
 			$data['NAME_UPPER'] = ToUpper($data['NAME']); // bitrix to upper
 
@@ -56,7 +72,7 @@ class LocationTable extends NameEntity
 		return parent::update($primary, $data);
 	}
 
-	public function getReferenceFieldName()
+	public static function getReferenceFieldName()
 	{
 		return 'LOCATION_ID';
 	}

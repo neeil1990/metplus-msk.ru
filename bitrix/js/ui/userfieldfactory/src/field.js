@@ -2,16 +2,29 @@ import {Text, Type} from 'main.core';
 import {FieldTypes} from "./fieldtypes";
 import {EnumItem} from "./enumitem";
 
+/**
+ * @memberof BX.UI.UserFieldFactory
+ */
 export class Field
 {
+	saved: boolean = false;
+
 	constructor(data: Object)
 	{
 		this.data = data;
+		const id = Text.toInteger(data.ID);
+		if(id > 0)
+		{
+			this.saved = true;
+		}
 	}
 
-	getId(): number
+	setData(data: Object): this
 	{
-		return Text.toInteger(this.data.ID);
+		delete data.SIGNATURE;
+		this.data = {...this.data, ...data};
+
+		return this;
 	}
 
 	getData(): Object
@@ -19,9 +32,31 @@ export class Field
 		return this.data;
 	}
 
+	markAsSaved(): this
+	{
+		this.saved = true;
+
+		return this;
+	}
+
 	getName(): string
 	{
 		return this.data.FIELD;
+	}
+
+	setName(name: string): this
+	{
+		if(!this.isSaved())
+		{
+			this.data.FIELD = name;
+		}
+
+		return this;
+	}
+
+	getEntityId(): string
+	{
+		return this.data.ENTITY_ID;
 	}
 
 	getTypeId(): string
@@ -98,17 +133,7 @@ export class Field
 
 	isSaved(): boolean
 	{
-		return (this.getId() > 0);
-	}
-
-	isShowAlways(): boolean
-	{
-		return (this.data.IS_SHOW_ALWAYS === 'Y');
-	}
-
-	setIsShowAlways(isShowAlways)
-	{
-		this.data.IS_SHOW_ALWAYS = (Text.toBoolean(isShowAlways) === true ? 'Y' : 'N');
+		return this.saved;
 	}
 
 	isMultiple(): boolean
@@ -148,5 +173,15 @@ export class Field
 				this.data.USER_TYPE_ID = FieldTypes.date;
 			}
 		}
+	}
+
+	isSearchable(): boolean
+	{
+		return (this.data.IS_SEARCHABLE === 'Y');
+	}
+
+	setIsSearchable(isSearchable)
+	{
+		this.data.IS_SEARCHABLE = (Text.toBoolean(isSearchable) === true ? 'Y' : 'N');
 	}
 }

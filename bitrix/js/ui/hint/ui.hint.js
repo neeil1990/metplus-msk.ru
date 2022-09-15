@@ -9,6 +9,23 @@
 	}
 
 	/**
+	 * Check is hovered element or not.
+	 * @param {Object} cursorPosition
+	 * @param {HTMLElement} element
+	 * @returns
+	 */
+	var isHovered = function(cursorPosition, element) {
+		var elementRect = element.getBoundingClientRect();
+		var xMarginLeft = elementRect.x;
+		var xMarginRight = elementRect.x + elementRect.width;
+		var yMarginLeft = elementRect.y;
+		var yMarginRight = elementRect.y + elementRect.height;
+
+		return xMarginLeft <= cursorPosition.x && cursorPosition.x <= xMarginRight
+			&& yMarginLeft <= cursorPosition.y && cursorPosition.y <= yMarginRight;
+	};
+
+	/**
 	 * Hint manager.
 	 *
 	 * @param {object} [parameters] - Parameters.
@@ -24,6 +41,7 @@
 	function Manager (parameters)
 	{
 		parameters = parameters || {};
+		this.id = 'ui-hint-popup-' + (+new Date());
 		if (parameters.attributeName)
 		{
 			this.attributeName = parameters.attributeName;
@@ -66,13 +84,19 @@
 	}
 	Manager.prototype = {
 		attributeName: 'data-hint',
+		attributeHtmlName: 'data-hint-html',
 		attributeInitName: 'data-hint-init',
+		attributeInteractivityName: 'data-hint-interactivity',
 		className: 'ui-hint',
 		classNameIcon: 'ui-hint-icon',
 		classNameContent: 'ui-hint-content',
+		classNamePopup: 'ui-hint-popup',
+		classNamePopupInteractivity: 'ui-hint-popup-interactivity',
 		popup: null,
 		content: null,
 		popupParameters: null,
+		ownerDocument: null,
+		cursorPosition: {x:0, y:0},
 
 		/**
 		 * Create instance of manager. Use for customization purposes.
@@ -106,6 +130,28 @@
 			var nodes = context.querySelectorAll('[' + this.attributeName + ']');
 			nodes = BX.convert.nodeListToArray(nodes);
 			nodes.forEach(this.initNode, this);
+
+			this.initOwnerDocument(context);
+		},
+
+		/**
+		 * Init the owner document to track the cursor position.
+		 * @param {HTMLElement} element
+		 * @returns
+		 */
+		initOwnerDocument: function (element)
+		{
+			if (element.ownerDocument === this.ownerDocument)
+			{
+				return;
+			}
+
+			this.ownerDocument = element.ownerDocument;
+
+			BX.bind(this.ownerDocument, 'mousemove', (e) => {
+				this.cursorPosition.x = e.x;
+				this.cursorPosition.y = e.y;
+			});
 		},
 
 		/**
@@ -144,6 +190,11 @@
 				return;
 			}
 
+			if (!node.hasAttribute(this.attributeHtmlName))
+			{
+				text = BX.util.htmlspecialchars(text);
+			}
+
 			if (!node.hasAttribute('data-hint-no-icon'))
 			{
 				BX.addClass(node, this.className);
@@ -155,16 +206,16 @@
 			}
 
 			BX.bind(node, 'mouseenter', this.show.bind(this, node, text));
-			BX.bind(node, 'mouseleave', this.hide.bind(this));
+			BX.bind(node, 'mouseleave', this.hide.bind(this, node));
 		},
 
 		/**
 		 * Show hint window. Automatically calls on `mouseenter` event.
 		 *
 		 * @param {Element} anchorNode - Anchor node for popup with text.
-		 * @param {string } text - Text of hint.
+		 * @param {string } html - Html of hint.
 		 */
-		show: function (anchorNode, text)
+		show: function (anchorNode, html)
 		{
 			if (!this.content)
 			{
@@ -197,15 +248,34 @@
 					};
 					*/
 				}
-				if (typeof parameters.content  === "undefined")
+
+				if (typeof parameters.animation  === "undefined")
+				{
+					parameters.animation = "fading-slide";
+				}
+
+				if (typeof parameters.content === "undefined")
 				{
 					parameters.content = this.content;
 				}
 
-				this.popup = new BX.PopupWindow('ui-hint-popup', anchorNode, parameters);
+				if (typeof parameters.className === "undefined")
+				{
+					parameters.className = this.classNamePopup;
+				}
+
+				if (anchorNode.hasAttribute(this.attributeInteractivityName))
+				{
+					parameters.className += ' '+ this.classNamePopupInteractivity;
+				}
+
+				this.popup = new BX.PopupWindow(this.id, anchorNode, parameters);
+
+				// register for working interactive mode
+				BX.bind(this.popup.getPopupContainer(), 'mouseleave', () => this.popup.close());
 			}
 
-			this.content.innerHTML = text;
+			this.content.innerHTML = html;
 			this.popup.setBindElement(anchorNode);
 			this.popup.show();
 		},
@@ -213,14 +283,27 @@
 		/**
 		 * Hide hint window. Automatically calls on `mouseleave` event.
 		 */
-		hide: function ()
+		hide: function (anchorNode)
 		{
 			if (!this.popup)
 			{
 				return;
 			}
 
-			this.popup.close();
+			if (anchorNode && anchorNode.hasAttribute(this.attributeInteractivityName))
+			{
+				// exit from flow with a short pause, so that when the mouse is moved diagonally, the popup does not disappear.
+				setTimeout(() => {
+					if (this.popup && !isHovered(this.cursorPosition, this.popup.getPopupContainer()))
+					{
+						this.popup.close();
+					}
+				}, 100);
+			}
+			else
+			{
+				this.popup.close();
+			}
 		}
 	};
 

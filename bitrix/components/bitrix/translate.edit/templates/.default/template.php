@@ -1,18 +1,15 @@
-<?
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 /**
  * @var array $arParams
  * @var array $arResult
  * @global \CMain $APPLICATION
- * @global \CUser $USER
- * @global \CDatabase $DB
  * @var \CBitrixComponentTemplate $this
- * @var string $templateName
- * @var string $templateFile
- * @var string $templateFolder
- * @var string $componentPath
- * @var \TranslateEditComponent|\CBitrixComponent $component
+ * @var \TranslateEditComponent $component
  */
 
 use Bitrix\Main;
@@ -36,7 +33,7 @@ if (!$isAjax)
 	{
 		foreach($arResult['CHAIN'] as $i => $chalk)
 		{
-			if ($i == 0)
+			if ($i === 0)
 			{
 				?><a href="<?= $chalk['link'] ?>" title="<?= Loc::getMessage('TRANS_CHAIN_FOLDER_ROOT') ?>">..</a>&nbsp;/&nbsp;<?
 			}
@@ -84,7 +81,14 @@ if (!empty($arResult['ERROR_MESSAGE']))
 	</div>
 	<?
 }
-
+elseif (!empty($arResult['WARNING_MESSAGE']))
+{
+	?>
+	<div class="ui-alert ui-alert-warning ui-alert-icon-warning">
+		<span class="ui-alert-message"><?= $arResult['WARNING_MESSAGE'] ?></span>
+	</div>
+	<?
+}
 
 $dataUselessTitle = Loc::getMessage('TR_DIFF_USELESS');
 $dataMoreTitle = Loc::getMessage('TR_DIFF_MORE');
@@ -93,19 +97,19 @@ $fileEmptyEthalonTitle = Loc::getMessage('TR_ERROR_ETHALON_FILE_NOT_FOUND');
 $fileEmptyTitle = Loc::getMessage('TR_ERROR_TRANSLATION_FILE_NOT_FOUND');
 $fileOkTitle = Loc::getMessage('TR_TRANSLATION_FILE_OK');
 
-$formatIconWarning = function ($title)
+$formatIconWarning = static function ($title)
 {
 	return '<span class="ui-icon ui-icon-xs translate-icon translate-icon-warning" title="'. $title. '"></span>';
 };
-$formatIconError = function ($title)
+$formatIconError = static function ($title)
 {
 	return '<span class="ui-icon ui-icon-xs translate-icon translate-icon-error" title="'. $title. '"></span>';
 };
-$formatIconOk = function ($title)
+$formatIconOk = static function ($title)
 {
 	return '<span class="ui-icon ui-icon-xs translate-icon translate-icon-ok" title="'. $title. '"></span>';
 };
-$formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) use ($dataMoreTitle, $dataLessTitle, $dataUselessTitle)
+$formatDeficiencyExcessRounded = static function ($deficiency, $excess, $isObligatory) use ($dataMoreTitle, $dataLessTitle, $dataUselessTitle)
 {
 	if ($deficiency > 0 && $excess > 0 && $isObligatory)
 	{
@@ -157,10 +161,10 @@ $formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) 
 			<div class="title"><?= Loc::getMessage('TR_TOTAL_MESSAGES')?></div>
 			<div class="value read"><?= $arResult['DIFFERENCES'][$arParams['CURRENT_LANG']]['TOTAL'] ?></div>
 		</div>
-		<? if (!empty($arResult['LANG_SETTINGS']['languages'])): ?>
+		<? if (!empty($arResult['LANG_SETTINGS'])): ?>
 			<div class="translate-edit-row">
 				<div class="title"><?= Loc::getMessage('TR_OBLIGATORY_LANGS')?></div>
-				<div class="value read"><?= implode(', ', $arResult['LANG_SETTINGS']['languages']) ?></div>
+				<div class="value read"><?= implode(', ', $arResult['LANG_SETTINGS']) ?></div>
 			</div>
 		<? endif ?>
 		<div class="translate-edit-row">
@@ -183,17 +187,17 @@ $formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) 
 						foreach ($arResult['DIFFERENCES'] as $langId => $diff)
 						{
 							$isObligatory = true;
-							if (!empty($arResult['LANG_SETTINGS']['languages']))
+							if (!empty($arResult['LANG_SETTINGS']))
 							{
-								$isObligatory = in_array($langId, $arResult['LANG_SETTINGS']['languages']);
+								$isObligatory = in_array($langId, $arResult['LANG_SETTINGS'], true);
 							}
 
 							?>
 							<td>
 								<?
-								if ($diff["TOTAL"] == 0)
+								if ($diff["TOTAL"] === 0)
 								{
-									if ($langId == $arParams['CURRENT_LANG'])
+									if ($langId === $arParams['CURRENT_LANG'])
 									{
 										if ($isObligatory)
 										{
@@ -237,7 +241,8 @@ $formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) 
 			$highlightMore = false;
 			$highlightLess = false;
 
-			if (!in_array($phraseId, $arResult['DIFFERENCES'][$arParams['CURRENT_LANG']]['CODES']))
+
+			if (!in_array($phraseId, $arResult['DIFFERENCES'][$arParams['CURRENT_LANG']]['CODES'], true))
 			{
 				$highlightMore = true;
 			}
@@ -246,12 +251,12 @@ $formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) 
 				foreach ($arResult['DIFFERENCES'] as $langId => $differences)
 				{
 					$isObligatory = true;
-					if (!empty($arResult['LANG_SETTINGS']['languages']))
+					if (!empty($arResult['LANG_SETTINGS']))
 					{
-						$isObligatory = in_array($langId, $arResult['LANG_SETTINGS']['languages']);
+						$isObligatory = in_array($langId, $arResult['LANG_SETTINGS'], true);
 					}
 
-					if (!in_array($phraseId, $differences['CODES']))
+					if (!in_array($phraseId, $differences['CODES'], true))
 					{
 						$highlightLess = $isObligatory;
 						break;
@@ -281,27 +286,32 @@ $formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) 
 			<?
 			foreach ($arResult['LANGUAGES'] as $langId)
 			{
-				$isCompatible = in_array($langId, $arResult['COMPATIBLE_LANGUAGES']);
+				if (!isset($phrases[$langId]) || !is_string($phrases[$langId]) || (empty($phrases[$langId]) && $phrases[$langId] !== '0'))
+				{
+					$phrases[$langId] = '';
+				}
+
+				$isCompatible = in_array($langId, $arResult['COMPATIBLE_LANGUAGES'], true);
 				$fldName = $component->generateFieldName($phraseId, $langId);
 
 				$lineCnt = 1;
-				if (strpos($phrases[$langId], "\n") !== false)
+				if (mb_strpos($phrases[$langId], "\n") !== false)
 				{
-					$lineCnt = substr_count($phrases[$langId], "\n");
+					$lineCnt = mb_substr_count($phrases[$langId], "\n");
 				}
-				$length = strlen($phrases[$langId]);
+				$length = mb_strlen($phrases[$langId]);
 
 
 				?>
 				<div class="translate-edit-row phrase" rel="<?= $phraseId ?>">
-					<div class="title">[<?= $langId ?>]&nbsp;<?= $arResult['LANGUAGES_TITLE'][$langId] ?>:</div>
+					<div class="title">[<?= $langId ?>]&nbsp;<?= Translate\Text\StringHelper::htmlSpecialChars($arResult['LANGUAGES_TITLE'][$langId]) ?>:</div>
 					<?
 					if ($hasPermissionEdit && $isCompatible)
 					{
 						$tabIndex ++;
 						?>
 						<div class="value editable" tabindex="<?= $tabIndex ?>" data-fld="<?= $fldName ?>" data-code="<?= $phraseId ?>" data-lng="<?= $langId ?>" data-lines="<?= $lineCnt ?>" data-length="<?= $length ?>"><?
-						echo Translate\Text\StringHelper::htmlSpecialChars($phrases[$langId] ? : '');
+						echo Translate\Text\StringHelper::htmlSpecialChars($phrases[$langId]);
 						?></div>
 						<?
 					}
@@ -309,7 +319,7 @@ $formatDeficiencyExcessRounded = function ($deficiency, $excess, $isObligatory) 
 					{
 						?>
 						<div class="value disabled" <? if (!$isCompatible):?>title="<?= Loc::getMessage('TR_UNCOMPATIBLE_ENCODING') ?>" <? endif ?>><?
-						echo Translate\Text\StringHelper::htmlSpecialChars($phrases[$langId] ? : '');
+						echo Translate\Text\StringHelper::htmlSpecialChars($phrases[$langId]);
 						?></div>
 						<?
 					}
@@ -369,7 +379,7 @@ if (!$isAjax)
 				'id' => 'bx-translate-editor-'. $arParams['TAB_ID'],
 				'controller' => 'bitrix:translate.controller.editor.file',
 				'tabId' => (string)$arParams['TAB_ID'],
-				'mode' => ((defined('ADMIN_SECTION') && ADMIN_SECTION == true) ? 'admin' : 'public'),
+				'mode' => ((defined('ADMIN_SECTION') && ADMIN_SECTION === true) ? 'admin' : 'public'),
 				'filePath' => $arResult['FILE_PATH'],
 				'editLink' => $arResult['LINK_EDIT'],
 				'linkBack' => $arResult['LINK_BACK'],
@@ -386,13 +396,13 @@ if (!$isAjax)
 					[
 						'id'  => \TranslateEditComponent::VIEW_MODE_SHOW_ALL,
 						'text'  => Loc::getMessage('TR_EDIT_SHOW_ALL'),
-						'className'  => 'translate-view-mode-counter '. ($arParams['VIEW_MODE'] == \TranslateEditComponent::VIEW_MODE_SHOW_ALL ? 'menu-popup-item-accept' : ''),
+						'className'  => 'translate-view-mode-counter '. ($arParams['VIEW_MODE'] === \TranslateEditComponent::VIEW_MODE_SHOW_ALL ? 'menu-popup-item-accept' : ''),
 						'href' => $arResult['LINK_EDIT']. '&viewMode='.\TranslateEditComponent::VIEW_MODE_SHOW_ALL,
 					],
 					[
 						'id' => \TranslateEditComponent::VIEW_MODE_UNTRANSLATED,
 						'text' => Loc::getMessage('TR_EDIT_SHOW_UNTRANSLATED'),
-						'className' => 'translate-view-mode-counter '. ($arParams['VIEW_MODE'] == \TranslateEditComponent::VIEW_MODE_UNTRANSLATED ? 'menu-popup-item-accept' : ''),
+						'className' => 'translate-view-mode-counter '. ($arParams['VIEW_MODE'] === \TranslateEditComponent::VIEW_MODE_UNTRANSLATED ? 'menu-popup-item-accept' : ''),
 						'href' => $arResult['LINK_EDIT']. '&viewMode='.\TranslateEditComponent::VIEW_MODE_UNTRANSLATED,
 					],
 					($arResult['ALLOW_EDIT_SOURCE'] ? [
@@ -412,7 +422,7 @@ if (!$isAjax)
 					[
 						'id' => 'translate-export-csv',
 						'text' => Loc::getMessage('TR_EDIT_EXPORT_CSV'),
-						'onclick' => "BX.Translate.ProcessManager.getInstance('export').showDialog();"
+						'onclick' => "BX.UI.StepProcessing.ProcessManager.get('export').showDialog();"
 					]
 				],
 				'deleteMenu' => [
@@ -438,7 +448,7 @@ if (!$isAjax)
 			if ($hasPermissionEdit)
 			{
 				?>
-				BX.Translate.ProcessManager.create(<?=Json::encode([
+				BX.UI.StepProcessing.ProcessManager.create(<?=Json::encode([
 					'id' => 'export',
 					'controller' => 'bitrix:translate.controller.export.csv',
 					'messages' => [
@@ -447,8 +457,6 @@ if (!$isAjax)
 						'DialogStartButton' => Loc::getMessage('TR_EXPORT_CSV_DLG_BTN_START'),
 						'DialogStopButton' => Loc::getMessage('TR_DLG_BTN_STOP'),
 						'DialogCloseButton' => Loc::getMessage('TR_DLG_BTN_CLOSE'),
-						'AuthError' => Loc::getMessage('main_include_decode_pass_sess'),
-						'RequestError' => Loc::getMessage('TR_DLG_REQUEST_ERR'),
 						'RequestCanceling' => Loc::getMessage('TR_DLG_REQUEST_CANCEL'),
 						'RequestCanceled' => Loc::getMessage('TR_EXPORT_CSV_DLG_CANCELED'),
 						'RequestCompleted' => Loc::getMessage('TR_EXPORT_CSV_DLG_COMPLETED'),
@@ -465,7 +473,6 @@ if (!$isAjax)
 					'params' => [
 						'path' => $arResult['FILE_PATH'],
 					],
-					'sToken' => 's'. time(),
 					'optionsFields' => [
 						'collectUntranslated' => [
 							'name' => 'collectUntranslated',
@@ -477,12 +484,12 @@ if (!$isAjax)
 							'name' => 'convertEncoding',
 							'type' => 'checkbox',
 							'title' => Loc::getMessage('TR_EXPORT_CSV_PARAM_CONVERT_UTF8'),
-							'value' => (Main\Localization\Translation::useTranslationRepository() ? 'Y' : 'N'),
+							'value' => ((Main\Localization\Translation::useTranslationRepository() || Translate\Config::isUtfMode()) ? 'Y' : 'N'),
 						],
 						'languages' => [
 							'name' => 'languages',
 							'type' => 'select',
-							'multiple' => 'Y',
+							'multiple' => true,
 							'size' => (count($arResult['LANGUAGES_TITLE']) >= 15 ? '15' : count($arResult['LANGUAGES_TITLE']) + 1),
 							'title' => Loc::getMessage('TR_EXPORT_CSV_PARAM_LANGUAGES'),
 							'list' => array_merge(['all' => Loc::getMessage('TR_EXPORT_CSV_PARAM_LANGUAGES_ALL')], $arResult['LANGUAGES_TITLE']),

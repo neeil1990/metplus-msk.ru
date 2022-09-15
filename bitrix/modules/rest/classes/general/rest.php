@@ -10,6 +10,8 @@
 
 use Bitrix\Bitrix24\Feature;
 use Bitrix\Main\ArgumentNullException;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Rest\Engine\Access\LoadLimiter;
 use Bitrix\Rest\RestException;
 use Bitrix\Rest\AccessException;
 use Bitrix\Main\Loader;
@@ -26,6 +28,7 @@ class CRestServer
 	const STATUS_PAYMENT_REQUIRED = "402 Payment Required"; // reserved for future use
 	const STATUS_FORBIDDEN = "403 Forbidden";
 	const STATUS_NOT_FOUND = "404 Not Found";
+	const STATUS_TO_MANY_REQUESTS = "429 Too Many Requests";
 	const STATUS_INTERNAL = "500  Internal Server Error";
 
 	/* @var \CRestServer */
@@ -60,10 +63,10 @@ class CRestServer
 	protected $tokenCheck = false;
 	protected $authType = null;
 
-	public function __construct($params)
+	public function __construct($params, $toLowerMethod = true)
 	{
 		$this->class = $params['CLASS'];
-		$this->method = ToLower($params['METHOD']);
+		$this->method = $toLowerMethod ? ToLower($params['METHOD']) : $params['METHOD'];
 		$this->query = $params['QUERY'];
 
 		$this->transport = $params['TRANSPORT'];
@@ -186,7 +189,7 @@ class CRestServer
 	{
 		$token = $this->query["token"];
 
-		list($this->scope, $queryString, $querySignature) = explode(\CRestUtil::TOKEN_DELIMITER, $token);
+		[$this->scope, $queryString, $querySignature] = explode(\CRestUtil::TOKEN_DELIMITER, $token);
 
 		$signature = $this->getTokenCheckSignature($this->method, $queryString);
 
@@ -218,6 +221,17 @@ class CRestServer
 
 	protected function processCall()
 	{
+		if (
+			LoadLimiter::is(
+				$this->getAuthType(),
+				!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+				$this->method
+			)
+		)
+		{
+			throw new RestException('Method is blocked due to operation time limit.', RestException::ERROR_OPERATION_TIME_LIMIT, self::STATUS_TO_MANY_REQUESTS);
+		}
+
 		$start = 0;
 		if(isset($this->query['start']))
 		{
@@ -239,9 +253,23 @@ class CRestServer
 			$this->usage = getrusage();
 		}
 
+		LoadLimiter::registerStarting(
+			$this->getAuthType(),
+			!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+			$this->method
+		);
 		$result = call_user_func_array($callback, array($this->query, $start, $this));
-
+		LoadLimiter::registerEnding(
+			$this->getAuthType(),
+			!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+			$this->method
+		);
 		$this->timeProcessFinish = microtime(true);
+
+		if (!empty($result['error']) && !empty($result['error_description']))
+		{
+			return $result;
+		}
 
 		$result = array("result" => $result);
 		if(is_array($result['result']))
@@ -287,22 +315,12 @@ class CRestServer
 
 	public function getAuthScope()
 	{
-		if($this->authScope == null)
+		if ($this->authScope == null)
 		{
 			$this->authScope = array();
 
 			$authData = $this->getAuthData();
-			$scopeList = explode(',', $authData['scope']);
-			$serviceDescription = $this->getServiceDescription();
-
-			$this->authScope = array();
-			foreach($scopeList as $scope)
-			{
-				if(array_key_exists($scope, $serviceDescription))
-				{
-					$this->authScope[] = $scope;
-				}
-			}
+			$this->authScope = explode(',', $authData['scope']);
 		}
 
 		return $this->authScope;
@@ -375,6 +393,7 @@ class CRestServer
 			try
 			{
 				\Bitrix\Rest\OAuthService::register();
+				\Bitrix\Rest\OAuthService::getEngine()->getClient()->getApplicationList();
 			}
 			catch(\Bitrix\Main\SystemException $e)
 			{
@@ -396,7 +415,7 @@ class CRestServer
 		$signature = '';
 
 		$arRes = \Bitrix\Rest\AppTable::getByClientId($this->clientId);
-		if(is_array($arRes) && strlen($arRes['SHARED_KEY']) > 0)
+		if(is_array($arRes) && $arRes['SHARED_KEY'] <> '')
 		{
 			$methodState = is_array($this->securityMethodState)
 				? $this->securityMethodState
@@ -413,7 +432,7 @@ class CRestServer
 
 	public function requestConfirmation($userList, $message)
 	{
-		if(strlen($message) <= 0)
+		if($message == '')
 		{
 			throw new ArgumentNullException('message');
 		}
@@ -560,9 +579,9 @@ class CRestServer
 	{
 		if($this->tokenCheck)
 		{
-			if(isset($this->query["token"]) && strlen($this->query["token"]) > 0)
+			if(isset($this->query["token"]) && $this->query["token"] <> '')
 			{
-				list($scope) = explode(\CRestUtil::TOKEN_DELIMITER, $this->query["token"], 2);
+				[$scope] = explode(\CRestUtil::TOKEN_DELIMITER, $this->query["token"], 2);
 				$this->scope = $scope == "" ? \CRestUtil::GLOBAL_SCOPE : $scope;
 			}
 		}
@@ -684,6 +703,11 @@ class CRestServer
 			break;
 		}
 
+		$this->sendHeadersAdditional();
+	}
+
+	public function sendHeadersAdditional()
+	{
 		if(\Bitrix\Main\ModuleManager::isModuleInstalled('bitrix24'))
 		{
 			if($this->clientId)
@@ -707,6 +731,11 @@ class CRestServer
 	{
 		\Bitrix\Rest\LogTable::log($this, $data);
 		\Bitrix\Rest\UsageStatTable::finalize();
+
+		if (is_object($data['result']) && $data['result'] instanceof \Bitrix\Main\Engine\Response\BFile)
+		{
+			return $data['result'];
+		}
 
 		switch($this->transport)
 		{
@@ -733,6 +762,25 @@ class CRestServer
 
 		$data['time']['date_start'] = date('c', $data['time']['start']);
 		$data['time']['date_finish'] = date('c', $data['time']['finish']);
+
+		if (LoadLimiter::isActive())
+		{
+			$reset = LoadLimiter::getResetTime(
+				$this->getAuthType(),
+				!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+				$this->method
+			);
+			if ($reset)
+			{
+				$data['time']['operating_reset_at'] = $reset;
+			}
+
+			$data['time']['operating'] = LoadLimiter::getRestTime(
+				$this->getAuthType(),
+				!empty($this->getClientId()) ?  $this->getClientId() : $this->getPasswordId(),
+				$this->method
+			);
+		}
 
 		return $data;
 	}
@@ -810,6 +858,7 @@ class CRestServerBatchItem extends \CRestServer
 		if($this->scope !== \CRestUtil::GLOBAL_SCOPE)
 		{
 			$allowedScope = explode(',', $this->authData['scope']);
+			$allowedScope = \Bitrix\Rest\Engine\RestManager::fillAlternativeScope($this->scope, $allowedScope);
 			if(!in_array($this->scope, $allowedScope))
 			{
 				throw new \Bitrix\Rest\OAuthException(array('error' => 'insufficient_scope'));

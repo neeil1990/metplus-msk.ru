@@ -52,16 +52,16 @@ switch($_REQUEST['mode'])
 			$filter['?NAME'] = $searchString;
 		}
 
-		$queryObject = CIBlockElement::GetList(
+		$queryElementObject = CIBlockElement::GetList(
 			['NAME' => 'ASC'], $filter, false, false, ['ID', 'IBLOCK_ID', 'NAME', 'IBLOCK_SECTION_ID']);
-		while ($element = $queryObject->fetch())
+		while ($element = $queryElementObject->fetch())
 		{
 			$url = '';
 			if (!empty($_REQUEST['template_url']))
 			{
 				$socnetGroupId = null;
-				$queryObject = \CIBlock::getList([], ['ID' => $element['IBLOCK_ID'], 'CHECK_PERMISSIONS' => 'N']);
-				while ($iblock = $queryObject->fetch())
+				$queryIblockObject = \CIBlock::getList([], ['ID' => $element['IBLOCK_ID'], 'CHECK_PERMISSIONS' => 'N']);
+				while ($iblock = $queryIblockObject->fetch())
 				{
 					$socnetGroupId = $iblock['SOCNET_GROUP_ID'];
 				}

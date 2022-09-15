@@ -26,8 +26,6 @@
 
 		this.settings = {};
 
-		this.optionsFields = {};
-		this.optionsFieldsValue = {};
 		/** @var {Element} */
 		this.optionsFieldsBlock = null;
 
@@ -122,15 +120,15 @@
 				this.messages = {};
 			}
 
-			this.optionsFields = this.getSetting("optionsFields");
-			if (!this.optionsFields)
+			var optionsFields = this.getSetting("optionsFields");
+			if (!optionsFields)
 			{
-				this.optionsFields = {};
+				this.setSetting("optionsFields",{});
 			}
-			this.optionsFieldsValue = this.getSetting("optionsFieldsValue");
-			if (!this.optionsFieldsValue)
+			var optionsFieldsValue = this.getSetting("optionsFieldsValue");
+			if (!optionsFieldsValue)
 			{
-				this.optionsFieldsValue = {};
+				this.setSetting("optionsFieldsValue",{});
 			}
 
 			var showButtons = this.getSetting("showButtons");
@@ -177,8 +175,14 @@
 			return this.settings.hasOwnProperty(name) ? this.settings[name] : defaultVal;
 		},
 
+		/**
+		 * @param name
+		 * @param val
+		 * @returns {BX.Translate.ProcessDialog}
+		 */
 		setSetting: function (name, val) {
 			this.settings[name] = val;
+			return this;
 		},
 
 		getMessage: function (name)
@@ -201,7 +205,7 @@
 		/**
 		 * @param {string} type Event type.
 		 * @param {function} handler Function.
-		 * @return void
+		 * @return {BX.Translate.ProcessDialog}
 		 */
 		setHandler: function (type, handler)
 		{
@@ -209,8 +213,12 @@
 			{
 				this.handlers[type] = handler;
 			}
+			return this;
 		},
 
+		/**
+		 * @return {BX.Translate.ProcessDialog}
+		 */
 		show: function ()
 		{
 			if (this.isShown)
@@ -264,6 +272,7 @@
 				this.callHandler('dialogShown');
 				BX.onCustomEvent(this, 'BX.Translate.ProcessDialog.Shown', [this]);
 			}
+			return this;
 		},
 
 		close: function ()
@@ -333,13 +342,18 @@
 				BX.clean(this.optionsFieldsBlock);
 			}
 
-			var option, optionName, optionValue, optionBlock, optionId, alertId, numberOfOptions = 0, selAttrs, itemId, itemsList, children, selected;
-			for (optionName in this.optionsFields)
+			var option, optionsFields, optionsFieldsValue, optionName, optionValue, optionBlock, optionId,
+				alertId, numberOfOptions = 0, selAttrs, itemId, itemsList, children, selected;
+
+			optionsFields = this.getSetting('optionsFields', {});
+			optionsFieldsValue = this.getSetting('optionsFieldsValue', {});
+
+			for (optionName in optionsFields)
 			{
-				if (this.optionsFields.hasOwnProperty(optionName))
+				if (optionsFields.hasOwnProperty(optionName))
 				{
-					option = this.optionsFields[optionName];
-					optionValue = this.optionsFieldsValue[optionName] ? this.optionsFieldsValue[optionName] : null;
+					option = optionsFields[optionName];
+					optionValue = optionsFieldsValue[optionName] ? optionsFieldsValue[optionName] : null;
 
 					if (BX.type.isPlainObject(option)
 						&& option.hasOwnProperty("name")
@@ -468,9 +482,19 @@
 								selAttrs = {
 									id: optionId,
 									type: option["type"],
-									name: optionName
+									name: optionName,
+									value: "Y"
 								};
-								if (optionValue === 'Y' || option["value"] === 'Y')
+								if (option["value"] && (option["value"] !== "Y" && option["value"] !== "N"))
+								{
+									selAttrs["value"] = option["value"];
+								}
+
+								if (
+									optionValue === 'Y' ||
+									(optionValue === null && option["value"] === 'Y') ||
+									(optionValue !== null && option["value"] !== 'N' && option["value"] === optionValue)
+								)
 								{
 									selAttrs["checked"] = "checked";
 								}
@@ -531,12 +555,14 @@
 										if (option["multiple"] === 'Y')
 										{
 											selected =
-												BX.type.isArray(optionValue) && (optionValue.indexOf(itemId) !== -1) ||
-												BX.type.isArray(option["value"]) && (option["value"].indexOf(itemId) !== -1);
+												(BX.type.isArray(optionValue) && (optionValue.indexOf(itemId) !== -1)) ||
+												(optionValue === null && BX.type.isArray(option["value"]) && (option["value"].indexOf(itemId) !== -1));
 										}
 										else
 										{
-											selected = (itemId === optionValue || itemId === option["value"]);
+											selected =
+												(itemId === optionValue) ||
+												(optionValue === null && itemId === option["value"]);
 										}
 										itemsList.push(BX.create(
 											"OPTION",
@@ -606,7 +632,9 @@
 									if (option.list.hasOwnProperty(itemId))
 									{
 										selAttrs.value = itemId;
-										selAttrs.checked = (itemId === optionValue || itemId === option["value"]);
+										selAttrs.checked =
+											(itemId === optionValue) ||
+											(optionValue === null && itemId === option["value"]);
 
 										itemsList.push(BX.create(
 											"LABEL",
@@ -859,10 +887,9 @@
 			}
 			if (BX.type.isNotEmptyString(content))
 			{
-				isHtml = !!isHtml;
 				if (this.summaryBlock)
 				{
-					if (isHtml)
+					if (!!isHtml)
 						this.summaryBlock.innerHTML = content;
 					else
 						this.summaryBlock.innerHTML = BX.util.htmlspecialchars(content);
@@ -892,13 +919,11 @@
 					this.progressBar.setColor(BX.UI.ProgressBar.Color.DANGER);
 				}
 
-				isHtml = !!isHtml;
-				if (isHtml)
+				if (!!isHtml)
 					this.error.setText(content);
 				else
 					this.error.setText(BX.util.htmlspecialchars(content));
 
-				this.error.getTextNode().innerHTML = this.error.getText();
 				this.errorBlock.style.display = "flex";
 			}
 			else
@@ -906,7 +931,6 @@
 				if (this.errorBlock)
 				{
 					this.error.setText("");
-					this.error.getTextNode().innerHTML = "";
 					this.errorBlock.style.display = "none";
 				}
 			}
@@ -922,13 +946,11 @@
 		{
 			if (BX.type.isNotEmptyString(content))
 			{
-				isHtml = !!isHtml;
-				if (isHtml)
+				if (!!isHtml)
 					this.warning.setText(content);
 				else
 					this.warning.setText(BX.util.htmlspecialchars(content));
 
-				this.warning.getTextNode().innerHTML = this.warning.getText();
 				this.warningBlock.style.display = "flex";
 			}
 			else
@@ -936,7 +958,6 @@
 				if (this.warningBlock)
 				{
 					this.warning.setText("");
-					this.warning.getTextNode().innerHTML = "";
 					this.warningBlock.style.display = "none";
 				}
 			}
@@ -945,10 +966,11 @@
 
 		/**
 		 * @param {String} downloadLink
+		 * @param {String} fileName
 		 * @param {function} purgeHandler
 		 * @return self
 		 */
-		setDownloadButtons: function (downloadLink, purgeHandler)
+		setDownloadButtons: function (downloadLink, fileName, purgeHandler)
 		{
 			BX.clean(this.optionsFieldsBlock);
 
@@ -959,7 +981,10 @@
 					"A",
 					{
 						text: (downloadButtonText !== "" ? downloadButtonText : "Download"),
-						props: {href: downloadLink},
+						props: {
+							href: downloadLink,
+							download: fileName
+						},
 						attrs: {className: this.STYLES.dialogButtonDownload}
 					}
 				);
@@ -1028,12 +1053,13 @@
 			var initialOptions = {};
 			if (this.optionsFieldsBlock)
 			{
-				var option, optionName, optionId, optionElement, optionElements, optionValue, optionDiv, optionValueIsSet, k;
-				for (optionName in this.optionsFields)
+				var option, optionsFields, optionName, optionId, optionElement, optionElements, optionValue, optionDiv, optionValueIsSet, k;
+				optionsFields = this.getSetting('optionsFields', {});
+				for (optionName in optionsFields)
 				{
-					if (this.optionsFields.hasOwnProperty(optionName))
+					if (optionsFields.hasOwnProperty(optionName))
 					{
-						option = this.optionsFields[optionName];
+						option = optionsFields[optionName];
 						if (BX.type.isPlainObject(option)
 							&& option.hasOwnProperty("name")
 							&& option.hasOwnProperty("type")
@@ -1093,7 +1119,14 @@
 									optionElement = BX(optionId);
 									if (optionElement)
 									{
-										optionValue = (optionElement.checked) ? "Y" : "N";
+										if (optionElement.value)
+										{
+											optionValue = (optionElement.checked) ? optionElement.value : "";
+										}
+										else
+										{
+											optionValue = (optionElement.checked) ? "Y" : "N";
+										}
 										optionValueIsSet = true;
 									}
 									break;
@@ -1149,8 +1182,9 @@
 			var optionElement;
 			if (this.optionsFieldsBlock)
 			{
-				var option, optionId, optionDiv;
-				option = this.optionsFields[optionName];
+				var option, optionId, optionDiv, optionsFields;
+				optionsFields = this.getSetting('optionsFields', {});
+				option = optionsFields[optionName];
 				if (BX.type.isPlainObject(option)
 					&& option.hasOwnProperty("name")
 					&& option.hasOwnProperty("type")
@@ -1190,12 +1224,13 @@
 			var checked = true;
 			if (this.optionsFieldsBlock)
 			{
-				var option, optionName, optionId, alertId, optionElement, optionElements, optionDiv, optionValueIsSet, k;
-				for (optionName in this.optionsFields)
+				var option, optionsFields, optionName, optionId, alertId, optionElement, optionElements, optionDiv, optionValueIsSet, k;
+				optionsFields = this.getSetting('optionsFields', {});
+				for (optionName in optionsFields)
 				{
-					if (this.optionsFields.hasOwnProperty(optionName))
+					if (optionsFields.hasOwnProperty(optionName))
 					{
-						option = this.optionsFields[optionName];
+						option = optionsFields[optionName];
 						if (BX.type.isPlainObject(option)
 							&& option.hasOwnProperty("name")
 							&& option.hasOwnProperty("type")

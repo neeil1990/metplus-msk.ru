@@ -1,12 +1,16 @@
 <?php
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
-if (\Bitrix\Main\Loader::includeModule('landing'))
+use \Bitrix\Landing\Rights;
+use Bitrix\Landing\Site;
+use Bitrix\Main\Loader;
+
+if (Loader::includeModule('landing'))
 {
-	$types = \Bitrix\Landing\Site::getTypes();
+	$types = Site::getTypes();
 }
 else
 {
@@ -20,6 +24,11 @@ $arComponentParameters = Array(
 			'TYPE' => 'LIST',
 			'VALUES' => $types
 		),
+		'ACCESS_CODE' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_ACCESS_CODE'),
+			'TYPE' => 'LIST',
+			'VALUES' => Rights::ACCESS_TYPES
+		),
 		'PAGE_URL_SITE' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_SITE'),
 			'TYPE' => 'STRING'
@@ -28,13 +37,30 @@ $arComponentParameters = Array(
 			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_SITE_EDIT'),
 			'TYPE' => 'STRING'
 		),
+		'PAGE_URL_SITE_DESIGN' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_SITE_DESIGN'),
+			'TYPE' => 'STRING'
+		),
+		'PAGE_URL_SITE_CONTACTS' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_SITE_CONTACTS'),
+			'TYPE' => 'STRING'
+		),
 		'PAGE_URL_LANDING_EDIT' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_LANDING_EDIT'),
 			'TYPE' => 'STRING'
 		),
+		'PAGE_URL_SITE_DOMAIN_SWITCH' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_SITE_DOMAIN_SWITCH'),
+			'TYPE' => 'STRING'
+		),
+		'PAGE_URL_SITE_DOMAIN' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_PAGE_URL_SITE_DOMAIN'),
+			'TYPE' => 'STRING'
+		),
 		'SEF' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_SEF'),
-			'TYPE' => 'STRING'
+			'TYPE' => 'STRING',
+			'MULTIPLE' => 'Y'
 		),
 		'TILE_MODE' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_TILE_MODE'),
@@ -48,6 +74,10 @@ $arComponentParameters = Array(
 		'DRAFT_MODE' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_DRAFT_MODE'),
 			'TYPE' => 'CHECKBOX'
-		)
+		),
+		'OVER_TITLE' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_OVER_TITLE'),
+			'TYPE' => 'STRING'
+		),
 	)
 );

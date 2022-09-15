@@ -12,8 +12,6 @@
 	var style = BX.Landing.Utils.style;
 	var encodeDataValue = BX.Landing.Utils.encodeDataValue;
 
-	var Menu = BX.Landing.UI.Tool.Menu;
-
 	/**
 	 * Implements preview panel interface
 	 *
@@ -66,12 +64,12 @@
 		var sitesCount = parseInt(BX.Landing.Main.getInstance().options.sites_count);
 		var pagesCount = parseInt(BX.Landing.Main.getInstance().options.pages_count);
 
-		if (sitesCount > 1)
+		if (sitesCount > 1 && this.siteButton)
 		{
 			bind(this.siteButton, "click", this.onSiteButtonClick);
 		}
 
-		if (pagesCount > 1)
+		if (pagesCount > 1 && this.pageButton)
 		{
 			bind(this.pageButton, "click", this.onPageButtonClick);
 		}
@@ -124,15 +122,24 @@
 
 			if (key === 90 && (window.navigator.userAgent.match(/win/i) ? event.ctrlKey : event.metaKey))
 			{
-				if (event.shiftKey)
+				var rootWindow = BX.Landing.PageObject.getRootWindow();
+				var formSettingsPanel = rootWindow.BX.Reflection.getClass('BX.Landing.UI.Panel.FormSettingsPanel');
+
+				if (
+					!formSettingsPanel
+					|| !formSettingsPanel.getInstance().isShown()
+				)
 				{
-					event.preventDefault();
-					this.onRedo();
-				}
-				else
-				{
-					event.preventDefault();
-					this.onUndo();
+					if (event.shiftKey)
+					{
+						event.preventDefault();
+						this.onRedo();
+					}
+					else
+					{
+						event.preventDefault();
+						this.onUndo();
+					}
 				}
 			}
 		},
@@ -280,6 +287,7 @@
 
 			this.iframeWrapper.dataset.postfix = "";
 			BX.Landing.Main.getInstance().enableControls();
+			BX.Landing.Main.getInstance().setNoTouchDevice();
 		},
 
 
@@ -298,6 +306,7 @@
 
 			this.iframeWrapper.dataset.postfix = "--md";
 			BX.Landing.Main.getInstance().disableControls();
+			BX.Landing.Main.getInstance().setTouchDevice();
 		},
 
 
@@ -316,6 +325,7 @@
 
 			this.iframeWrapper.dataset.postfix = "--md";
 			BX.Landing.Main.getInstance().disableControls();
+			BX.Landing.Main.getInstance().setTouchDevice();
 		},
 
 
@@ -326,7 +336,7 @@
 			if (!this.siteMenu)
 			{
 				var loader = new BX.Loader({size: 40});
-				this.siteMenu = new Menu({
+				this.siteMenu = new BX.PopupMenuWindow({
 					id: "site_list_menu",
 					bindElement: this.siteButton,
 					events: {
@@ -347,7 +357,8 @@
 					siteId: BX.Landing.Main.getInstance().options.site_id,
 					landingId: BX.Landing.Main.getInstance().id,
 					filter: {
-						'=TYPE': BX.Landing.Main.getInstance().options.params.type
+						'=TYPE': BX.Landing.Main.getInstance().options.params.type,
+						'SPECIAL': 'N'
 					}
 				};
 
@@ -405,7 +416,7 @@
 			if (!this.pageMenu)
 			{
 				var loader = new BX.Loader({size: 40});
-				this.pageMenu = new Menu({
+				this.pageMenu = new BX.PopupMenuWindow({
 					id: "page_list_menu",
 					bindElement: this.pageButton,
 					events: {
@@ -442,7 +453,7 @@
 						makeSelectablePopupMenu(this.pageMenu);
 
 						landings.forEach(function(landing) {
-							if (!landing.FOLDER_ID && !landing.IS_AREA)
+							if ((landing.FOLDER_ID === null || parseInt(landing.FOLDER_ID) === 0) && !landing.IS_AREA)
 							{
 								this.pageMenu.addMenuItem({
 									id: landing.ID,
@@ -506,7 +517,25 @@
 			{
 				this.pageMenu.close();
 			}
-		}
+		},
+
+		getFormNameLayout: function()
+		{
+			return this.layout.querySelector('.landing-ui-panel-top-form-name');
+		},
+
+		setFormName: function(text)
+		{
+			if (BX.Type.isString(text))
+			{
+				var formNameLayout = this.getFormNameLayout();
+				if (BX.Type.isDomNode(formNameLayout))
+				{
+					formNameLayout.firstElementChild.textContent = text;
+					formNameLayout.firstElementChild.setAttribute('title', text);
+				}
+			}
+		},
 	};
 
 })();

@@ -29,7 +29,7 @@ class Shipment extends Controller
 
 				$r = $shipmentClass::getList([
 					'select'=>['ORDER_ID'],
-					'filter'=>['ID'=>$id]
+					'filter'=>['ID'=>$id],
 				]);
 
 				if($row = $r->fetch())
@@ -101,7 +101,7 @@ class Shipment extends Controller
 		$builder = $this->getBuilder(
 			new SettingsContainer([
 				'deleteShipmentIfNotExists' => false,
-				'deleteShipmentItemIfNotExists' => false
+				'deleteShipmentItemIfNotExists' => false,
 			])
 		);
 		$builder->buildEntityShipments($data);
@@ -156,7 +156,7 @@ class Shipment extends Controller
 		$builder = $this->getBuilder(
 			new SettingsContainer([
 				'deleteShipmentIfNotExists' => false,
-				'deleteShipmentItemIfNotExists' => false
+				'deleteShipmentItemIfNotExists' => false,
 			])
 		);
 		$builder->buildEntityShipments($data);
@@ -223,7 +223,7 @@ class Shipment extends Controller
 				'order'=>$order,
 				'offset' => $pageNavigation->getOffset(),
 				'limit' => $pageNavigation->getLimit(),
-				'runtime' => $runtime
+				'runtime' => $runtime,
 			]
 		)->fetchAll();
 
@@ -353,6 +353,12 @@ class Shipment extends Controller
 	public function setBasePriceDeliveryAction(\Bitrix\Sale\Shipment $shipment, $value, $custom=false)
 	{
 		$r=$shipment->setBasePriceDelivery($value, $custom);
+		return $this->save($shipment, $r);
+	}
+
+	public function setShippedAction(\Bitrix\Sale\Shipment $shipment, $value)
+	{
+		$r = $shipment->setField('DEDUCTED', $value);
 		return $this->save($shipment, $r);
 	}
 	//endregion
@@ -490,7 +496,9 @@ class Shipment extends Controller
 		{
 			$r = $this->checkReadPermissionEntity();
 		}
-		elseif($name == 'setbasepricedelivery')
+		elseif($name == 'setbasepricedelivery'
+			|| $name == 'setshipped'
+		)
 		{
 			$r = $this->checkModifyPermissionEntity();
 		}

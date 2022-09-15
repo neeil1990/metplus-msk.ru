@@ -1,6 +1,7 @@
-<? if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
+<?php
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
-use \Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Localization\Loc;
 
 /**
  * @global CMain $APPLICATION
@@ -48,6 +49,7 @@ $itemIds = array(
 	'SLIDER_CONT_ID' => $mainId.'_slider_cont',
 	'OLD_PRICE_ID' => $mainId.'_old_price',
 	'PRICE_ID' => $mainId.'_price',
+	'DESCRIPTION_ID' => $mainId.'_description',
 	'DISCOUNT_PRICE_ID' => $mainId.'_price_discount',
 	'PRICE_TOTAL' => $mainId.'_price_total',
 	'SLIDER_CONT_OF_ID' => $mainId.'_slider_cont_',
@@ -86,9 +88,7 @@ $alt = !empty($arResult['IPROPERTY_VALUES']['ELEMENT_DETAIL_PICTURE_FILE_ALT'])
 $haveOffers = !empty($arResult['OFFERS']);
 if ($haveOffers)
 {
-	$actualItem = isset($arResult['OFFERS'][$arResult['OFFERS_SELECTED']])
-		? $arResult['OFFERS'][$arResult['OFFERS_SELECTED']]
-		: reset($arResult['OFFERS']);
+	$actualItem = $arResult['OFFERS'][$arResult['OFFERS_SELECTED']] ?? reset($arResult['OFFERS']);
 	$showSliderControls = false;
 
 	foreach ($arResult['OFFERS'] as $offer)
@@ -111,7 +111,24 @@ $price = $actualItem['ITEM_PRICES'][$actualItem['ITEM_PRICE_SELECTED']];
 $measureRatio = $actualItem['ITEM_MEASURE_RATIOS'][$actualItem['ITEM_MEASURE_RATIO_SELECTED']]['RATIO'];
 $showDiscount = $price['PERCENT'] > 0;
 
-$showDescription = !empty($arResult['PREVIEW_TEXT']) || !empty($arResult['DETAIL_TEXT']);
+if ($arParams['SHOW_SKU_DESCRIPTION'] === 'Y')
+{
+	$skuDescription = false;
+	foreach ($arResult['OFFERS'] as $offer)
+	{
+		if ($offer['DETAIL_TEXT'] != '' || $offer['PREVIEW_TEXT'] != '')
+		{
+			$skuDescription = true;
+			break;
+		}
+	}
+	$showDescription = $skuDescription || !empty($arResult['PREVIEW_TEXT']) || !empty($arResult['DETAIL_TEXT']);
+}
+else
+{
+	$showDescription = !empty($arResult['PREVIEW_TEXT']) || !empty($arResult['DETAIL_TEXT']);
+}
+
 $showBuyBtn = in_array('BUY', $arParams['ADD_TO_BASKET_ACTION']);
 $buyButtonClassName = in_array('BUY', $arParams['ADD_TO_BASKET_ACTION_PRIMARY']) ? 'btn-default' : 'btn-link';
 $showAddBtn = in_array('ADD', $arParams['ADD_TO_BASKET_ACTION']);
@@ -160,7 +177,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 <div class="bx-catalog-element bx-<?=$arParams['TEMPLATE_THEME']?>" id="<?=$itemIds['ID']?>"
 	itemscope itemtype="http://schema.org/Product">
 	<div class="container-fluid">
-		<?
+		<?php
 		if ($arParams['DISPLAY_NAME'] === 'Y')
 		{
 			?>
@@ -169,7 +186,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 					<h1 class="bx-title"><?=$name?></h1>
 				</div>
 			</div>
-			<?
+			<?php
 		}
 		?>
 		<div class="row">
@@ -183,7 +200,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						<span class="product-item-detail-slider-right" data-entity="slider-control-right" style="display: none;"></span>
 						<div class="product-item-label-text <?=$labelPositionClass?>" id="<?=$itemIds['STICKER_ID']?>"
 							<?=(!$arResult['LABEL'] ? 'style="display: none;"' : '' )?>>
-							<?
+							<?php
 							if ($arResult['LABEL'] && !empty($arResult['LABEL_ARRAY_VALUE']))
 							{
 								foreach ($arResult['LABEL_ARRAY_VALUE'] as $code => $value)
@@ -192,12 +209,12 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 									<div<?=(!isset($arParams['LABEL_PROP_MOBILE'][$code]) ? ' class="hidden-xs"' : '')?>>
 										<span title="<?=$value?>"><?=$value?></span>
 									</div>
-									<?
+									<?php
 								}
 							}
 							?>
 						</div>
-						<?
+						<?php
 						if ($arParams['SHOW_DISCOUNT_PERCENT'] === 'Y')
 						{
 							if ($haveOffers)
@@ -206,7 +223,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								<div class="product-item-label-ring <?=$discountPositionClass?>" id="<?=$itemIds['DISCOUNT_PERCENT_ID']?>"
 									style="display: none;">
 								</div>
-								<?
+								<?php
 							}
 							else
 							{
@@ -217,13 +234,13 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 										title="<?=-$price['PERCENT']?>%">
 										<span><?=-$price['PERCENT']?>%</span>
 									</div>
-									<?
+									<?php
 								}
 							}
 						}
 						?>
 						<div class="product-item-detail-slider-images-container" data-entity="images-container">
-							<?
+							<?php
 							if (!empty($actualItem['MORE_PHOTO']))
 							{
 								foreach ($actualItem['MORE_PHOTO'] as $key => $photo)
@@ -232,7 +249,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 									<div class="product-item-detail-slider-image<?=($key == 0 ? ' active' : '')?>" data-entity="image" data-id="<?=$photo['ID']?>">
 										<img src="<?=$photo['SRC']?>" alt="<?=$alt?>" title="<?=$title?>"<?=($key == 0 ? ' itemprop="image"' : '')?>>
 									</div>
-									<?
+									<?php
 								}
 							}
 
@@ -240,12 +257,12 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 							{
 								?>
 								<div class="product-item-detail-slider-progress-bar" data-entity="slider-progress-bar" style="width: 0;"></div>
-								<?
+								<?php
 							}
 							?>
 						</div>
 					</div>
-					<?
+					<?php
 					if ($showSliderControls)
 					{
 						if ($haveOffers)
@@ -258,7 +275,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								$strVisible = $arResult['OFFERS_SELECTED'] == $keyOffer ? '' : 'none';
 								?>
 								<div class="product-item-detail-slider-controls-block" id="<?=$itemIds['SLIDER_CONT_OF_ID'].$offer['ID']?>" style="display: <?=$strVisible?>;">
-									<?
+									<?php
 									foreach ($offer['MORE_PHOTO'] as $keyPhoto => $photo)
 									{
 										?>
@@ -266,18 +283,18 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 											data-entity="slider-control" data-value="<?=$offer['ID'].'_'.$photo['ID']?>">
 											<img src="<?=$photo['SRC']?>">
 										</div>
-										<?
+										<?php
 									}
 									?>
 								</div>
-								<?
+								<?php
 							}
 						}
 						else
 						{
 							?>
 							<div class="product-item-detail-slider-controls-block" id="<?=$itemIds['SLIDER_CONT_ID']?>">
-								<?
+								<?php
 								if (!empty($actualItem['MORE_PHOTO']))
 								{
 									foreach ($actualItem['MORE_PHOTO'] as $key => $photo)
@@ -287,12 +304,12 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 											data-entity="slider-control" data-value="<?=$photo['ID']?>">
 											<img src="<?=$photo['SRC']?>">
 										</div>
-										<?
+										<?php
 									}
 								}
 								?>
 							</div>
-							<?
+							<?php
 						}
 					}
 					?>
@@ -302,7 +319,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 				<div class="row">
 					<div class="col-sm-6">
 						<div class="product-item-detail-info-section">
-							<?
+							<?php
 							foreach ($arParams['PRODUCT_INFO_BLOCK_ORDER'] as $blockName)
 							{
 								switch ($blockName)
@@ -312,7 +329,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 										{
 											?>
 											<div id="<?=$itemIds['TREE_ID']?>">
-												<?
+												<?php
 												foreach ($arResult['SKU_PROPS'] as $skuProperty)
 												{
 													if (!isset($arResult['OFFERS_PROP'][$skuProperty['CODE']]))
@@ -332,7 +349,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 															<div class="product-item-scu-block">
 																<div class="product-item-scu-list">
 																	<ul class="product-item-scu-item-list">
-																		<?
+																		<?php
 																		foreach ($skuProperty['VALUES'] as &$value)
 																		{
 																			$value['NAME'] = htmlspecialcharsbx($value['NAME']);
@@ -349,7 +366,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 																						</div>
 																					</div>
 																				</li>
-																				<?
+																				<?php
 																			}
 																			else
 																			{
@@ -361,7 +378,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 																						<div class="product-item-scu-item-text"><?=$value['NAME']?></div>
 																					</div>
 																				</li>
-																				<?
+																				<?php
 																			}
 																		}
 																		?>
@@ -371,11 +388,11 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 															</div>
 														</div>
 													</div>
-													<?
+													<?php
 												}
 												?>
 											</div>
-											<?
+											<?php
 										}
 
 										break;
@@ -385,12 +402,12 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 										{
 											?>
 											<div class="product-item-detail-info-container">
-												<?
+												<?php
 												if (!empty($arResult['DISPLAY_PROPERTIES']))
 												{
 													?>
 													<dl class="product-item-detail-properties">
-														<?
+														<?php
 														foreach ($arResult['DISPLAY_PROPERTIES'] as $property)
 														{
 															if (isset($arParams['MAIN_BLOCK_PROPERTY_CODE'][$property['CODE']]))
@@ -401,24 +418,24 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 																		? implode(' / ', $property['DISPLAY_VALUE'])
 																		: $property['DISPLAY_VALUE'])?>
 																</dd>
-																<?
+																<?php
 															}
 														}
 														unset($property);
 														?>
 													</dl>
-													<?
+													<?php
 												}
 
 												if ($arResult['SHOW_OFFERS_PROPS'])
 												{
 													?>
 													<dl class="product-item-detail-properties" id="<?=$itemIds['DISPLAY_MAIN_PROP_DIV']?>"></dl>
-													<?
+													<?php
 												}
 												?>
 											</div>
-											<?
+											<?php
 										}
 
 										break;
@@ -429,7 +446,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 					</div>
 					<div class="col-sm-6">
 						<div class="product-item-detail-pay-block">
-							<?
+							<?php
 							foreach ($arParams['PRODUCT_PAY_BLOCK_ORDER'] as $blockName)
 							{
 								switch ($blockName)
@@ -439,12 +456,12 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 										{
 											?>
 											<div class="product-item-detail-info-container">
-												<?
+												<?php
 												$APPLICATION->IncludeComponent(
 													'bitrix:iblock.vote',
 													'stars',
 													array(
-														'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+														'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 														'IBLOCK_TYPE' => $arParams['IBLOCK_TYPE'],
 														'IBLOCK_ID' => $arParams['IBLOCK_ID'],
 														'ELEMENT_ID' => $arResult['ID'],
@@ -461,7 +478,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 												);
 												?>
 											</div>
-											<?
+											<?php
 										}
 
 										break;
@@ -469,7 +486,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 									case 'price':
 										?>
 										<div class="product-item-detail-info-container">
-											<?
+											<?php
 											if ($arParams['SHOW_OLD_PRICE'] === 'Y')
 											{
 												?>
@@ -477,30 +494,30 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 													style="display: <?=($showDiscount ? '' : 'none')?>;">
 													<?=($showDiscount ? $price['PRINT_RATIO_BASE_PRICE'] : '')?>
 												</div>
-												<?
+												<?php
 											}
 											?>
 											<div class="product-item-detail-price-current" id="<?=$itemIds['PRICE_ID']?>">
 												<?=$price['PRINT_RATIO_PRICE']?>
 											</div>
-											<?
+											<?php
 											if ($arParams['SHOW_OLD_PRICE'] === 'Y')
 											{
 												?>
 												<div class="item_economy_price" id="<?=$itemIds['DISCOUNT_PRICE_ID']?>"
 													style="display: <?=($showDiscount ? '' : 'none')?>;">
-													<?
+													<?php
 													if ($showDiscount)
 													{
 														echo Loc::getMessage('CT_BCE_CATALOG_ECONOMY_INFO2', array('#ECONOMY#' => $price['PRINT_RATIO_DISCOUNT']));
 													}
 													?>
 												</div>
-												<?
+												<?php
 											}
 											?>
 										</div>
-										<?
+										<?php
 										break;
 
 									case 'priceRanges':
@@ -522,7 +539,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 													</span>
 												</div>
 												<dl class="product-item-detail-properties" data-entity="price-ranges-body">
-													<?
+													<?php
 													if ($showRanges)
 													{
 														foreach ($actualItem['ITEM_QUANTITY_RANGES'] as $range)
@@ -543,7 +560,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 																{
 																	?>
 																	<dt>
-																		<?
+																		<?php
 																		echo Loc::getMessage(
 																				'CT_BCE_CATALOG_RANGE_FROM',
 																				array('#FROM#' => $range['SORT_FROM'].' '.$actualItem['ITEM_MEASURE']['TITLE'])
@@ -563,7 +580,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 																		?>
 																	</dt>
 																	<dd><?=($useRatio ? $itemPrice['PRINT_RATIO_PRICE'] : $itemPrice['PRINT_PRICE'])?></dd>
-																	<?
+																	<?php
 																}
 															}
 														}
@@ -571,7 +588,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 													?>
 												</dl>
 											</div>
-											<?
+											<?php
 											unset($showRanges, $useRatio, $itemPrice, $range);
 										}
 
@@ -589,7 +606,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 														<span class="product-item-quantity" data-entity="quantity-limit-value"></span>
 													</div>
 												</div>
-												<?
+												<?php
 											}
 											else
 											{
@@ -604,7 +621,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 														<div class="product-item-detail-info-container-title">
 															<?=$arParams['MESS_SHOW_MAX_QUANTITY']?>:
 															<span class="product-item-quantity" data-entity="quantity-limit-value">
-																<?
+																<?php
 																if ($arParams['SHOW_MAX_QUANTITY'] === 'M')
 																{
 																	if ((float)$actualItem['PRODUCT']['QUANTITY'] / $measureRatio >= $arParams['RELATIVE_QUANTITY_FACTOR'])
@@ -624,7 +641,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 															</span>
 														</div>
 													</div>
-													<?
+													<?php
 												}
 											}
 										}
@@ -653,7 +670,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 													</div>
 												</div>
 											</div>
-											<?
+											<?php
 										}
 
 										break;
@@ -662,7 +679,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 										?>
 										<div data-entity="main-button-container">
 											<div id="<?=$itemIds['BASKET_ACTIONS_ID']?>" style="display: <?=($actualItem['CAN_BUY'] ? '' : 'none')?>;">
-												<?
+												<?php
 												if ($showAddBtn)
 												{
 													?>
@@ -672,7 +689,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 															<span><?=$arParams['MESS_BTN_ADD_TO_BASKET']?></span>
 														</a>
 													</div>
-													<?
+													<?php
 												}
 
 												if ($showBuyBtn)
@@ -684,21 +701,21 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 															<span><?=$arParams['MESS_BTN_BUY']?></span>
 														</a>
 													</div>
-													<?
+													<?php
 												}
 												?>
 											</div>
-											<?
+											<?php
 											if ($showSubscribe)
 											{
 												?>
 												<div class="product-item-detail-info-container">
-													<?
+													<?php
 													$APPLICATION->IncludeComponent(
 														'bitrix:catalog.product.subscribe',
 														'',
 														array(
-															'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+															'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 															'PRODUCT_ID' => $arResult['ID'],
 															'BUTTON_ID' => $itemIds['SUBSCRIBE_LINK'],
 															'BUTTON_CLASS' => 'btn btn-default product-item-detail-buy-button',
@@ -710,7 +727,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 													);
 													?>
 												</div>
-												<?
+												<?php
 											}
 											?>
 											<div class="product-item-detail-info-container">
@@ -721,7 +738,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 												</a>
 											</div>
 										</div>
-										<?
+										<?php
 										break;
 								}
 							}
@@ -739,7 +756,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 										</div>
 									</div>
 								</div>
-								<?
+								<?php
 							}
 							?>
 						</div>
@@ -749,7 +766,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 		</div>
 		<div class="row">
 			<div class="col-xs-12">
-				<?
+				<?php
 				if ($haveOffers)
 				{
 					if ($arResult['OFFER_GROUP'])
@@ -758,12 +775,12 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						{
 							?>
 							<span id="<?=$itemIds['OFFER_GROUP'].$offerId?>" style="display: none;">
-								<?
+								<?php
 								$APPLICATION->IncludeComponent(
 									'bitrix:catalog.set.constructor',
 									'.default',
 									array(
-										'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+										'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 										'IBLOCK_ID' => $arResult['OFFERS_IBLOCK'],
 										'ELEMENT_ID' => $offerId,
 										'PRICE_CODE' => $arParams['PRICE_CODE'],
@@ -781,7 +798,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								);
 								?>
 							</span>
-							<?
+							<?php
 						}
 					}
 				}
@@ -793,7 +810,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 							'bitrix:catalog.set.constructor',
 							'.default',
 							array(
-								'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+								'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 								'IBLOCK_ID' => $arParams['IBLOCK_ID'],
 								'ELEMENT_ID' => $arResult['ID'],
 								'PRICE_CODE' => $arParams['PRICE_CODE'],
@@ -819,7 +836,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 					<div class="col-xs-12">
 						<div class="product-item-detail-tabs-container">
 							<ul class="product-item-detail-tabs-list">
-								<?
+								<?php
 								if ($showDescription)
 								{
 									?>
@@ -828,7 +845,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 											<span><?=$arParams['MESS_DESCRIPTION_TAB']?></span>
 										</a>
 									</li>
-									<?
+									<?php
 								}
 
 								if (!empty($arResult['DISPLAY_PROPERTIES']) || $arResult['SHOW_OFFERS_PROPS'])
@@ -839,7 +856,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 											<span><?=$arParams['MESS_PROPERTIES_TAB']?></span>
 										</a>
 									</li>
-									<?
+									<?php
 								}
 
 								if ($arParams['USE_COMMENTS'] === 'Y')
@@ -850,7 +867,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 											<span><?=$arParams['MESS_COMMENTS_TAB']?></span>
 										</a>
 									</li>
-									<?
+									<?php
 								}
 								?>
 							</ul>
@@ -859,13 +876,13 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 				</div>
 				<div class="row" id="<?=$itemIds['TAB_CONTAINERS_ID']?>">
 					<div class="col-xs-12">
-						<?
+						<?php
 						if ($showDescription)
 						{
 							?>
 							<div class="product-item-detail-tab-content active" data-entity="tab-container" data-value="description"
-								itemprop="description">
-								<?
+								itemprop="description" id="<?=$itemIds['DESCRIPTION_ID']?>">
+								<?php
 								if (
 									$arResult['PREVIEW_TEXT'] != ''
 									&& (
@@ -883,19 +900,19 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								}
 								?>
 							</div>
-							<?
+							<?php
 						}
 
 						if (!empty($arResult['DISPLAY_PROPERTIES']) || $arResult['SHOW_OFFERS_PROPS'])
 						{
 							?>
 							<div class="product-item-detail-tab-content" data-entity="tab-container" data-value="properties">
-								<?
+								<?php
 								if (!empty($arResult['DISPLAY_PROPERTIES']))
 								{
 									?>
 									<dl class="product-item-detail-properties">
-										<?
+										<?php
 										foreach ($arResult['DISPLAY_PROPERTIES'] as $property)
 										{
 											?>
@@ -906,30 +923,30 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 													: $property['DISPLAY_VALUE']
 												)?>
 											</dd>
-											<?
+											<?php
 										}
 										unset($property);
 										?>
 									</dl>
-									<?
+									<?php
 								}
 
 								if ($arResult['SHOW_OFFERS_PROPS'])
 								{
 									?>
 									<dl class="product-item-detail-properties" id="<?=$itemIds['DISPLAY_PROP_DIV']?>"></dl>
-									<?
+									<?php
 								}
 								?>
 							</div>
-							<?
+							<?php
 						}
 
 						if ($arParams['USE_COMMENTS'] === 'Y')
 						{
 							?>
 							<div class="product-item-detail-tab-content" data-entity="tab-container" data-value="comments" style="display: none;">
-								<?
+								<?php
 								$componentCommentsParams = array(
 									'ELEMENT_ID' => $arResult['ID'],
 									'ELEMENT_CODE' => '',
@@ -977,7 +994,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								);
 								?>
 							</div>
-							<?
+							<?php
 						}
 						?>
 					</div>
@@ -985,7 +1002,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 			</div>
 			<div class="col-sm-4 col-md-3">
 				<div>
-					<?
+					<?php
 					if ($arParams['BRAND_USE'] === 'Y')
 					{
 						$APPLICATION->IncludeComponent(
@@ -1013,7 +1030,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 		</div>
 		<div class="row">
 			<div class="col-xs-12">
-				<?
+				<?php
 				if ($arResult['CATALOG'] && $actualItem['CAN_BUY'] && \Bitrix\Main\ModuleManager::isModuleInstalled('sale'))
 				{
 					$APPLICATION->IncludeComponent(
@@ -1021,20 +1038,20 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						'.default',
 						array(
 							'BUTTON_ID' => $showBuyBtn ? $itemIds['BUY_LINK'] : $itemIds['ADD_BASKET_LINK'],
-							'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+							'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 							'POTENTIAL_PRODUCT_TO_BUY' => array(
-								'ID' => isset($arResult['ID']) ? $arResult['ID'] : null,
-								'MODULE' => isset($arResult['MODULE']) ? $arResult['MODULE'] : 'catalog',
-								'PRODUCT_PROVIDER_CLASS' => isset($arResult['~PRODUCT_PROVIDER_CLASS']) ? $arResult['~PRODUCT_PROVIDER_CLASS'] : '\Bitrix\Catalog\Product\CatalogProvider',
-								'QUANTITY' => isset($arResult['QUANTITY']) ? $arResult['QUANTITY'] : null,
-								'IBLOCK_ID' => isset($arResult['IBLOCK_ID']) ? $arResult['IBLOCK_ID'] : null,
+								'ID' => $arResult['ID'] ?? null,
+								'MODULE' => $arResult['MODULE'] ?? 'catalog',
+								'PRODUCT_PROVIDER_CLASS' => $arResult['~PRODUCT_PROVIDER_CLASS'] ?? \Bitrix\Catalog\Product\Basket::getDefaultProviderName(),
+								'QUANTITY' => $arResult['QUANTITY'] ?? null,
+								'IBLOCK_ID' => $arResult['IBLOCK_ID'] ?? null,
 
-								'PRIMARY_OFFER_ID' => isset($arResult['OFFERS'][0]['ID']) ? $arResult['OFFERS'][0]['ID'] : null,
+								'PRIMARY_OFFER_ID' => $arResult['OFFERS'][0]['ID'] ?? null,
 								'SECTION' => array(
-									'ID' => isset($arResult['SECTION']['ID']) ? $arResult['SECTION']['ID'] : null,
-									'IBLOCK_ID' => isset($arResult['SECTION']['IBLOCK_ID']) ? $arResult['SECTION']['IBLOCK_ID'] : null,
-									'LEFT_MARGIN' => isset($arResult['SECTION']['LEFT_MARGIN']) ? $arResult['SECTION']['LEFT_MARGIN'] : null,
-									'RIGHT_MARGIN' => isset($arResult['SECTION']['RIGHT_MARGIN']) ? $arResult['SECTION']['RIGHT_MARGIN'] : null,
+									'ID' => $arResult['SECTION']['ID'] ?? null,
+									'IBLOCK_ID' => $arResult['SECTION']['IBLOCK_ID'] ?? null,
+									'LEFT_MARGIN' => $arResult['SECTION']['LEFT_MARGIN'] ?? null,
+									'RIGHT_MARGIN' => $arResult['SECTION']['RIGHT_MARGIN'] ?? null,
 								),
 							)
 						),
@@ -1047,14 +1064,14 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 				{
 					?>
 					<div data-entity="parent-container">
-						<?
+						<?php
 						if (!isset($arParams['GIFTS_DETAIL_HIDE_BLOCK_TITLE']) || $arParams['GIFTS_DETAIL_HIDE_BLOCK_TITLE'] !== 'Y')
 						{
 							?>
 							<div class="catalog-block-header" data-entity="header" data-showed="false" style="display: none; opacity: 0;">
 								<?=($arParams['GIFTS_DETAIL_BLOCK_TITLE'] ?: Loc::getMessage('CT_BCE_CATALOG_GIFT_BLOCK_TITLE_DEFAULT'))?>
 							</div>
-							<?
+							<?php
 						}
 
 						CBitrixComponent::includeComponentClass('bitrix:sale.products.gift');
@@ -1062,7 +1079,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 							'bitrix:sale.products.gift',
 							'.default',
 							array(
-								'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+								'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 								'PRODUCT_ID_VARIABLE' => $arParams['PRODUCT_ID_VARIABLE'],
 								'ACTION_VARIABLE' => $arParams['ACTION_VARIABLE'],
 
@@ -1082,8 +1099,8 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								'PRODUCT_DISPLAY_MODE' => 'Y',
 								'PRODUCT_BLOCKS_ORDER' => $arParams['GIFTS_PRODUCT_BLOCKS_ORDER'],
 								'SHOW_SLIDER' => $arParams['GIFTS_SHOW_SLIDER'],
-								'SLIDER_INTERVAL' => isset($arParams['GIFTS_SLIDER_INTERVAL']) ? $arParams['GIFTS_SLIDER_INTERVAL'] : '',
-								'SLIDER_PROGRESS' => isset($arParams['GIFTS_SLIDER_PROGRESS']) ? $arParams['GIFTS_SLIDER_PROGRESS'] : '',
+								'SLIDER_INTERVAL' => $arParams['GIFTS_SLIDER_INTERVAL'] ?? '',
+								'SLIDER_PROGRESS' => $arParams['GIFTS_SLIDER_PROGRESS'] ?? '',
 
 								'TEXT_LABEL_GIFT' => $arParams['GIFTS_DETAIL_TEXT_LABEL_GIFT'],
 
@@ -1091,7 +1108,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								'LABEL_PROP_MOBILE_'.$arParams['IBLOCK_ID'] => array(),
 								'LABEL_PROP_POSITION' => $arParams['LABEL_PROP_POSITION'],
 
-								'ADD_TO_BASKET_ACTION' => (isset($arParams['ADD_TO_BASKET_ACTION']) ? $arParams['ADD_TO_BASKET_ACTION'] : ''),
+								'ADD_TO_BASKET_ACTION' => ($arParams['ADD_TO_BASKET_ACTION'] ?? ''),
 								'MESS_BTN_BUY' => $arParams['~GIFTS_MESS_BTN_BUY'],
 								'MESS_BTN_ADD_TO_BASKET' => $arParams['~GIFTS_MESS_BTN_BUY'],
 								'MESS_BTN_DETAIL' => $arParams['~MESS_BTN_DETAIL'],
@@ -1103,8 +1120,8 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								'PROPERTY_CODE_'.$arResult['OFFERS_IBLOCK'] => $arParams['OFFER_TREE_PROPS'],
 								'OFFER_TREE_PROPS_'.$arResult['OFFERS_IBLOCK'] => $arParams['OFFER_TREE_PROPS'],
 								'CART_PROPERTIES_'.$arResult['OFFERS_IBLOCK'] => $arParams['OFFERS_CART_PROPERTIES'],
-								'ADDITIONAL_PICT_PROP_'.$arParams['IBLOCK_ID'] => (isset($arParams['ADD_PICT_PROP']) ? $arParams['ADD_PICT_PROP'] : ''),
-								'ADDITIONAL_PICT_PROP_'.$arResult['OFFERS_IBLOCK'] => (isset($arParams['OFFER_ADD_PICT_PROP']) ? $arParams['OFFER_ADD_PICT_PROP'] : ''),
+								'ADDITIONAL_PICT_PROP_'.$arParams['IBLOCK_ID'] => ($arParams['ADD_PICT_PROP'] ?? ''),
+								'ADDITIONAL_PICT_PROP_'.$arResult['OFFERS_IBLOCK'] => ($arParams['OFFER_ADD_PICT_PROP'] ?? ''),
 
 								'HIDE_NOT_AVAILABLE' => 'Y',
 								'HIDE_NOT_AVAILABLE_OFFERS' => 'Y',
@@ -1122,20 +1139,18 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								'PRODUCT_QUANTITY_VARIABLE' => $arParams['PRODUCT_QUANTITY_VARIABLE'],
 								'CACHE_GROUPS' => $arParams['CACHE_GROUPS'],
 								'POTENTIAL_PRODUCT_TO_BUY' => array(
-									'ID' => isset($arResult['ID']) ? $arResult['ID'] : null,
-									'MODULE' => isset($arResult['MODULE']) ? $arResult['MODULE'] : 'catalog',
-									'PRODUCT_PROVIDER_CLASS' => isset($arResult['~PRODUCT_PROVIDER_CLASS']) ? $arResult['~PRODUCT_PROVIDER_CLASS'] : '\Bitrix\Catalog\Product\CatalogProvider',
-									'QUANTITY' => isset($arResult['QUANTITY']) ? $arResult['QUANTITY'] : null,
-									'IBLOCK_ID' => isset($arResult['IBLOCK_ID']) ? $arResult['IBLOCK_ID'] : null,
+									'ID' => $arResult['ID'] ?? null,
+									'MODULE' => $arResult['MODULE'] ?? 'catalog',
+									'PRODUCT_PROVIDER_CLASS' => $arResult['~PRODUCT_PROVIDER_CLASS'] ?? \Bitrix\Catalog\Product\Basket::getDefaultProviderName(),
+									'QUANTITY' => $arResult['QUANTITY'] ?? null,
+									'IBLOCK_ID' => $arResult['IBLOCK_ID'] ?? null,
 
-									'PRIMARY_OFFER_ID' => isset($arResult['OFFERS'][$arResult['OFFERS_SELECTED']]['ID'])
-										? $arResult['OFFERS'][$arResult['OFFERS_SELECTED']]['ID']
-										: null,
+									'PRIMARY_OFFER_ID' => $arResult['OFFERS'][$arResult['OFFERS_SELECTED']]['ID'] ?? null,
 									'SECTION' => array(
-										'ID' => isset($arResult['SECTION']['ID']) ? $arResult['SECTION']['ID'] : null,
-										'IBLOCK_ID' => isset($arResult['SECTION']['IBLOCK_ID']) ? $arResult['SECTION']['IBLOCK_ID'] : null,
-										'LEFT_MARGIN' => isset($arResult['SECTION']['LEFT_MARGIN']) ? $arResult['SECTION']['LEFT_MARGIN'] : null,
-										'RIGHT_MARGIN' => isset($arResult['SECTION']['RIGHT_MARGIN']) ? $arResult['SECTION']['RIGHT_MARGIN'] : null,
+										'ID' => $arResult['SECTION']['ID'] ?? null,
+										'IBLOCK_ID' => $arResult['SECTION']['IBLOCK_ID'] ?? null,
+										'LEFT_MARGIN' => $arResult['SECTION']['LEFT_MARGIN'] ?? null,
+										'RIGHT_MARGIN' => $arResult['SECTION']['RIGHT_MARGIN'] ?? null,
 									),
 								),
 
@@ -1148,28 +1163,28 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						);
 						?>
 					</div>
-					<?
+					<?php
 				}
 
 				if ($arResult['CATALOG'] && $arParams['USE_GIFTS_MAIN_PR_SECTION_LIST'] == 'Y' && \Bitrix\Main\ModuleManager::isModuleInstalled('sale'))
 				{
 					?>
 					<div data-entity="parent-container">
-						<?
+						<?php
 						if (!isset($arParams['GIFTS_MAIN_PRODUCT_DETAIL_HIDE_BLOCK_TITLE']) || $arParams['GIFTS_MAIN_PRODUCT_DETAIL_HIDE_BLOCK_TITLE'] !== 'Y')
 						{
 							?>
 							<div class="catalog-block-header" data-entity="header" data-showed="false" style="display: none; opacity: 0;">
 								<?=($arParams['GIFTS_MAIN_PRODUCT_DETAIL_BLOCK_TITLE'] ?: Loc::getMessage('CT_BCE_CATALOG_GIFTS_MAIN_BLOCK_TITLE_DEFAULT'))?>
 							</div>
-							<?
+							<?php
 						}
 
 						$APPLICATION->IncludeComponent(
 							'bitrix:sale.gift.main.products',
 							'.default',
 							array(
-								'CUSTOM_SITE_ID' => isset($arParams['CUSTOM_SITE_ID']) ? $arParams['CUSTOM_SITE_ID'] : null,
+								'CUSTOM_SITE_ID' => $arParams['CUSTOM_SITE_ID'] ?? null,
 								'PAGE_ELEMENT_COUNT' => $arParams['GIFTS_MAIN_PRODUCT_DETAIL_PAGE_ELEMENT_COUNT'],
 								'LINE_ELEMENT_COUNT' => $arParams['GIFTS_MAIN_PRODUCT_DETAIL_PAGE_ELEMENT_COUNT'],
 								'HIDE_BLOCK_TITLE' => 'Y',
@@ -1184,8 +1199,6 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 
 								'ELEMENT_SORT_FIELD' => 'ID',
 								'ELEMENT_SORT_ORDER' => 'DESC',
-								//'ELEMENT_SORT_FIELD2' => $arParams['ELEMENT_SORT_FIELD2'],
-								//'ELEMENT_SORT_ORDER2' => $arParams['ELEMENT_SORT_ORDER2'],
 								'FILTER_NAME' => 'searchFilter',
 								'SECTION_URL' => $arParams['SECTION_URL'],
 								'DETAIL_URL' => $arParams['DETAIL_URL'],
@@ -1209,30 +1222,30 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								'CURRENCY_ID' => $arParams['CURRENCY_ID'],
 								'HIDE_NOT_AVAILABLE' => 'Y',
 								'HIDE_NOT_AVAILABLE_OFFERS' => 'Y',
-								'TEMPLATE_THEME' => (isset($arParams['TEMPLATE_THEME']) ? $arParams['TEMPLATE_THEME'] : ''),
+								'TEMPLATE_THEME' => ($arParams['TEMPLATE_THEME'] ?? ''),
 								'PRODUCT_BLOCKS_ORDER' => $arParams['GIFTS_PRODUCT_BLOCKS_ORDER'],
 
 								'SHOW_SLIDER' => $arParams['GIFTS_SHOW_SLIDER'],
-								'SLIDER_INTERVAL' => isset($arParams['GIFTS_SLIDER_INTERVAL']) ? $arParams['GIFTS_SLIDER_INTERVAL'] : '',
-								'SLIDER_PROGRESS' => isset($arParams['GIFTS_SLIDER_PROGRESS']) ? $arParams['GIFTS_SLIDER_PROGRESS'] : '',
+								'SLIDER_INTERVAL' => $arParams['GIFTS_SLIDER_INTERVAL'] ?? '',
+								'SLIDER_PROGRESS' => $arParams['GIFTS_SLIDER_PROGRESS'] ?? '',
 
-								'ADD_PICT_PROP' => (isset($arParams['ADD_PICT_PROP']) ? $arParams['ADD_PICT_PROP'] : ''),
-								'LABEL_PROP' => (isset($arParams['LABEL_PROP']) ? $arParams['LABEL_PROP'] : ''),
-								'LABEL_PROP_MOBILE' => (isset($arParams['LABEL_PROP_MOBILE']) ? $arParams['LABEL_PROP_MOBILE'] : ''),
-								'LABEL_PROP_POSITION' => (isset($arParams['LABEL_PROP_POSITION']) ? $arParams['LABEL_PROP_POSITION'] : ''),
-								'OFFER_ADD_PICT_PROP' => (isset($arParams['OFFER_ADD_PICT_PROP']) ? $arParams['OFFER_ADD_PICT_PROP'] : ''),
-								'OFFER_TREE_PROPS' => (isset($arParams['OFFER_TREE_PROPS']) ? $arParams['OFFER_TREE_PROPS'] : ''),
-								'SHOW_DISCOUNT_PERCENT' => (isset($arParams['SHOW_DISCOUNT_PERCENT']) ? $arParams['SHOW_DISCOUNT_PERCENT'] : ''),
-								'DISCOUNT_PERCENT_POSITION' => (isset($arParams['DISCOUNT_PERCENT_POSITION']) ? $arParams['DISCOUNT_PERCENT_POSITION'] : ''),
-								'SHOW_OLD_PRICE' => (isset($arParams['SHOW_OLD_PRICE']) ? $arParams['SHOW_OLD_PRICE'] : ''),
-								'MESS_BTN_BUY' => (isset($arParams['~MESS_BTN_BUY']) ? $arParams['~MESS_BTN_BUY'] : ''),
-								'MESS_BTN_ADD_TO_BASKET' => (isset($arParams['~MESS_BTN_ADD_TO_BASKET']) ? $arParams['~MESS_BTN_ADD_TO_BASKET'] : ''),
-								'MESS_BTN_DETAIL' => (isset($arParams['~MESS_BTN_DETAIL']) ? $arParams['~MESS_BTN_DETAIL'] : ''),
-								'MESS_NOT_AVAILABLE' => (isset($arParams['~MESS_NOT_AVAILABLE']) ? $arParams['~MESS_NOT_AVAILABLE'] : ''),
-								'ADD_TO_BASKET_ACTION' => (isset($arParams['ADD_TO_BASKET_ACTION']) ? $arParams['ADD_TO_BASKET_ACTION'] : ''),
-								'SHOW_CLOSE_POPUP' => (isset($arParams['SHOW_CLOSE_POPUP']) ? $arParams['SHOW_CLOSE_POPUP'] : ''),
-								'DISPLAY_COMPARE' => (isset($arParams['DISPLAY_COMPARE']) ? $arParams['DISPLAY_COMPARE'] : ''),
-								'COMPARE_PATH' => (isset($arParams['COMPARE_PATH']) ? $arParams['COMPARE_PATH'] : ''),
+								'ADD_PICT_PROP' => ($arParams['ADD_PICT_PROP'] ?? ''),
+								'LABEL_PROP' => ($arParams['LABEL_PROP'] ?? ''),
+								'LABEL_PROP_MOBILE' => ($arParams['LABEL_PROP_MOBILE'] ?? ''),
+								'LABEL_PROP_POSITION' => ($arParams['LABEL_PROP_POSITION'] ?? ''),
+								'OFFER_ADD_PICT_PROP' => ($arParams['OFFER_ADD_PICT_PROP'] ?? ''),
+								'OFFER_TREE_PROPS' => ($arParams['OFFER_TREE_PROPS'] ?? ''),
+								'SHOW_DISCOUNT_PERCENT' => ($arParams['SHOW_DISCOUNT_PERCENT'] ?? ''),
+								'DISCOUNT_PERCENT_POSITION' => ($arParams['DISCOUNT_PERCENT_POSITION'] ?? ''),
+								'SHOW_OLD_PRICE' => ($arParams['SHOW_OLD_PRICE'] ?? ''),
+								'MESS_BTN_BUY' => ($arParams['~MESS_BTN_BUY'] ?? ''),
+								'MESS_BTN_ADD_TO_BASKET' => ($arParams['~MESS_BTN_ADD_TO_BASKET'] ?? ''),
+								'MESS_BTN_DETAIL' => ($arParams['~MESS_BTN_DETAIL'] ?? ''),
+								'MESS_NOT_AVAILABLE' => ($arParams['~MESS_NOT_AVAILABLE'] ?? ''),
+								'ADD_TO_BASKET_ACTION' => ($arParams['ADD_TO_BASKET_ACTION'] ?? ''),
+								'SHOW_CLOSE_POPUP' => ($arParams['SHOW_CLOSE_POPUP'] ?? ''),
+								'DISPLAY_COMPARE' => ($arParams['DISPLAY_COMPARE'] ?? ''),
+								'COMPARE_PATH' => ($arParams['COMPARE_PATH'] ?? ''),
 							)
 							+ array(
 								'OFFER_ID' => empty($arResult['OFFERS'][$arResult['OFFERS_SELECTED']]['ID'])
@@ -1250,7 +1263,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						);
 						?>
 					</div>
-					<?
+					<?php
 				}
 				?>
 			</div>
@@ -1268,7 +1281,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						<span class="product-item-detail-short-title-text"><?=$name?></span>
 					</td>
 					<td rowspan="2" class="product-item-detail-short-card-price">
-						<?
+						<?php
 						if ($arParams['SHOW_OLD_PRICE'] === 'Y')
 						{
 							?>
@@ -1276,14 +1289,14 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								data-entity="panel-old-price">
 								<?=($showDiscount ? $price['PRINT_RATIO_BASE_PRICE'] : '')?>
 							</div>
-							<?
+							<?php
 						}
 						?>
 						<div class="product-item-detail-price-current" data-entity="panel-price">
 							<?=$price['PRINT_RATIO_PRICE']?>
 						</div>
 					</td>
-					<?
+					<?php
 					if ($showAddBtn)
 					{
 						?>
@@ -1296,7 +1309,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								<span><?=$arParams['MESS_BTN_ADD_TO_BASKET']?></span>
 							</a>
 						</td>
-						<?
+						<?php
 					}
 
 					if ($showBuyBtn)
@@ -1310,7 +1323,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 								<span><?=$arParams['MESS_BTN_BUY']?></span>
 							</a>
 						</td>
-						<?
+						<?php
 					}
 					?>
 					<td rowspan="2" class="product-item-detail-short-card-btn"
@@ -1322,14 +1335,14 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						</a>
 					</td>
 				</tr>
-				<?
+				<?php
 				if ($haveOffers)
 				{
 					?>
 					<tr>
 						<td>
 							<div class="product-item-selected-scu-container" data-entity="panel-sku-container">
-								<?
+								<?php
 								$i = 0;
 
 								foreach ($arResult['SKU_PROPS'] as $skuProperty)
@@ -1354,7 +1367,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 												data-treevalue="<?=$propertyId?>_<?=$value['ID']?>"
 												data-onevalue="<?=$value['ID']?>">
 											</div>
-											<?
+											<?php
 										}
 										else
 										{
@@ -1367,7 +1380,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 												data-onevalue="<?=$value['ID']?>">
 												<?=$value['NAME']?>
 											</div>
-											<?
+											<?php
 										}
 									}
 
@@ -1377,7 +1390,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 							</div>
 						</td>
 					</tr>
-					<?
+					<?php
 				}
 				?>
 			</table>
@@ -1386,7 +1399,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 	<!--Top tabs-->
 	<div class="product-item-detail-tabs-container-fixed hidden-xs" id="<?=$itemIds['TABS_PANEL_ID']?>">
 		<ul class="product-item-detail-tabs-list">
-			<?
+			<?php
 			if ($showDescription)
 			{
 				?>
@@ -1395,7 +1408,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						<span><?=$arParams['MESS_DESCRIPTION_TAB']?></span>
 					</a>
 				</li>
-				<?
+				<?php
 			}
 
 			if (!empty($arResult['DISPLAY_PROPERTIES']) || $arResult['SHOW_OFFERS_PROPS'])
@@ -1406,7 +1419,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						<span><?=$arParams['MESS_PROPERTIES_TAB']?></span>
 					</a>
 				</li>
-				<?
+				<?php
 			}
 
 			if ($arParams['USE_COMMENTS'] === 'Y')
@@ -1417,7 +1430,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 						<span><?=$arParams['MESS_COMMENTS_TAB']?></span>
 					</a>
 				</li>
-				<?
+				<?php
 			}
 			?>
 		</ul>
@@ -1425,7 +1438,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 
 	<meta itemprop="name" content="<?=$name?>" />
 	<meta itemprop="category" content="<?=$arResult['CATEGORY_PATH']?>" />
-	<?
+	<?php
 	if ($haveOffers)
 	{
 		foreach ($arResult['JS_OFFERS'] as $offer)
@@ -1436,7 +1449,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 			{
 				foreach ($offer['TREE'] as $propName => $skuId)
 				{
-					$propId = (int)substr($propName, 5);
+					$propId = (int)mb_substr($propName, 5);
 
 					foreach ($skuProps as $prop)
 					{
@@ -1463,7 +1476,7 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 				<meta itemprop="priceCurrency" content="<?=$offerPrice['CURRENCY']?>" />
 				<link itemprop="availability" href="http://schema.org/<?=($offer['CAN_BUY'] ? 'InStock' : 'OutOfStock')?>" />
 			</span>
-			<?
+			<?php
 		}
 
 		unset($offerPrice, $currentOffersList);
@@ -1476,11 +1489,11 @@ if (!empty($arParams['LABEL_PROP_POSITION']))
 			<meta itemprop="priceCurrency" content="<?=$price['CURRENCY']?>" />
 			<link itemprop="availability" href="http://schema.org/<?=($actualItem['CAN_BUY'] ? 'InStock' : 'OutOfStock')?>" />
 		</span>
-		<?
+		<?php
 	}
 	?>
 </div>
-<?
+<?php
 if ($haveOffers)
 {
 	$offerIds = array();
@@ -1613,7 +1626,9 @@ if ($haveOffers)
 			'DATA_LAYER_NAME' => $arParams['DATA_LAYER_NAME'],
 			'BRAND_PROPERTY' => !empty($arResult['DISPLAY_PROPERTIES'][$arParams['BRAND_PROPERTY']])
 				? $arResult['DISPLAY_PROPERTIES'][$arParams['BRAND_PROPERTY']]['DISPLAY_VALUE']
-				: null
+				: null,
+			'SHOW_SKU_DESCRIPTION' => $arParams['SHOW_SKU_DESCRIPTION'],
+			'DISPLAY_PREVIEW_TEXT_MODE' => $arParams['DISPLAY_PREVIEW_TEXT_MODE']
 		),
 		'PRODUCT_TYPE' => $arResult['PRODUCT']['TYPE'],
 		'VISUAL' => $itemIds,
@@ -1625,7 +1640,11 @@ if ($haveOffers)
 			'ID' => $arResult['ID'],
 			'ACTIVE' => $arResult['ACTIVE'],
 			'NAME' => $arResult['~NAME'],
-			'CATEGORY' => $arResult['CATEGORY_PATH']
+			'CATEGORY' => $arResult['CATEGORY_PATH'],
+			'DETAIL_TEXT' => $arResult['DETAIL_TEXT'],
+			'DETAIL_TEXT_TYPE' => $arResult['DETAIL_TEXT_TYPE'],
+			'PREVIEW_TEXT' => $arResult['PREVIEW_TEXT'],
+			'PREVIEW_TEXT_TYPE' => $arResult['PREVIEW_TEXT_TYPE']
 		),
 		'BASKET' => array(
 			'QUANTITY' => $arParams['PRODUCT_QUANTITY_VARIABLE'],
@@ -1646,14 +1665,14 @@ else
 	{
 		?>
 		<div id="<?=$itemIds['BASKET_PROP_DIV']?>" style="display: none;">
-			<?
+			<?php
 			if (!empty($arResult['PRODUCT_PROPERTIES_FILL']))
 			{
 				foreach ($arResult['PRODUCT_PROPERTIES_FILL'] as $propId => $propInfo)
 				{
 					?>
 					<input type="hidden" name="<?=$arParams['PRODUCT_PROPS_VARIABLE']?>[<?=$propId?>]" value="<?=htmlspecialcharsbx($propInfo['ID'])?>">
-					<?
+					<?php
 					unset($arResult['PRODUCT_PROPERTIES'][$propId]);
 				}
 			}
@@ -1663,14 +1682,14 @@ else
 			{
 				?>
 				<table>
-					<?
+					<?php
 					foreach ($arResult['PRODUCT_PROPERTIES'] as $propId => $propInfo)
 					{
 						?>
 						<tr>
 							<td><?=$arResult['PROPERTIES'][$propId]['NAME']?></td>
 							<td>
-								<?
+								<?php
 								if (
 									$arResult['PROPERTIES'][$propId]['PROPERTY_TYPE'] === 'L'
 									&& $arResult['PROPERTIES'][$propId]['LIST_TYPE'] === 'C'
@@ -1685,38 +1704,38 @@ else
 											<?=$value?>
 										</label>
 										<br>
-										<?
+										<?php
 									}
 								}
 								else
 								{
 									?>
 									<select name="<?=$arParams['PRODUCT_PROPS_VARIABLE']?>[<?=$propId?>]">
-										<?
+										<?php
 										foreach ($propInfo['VALUES'] as $valueId => $value)
 										{
 											?>
 											<option value="<?=$valueId?>" <?=($valueId == $propInfo['SELECTED'] ? '"selected"' : '')?>>
 												<?=$value?>
 											</option>
-											<?
+											<?php
 										}
 										?>
 									</select>
-									<?
+									<?php
 								}
 								?>
 							</td>
 						</tr>
-						<?
+						<?php
 					}
 					?>
 				</table>
-				<?
+				<?php
 			}
 			?>
 		</div>
-		<?
+		<?php
 	}
 
 	$jsParams = array(
@@ -1792,6 +1811,11 @@ if ($arParams['DISPLAY_COMPARE'])
 		'COMPARE_PATH' => $arParams['COMPARE_PATH']
 	);
 }
+
+$jsParams["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"] =
+	$arResult["IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED"]
+;
+
 ?>
 <script>
 	BX.message({
@@ -1800,9 +1824,9 @@ if ($arParams['DISPLAY_COMPARE'])
 		TITLE_BASKET_PROPS: '<?=GetMessageJS('CT_BCE_CATALOG_TITLE_BASKET_PROPS')?>',
 		BASKET_UNKNOWN_ERROR: '<?=GetMessageJS('CT_BCE_CATALOG_BASKET_UNKNOWN_ERROR')?>',
 		BTN_SEND_PROPS: '<?=GetMessageJS('CT_BCE_CATALOG_BTN_SEND_PROPS')?>',
-		BTN_MESSAGE_BASKET_REDIRECT: '<?=GetMessageJS('CT_BCE_CATALOG_BTN_MESSAGE_BASKET_REDIRECT')?>',
+		BTN_MESSAGE_DETAIL_BASKET_REDIRECT: '<?=GetMessageJS('CT_BCE_CATALOG_BTN_MESSAGE_BASKET_REDIRECT')?>',
 		BTN_MESSAGE_CLOSE: '<?=GetMessageJS('CT_BCE_CATALOG_BTN_MESSAGE_CLOSE')?>',
-		BTN_MESSAGE_CLOSE_POPUP: '<?=GetMessageJS('CT_BCE_CATALOG_BTN_MESSAGE_CLOSE_POPUP')?>',
+		BTN_MESSAGE_DETAIL_CLOSE_POPUP: '<?=GetMessageJS('CT_BCE_CATALOG_BTN_MESSAGE_CLOSE_POPUP')?>',
 		TITLE_SUCCESSFUL: '<?=GetMessageJS('CT_BCE_CATALOG_ADD_TO_BASKET_OK')?>',
 		COMPARE_MESSAGE_OK: '<?=GetMessageJS('CT_BCE_CATALOG_MESS_COMPARE_OK')?>',
 		COMPARE_UNKNOWN_ERROR: '<?=GetMessageJS('CT_BCE_CATALOG_MESS_COMPARE_UNKNOWN_ERROR')?>',
@@ -1817,5 +1841,5 @@ if ($arParams['DISPLAY_COMPARE'])
 
 	var <?=$obName?> = new JCCatalogElement(<?=CUtil::PhpToJSObject($jsParams, false, true)?>);
 </script>
-<?
+<?php
 unset($actualItem, $itemIds, $jsParams);

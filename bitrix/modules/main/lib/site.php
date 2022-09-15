@@ -9,9 +9,25 @@ namespace Bitrix\Main;
 
 use Bitrix\Main\IO;
 
+/**
+ * Class SiteTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Site_Query query()
+ * @method static EO_Site_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_Site_Result getById($id)
+ * @method static EO_Site_Result getList(array $parameters = [])
+ * @method static EO_Site_Entity getEntity()
+ * @method static \Bitrix\Main\EO_Site createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\EO_Site_Collection createCollection()
+ * @method static \Bitrix\Main\EO_Site wakeUpObject($row)
+ * @method static \Bitrix\Main\EO_Site_Collection wakeUpCollection($rows)
+ */
 class SiteTable extends ORM\Data\DataManager
 {
-	private static $documentRootCache = array();
+	private static $documentRootCache = [];
 
 	public static function getDocumentRoot($siteId = null)
 	{
@@ -23,12 +39,19 @@ class SiteTable extends ORM\Data\DataManager
 
 		if (!isset(self::$documentRootCache[$siteId]))
 		{
-			$ar = SiteTable::getRow(array("filter" => array("LID" => $siteId)));
-			if ($ar && ($docRoot = $ar["DOC_ROOT"]) && (strlen($docRoot) > 0))
+			$ttl = (CACHED_b_lang !== false ? CACHED_b_lang : 0);
+
+			$site = SiteTable::getRow([
+				"filter" => ["=LID" => $siteId],
+				"cache" => ["ttl" => $ttl],
+			]);
+
+			if ($site && ($docRoot = $site["DOC_ROOT"]) && ($docRoot <> ''))
 			{
 				if (!IO\Path::isAbsolute($docRoot))
+				{
 					$docRoot = IO\Path::combine(Application::getDocumentRoot(), $docRoot);
-
+				}
 				self::$documentRootCache[$siteId] = $docRoot;
 			}
 			else

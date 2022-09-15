@@ -8,11 +8,10 @@
 
 namespace Bitrix\Sender\Message;
 
-use Bitrix\Main\SiteTable;
 use Bitrix\Main\ArgumentException;
-
-use Bitrix\Sender\Transport;
+use Bitrix\Main\SiteTable;
 use Bitrix\Sender\Integration;
+use Bitrix\Sender\Transport;
 
 /**
  * Class Adapter
@@ -135,6 +134,7 @@ class Adapter implements iBase
 		$transportCode = $this->configuration->get('TRANSPORT_CODE') ?: current($this->message->getSupportedTransports());
 		//$transportConfigId = $this->configuration->get('TRANSPORT_CONFIGURATION_ID');
 		$this->transport = Transport\Adapter::create($transportCode);
+		$this->transport->saveConfiguration($this->getConfiguration());
 		$this->transport->loadConfiguration();
 
 		return $this->transport;
@@ -313,6 +313,11 @@ class Adapter implements iBase
 	 */
 	public function setFields(array $fields)
 	{
+		foreach ($fields as $key => $field)
+		{
+			$fields[$key] = nl2br(htmlspecialcharsbx((string) $field, ENT_COMPAT, false));
+		}
+
 		$this->fields = $fields;
 	}
 
@@ -330,12 +335,11 @@ class Adapter implements iBase
 		foreach ($this->getFields() as $code => $value)
 		{
 			$from[] = "$replaceChar$code$replaceChar";
-			$to[] = (string) $value;
+			$to[] = nl2br(htmlspecialcharsbx((string) $value, ENT_COMPAT, false));
 		}
 
-		return str_replace($from, $to, $content);
+		return Integration\Sender\Mail\TransportMail::replaceTemplate(str_replace($from, $to, $content));
 	}
-
 	/**
 	 * Get to.
 	 *
@@ -586,6 +590,16 @@ class Adapter implements iBase
 	}
 
 	/**
+	 * Is ads.
+	 *
+	 * @return bool
+	 */
+	public function isMarketing()
+	{
+		return $this->message instanceof iMarketing;
+	}
+
+	/**
 	 * Is mailing.
 	 *
 	 * @return bool
@@ -673,5 +687,32 @@ class Adapter implements iBase
 			return $this->message->getAudioValue($optionCode, $newValue);
 		}
 		return $newValue;
+	}
+
+	public function onBeforeStart()
+	{
+		if ($this->message instanceof iBeforeAfter)
+		{
+			return $this->message->onBeforeStart();
+		}
+		return new \Bitrix\Main\Result();
+	}
+
+	public function onAfterEnd()
+	{
+		if ($this->message instanceof iBeforeAfter)
+		{
+			return $this->message->onAfterEnd();
+
+		}
+		return new \Bitrix\Main\Result();
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getEntityCode()
+	{
+		return $this->message->getEntityCode();
 	}
 }

@@ -65,4 +65,32 @@ class Knowledge extends Scope
 	{
 		return self::getCurrentScopeId();
 	}
+
+	/**
+	 * Returns array of hook's codes, which excluded by scope.
+	 * @return array
+	 */
+	public static function getExcludedHooks(): array
+	{
+		return [
+			'B24BUTTON',
+			'COPYRIGHT',
+			'CSSBLOCK',
+			'FAVICON',
+			'GACOUNTER',
+			'GTM',
+			'HEADBLOCK',
+			'METAGOOGLEVERIFICATION',
+			'METAMAIN',
+			'METAROBOTS',
+			'METAYANDEXVERIFICATION',
+			'PIXELFB',
+			'PIXELVK',
+			'ROBOTS',
+			'SETTINGS',
+			'SPEED',
+			'YACOUNTER',
+			'COOKIES'
+		];
+	}
 }

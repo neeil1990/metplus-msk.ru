@@ -13,13 +13,13 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\NotImplementedException;
 use Bitrix\Main\Type\Date;
 use Bitrix\Main\Type\DateTime;
-
-use Bitrix\Sender\Posting;
 use Bitrix\Sender\Dispatch;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\PostingRecipientTable;
-use Bitrix\Sender\Internals\Model;
 use Bitrix\Sender\Integration;
+use Bitrix\Sender\Internals\Model;
+use Bitrix\Sender\Posting;
+use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Transport\TimeLimiter;
 
 Loc::loadMessages(__FILE__);
 
@@ -197,6 +197,39 @@ class State
 
 		$message = $this->letter->getMessage();
 		return $message->getTransport()->isLimitsExceeded($message);
+	}
+
+	/**
+	 * Is sending limit exceeded.
+	 *
+	 * @return bool
+	 */
+	public function isSendingLimitTemporary()
+	{
+		if (!$this->isSending())
+		{
+			return false;
+		}
+
+		$message = $this->letter->getMessage();
+		$limiter = $message->getTransport()->getExceededLimiter($message);
+		return $limiter->getParameter('temporaryLimit') === true;
+	}
+
+	/**
+	 * Is sending limit waiting.
+	 *
+	 * @return bool
+	 */
+	public function isSendingLimitWaiting()
+	{
+		if (!$this->isSending())
+		{
+			return false;
+		}
+
+		$message = $this->letter->getMessage();
+		return $message->getTransport()->getExceededLimiter($message) instanceof TimeLimiter;
 	}
 
 	/**
@@ -393,7 +426,7 @@ class State
 
 	protected static function getStateName($code)
 	{
-		$code = $code === self::NEWISH ? self::READY : $code;
+//		$code = $code === self::NEWISH ? self::READY : $code;
 		return Loc::getMessage('SENDER_DISPATCH_STATE1_' . $code) ?: Loc::getMessage('SENDER_DISPATCH_STATE_' . $code);
 	}
 
@@ -890,7 +923,10 @@ class State
 		{
 			$fields['AUTO_SEND_TIME'] = $sendDate;
 		}
-
+		if ($updatedBy = $this->letter->get('UPDATED_BY'))
+		{
+			$fields['UPDATED_BY'] = $updatedBy;
+		}
 		\CTimeZone::disable();
 		$result = Model\LetterTable::update($this->letter->getId(), $fields);
 		\CTimeZone::enable();

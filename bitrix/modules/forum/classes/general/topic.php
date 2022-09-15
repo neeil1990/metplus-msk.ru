@@ -7,7 +7,7 @@ class CAllForumTopic
 {
 	public static function CanUserViewTopic($TID, $arUserGroups, $iUserID = 0, $ExternalPermission = false)
 	{
-		$TID = intVal($TID);
+		$TID = intval($TID);
 		$arTopic = CForumTopic::GetByID($TID);
 		if ($arTopic)
 		{
@@ -27,7 +27,7 @@ class CAllForumTopic
 
 	public static function CanUserAddTopic($FID, $arUserGroups, $iUserID = 0, $arForum = false, $ExternalPermission = false)
 	{
-		if (!$arForum || (!is_array($arForum)) || (intVal($arForum["ID"]) != intVal($FID)))
+		if (!$arForum || (!is_array($arForum)) || (intval($arForum["ID"]) != intval($FID)))
 			$arForum = CForumNew::GetByID($FID);
 		if (is_array($arForum) && $arForum["ID"] = $FID)
 		{
@@ -50,8 +50,8 @@ class CAllForumTopic
 
 	public static function CanUserUpdateTopic($TID, $arUserGroups, $iUserID = 0, $ExternalPermission = false)
 	{
-		$TID = intVal($TID);
-		$iUserID = intVal($iUserID);
+		$TID = intval($TID);
+		$iUserID = intval($iUserID);
 		$arTopic = CForumTopic::GetByID($TID);
 		if ($arTopic)
 		{
@@ -78,7 +78,7 @@ class CAllForumTopic
 				return false;
 			else
 			{
-				$iCnt++; $iOwner = intVal($res["AUTHOR_ID"]);
+				$iCnt++; $iOwner = intval($res["AUTHOR_ID"]);
 				if ($res = $db_res->Fetch())
 					return false;
 			}
@@ -91,7 +91,7 @@ class CAllForumTopic
 
 	public static function CanUserDeleteTopic($TID, $arUserGroups, $iUserID = 0, $ExternalPermission = false)
 	{
-		$TID = intVal($TID);
+		$TID = intval($TID);
 		$arTopic = CForumTopic::GetByID($TID);
 		if ($arTopic)
 		{
@@ -115,7 +115,7 @@ class CAllForumTopic
 
 	public static function CanUserDeleteTopicMessage($TID, $arUserGroups, $iUserID = 0, $ExternalPermission = false)
 	{
-		$TID = intVal($TID);
+		$TID = intval($TID);
 		$arTopic = CForumTopic::GetByID($TID);
 		if ($arTopic)
 		{
@@ -143,52 +143,52 @@ class CAllForumTopic
 		if (is_set($arFields, "TITLE") || $ACTION=="ADD")
 		{
 			$arFields["TITLE"] = trim($arFields["TITLE"]);
-			if (strLen($arFields["TITLE"]) <= 0)
+			if ($arFields["TITLE"] == '')
 				return false;
 		}
 		if (is_set($arFields, "TITLE_SEO") || $ACTION=="ADD")
 		{
 			$arFields["TITLE_SEO"] = trim($arFields["TITLE_SEO"], " -");
-			if (strlen($arFields["TITLE_SEO"]) <= 0 && strlen($arFields["TITLE"]) > 0)
+			if ($arFields["TITLE_SEO"] == '' && $arFields["TITLE"] <> '')
 				$arFields["TITLE_SEO"] = CUtil::translit($arFields["TITLE"], LANGUAGE_ID, array("max_len"=>255, "safe_chars"=>".", "replace_space" => '-'));
-			if (strlen($arFields["TITLE_SEO"]) <= 0)
+			if ($arFields["TITLE_SEO"] == '')
 				$arFields["TITLE_SEO"] = false;
 		}
 		if (is_set($arFields, "USER_START_NAME") || $ACTION=="ADD")
 		{
 			$arFields["USER_START_NAME"] = trim($arFields["USER_START_NAME"]);
-			if (strLen($arFields["USER_START_NAME"]) <= 0)
+			if ($arFields["USER_START_NAME"] == '')
 				return false;
 		}
 
 		if (is_set($arFields, "FORUM_ID") || $ACTION=="ADD")
 		{
-			$arFields["FORUM_ID"] = intVal($arFields["FORUM_ID"]);
+			$arFields["FORUM_ID"] = intval($arFields["FORUM_ID"]);
 			if ($arFields["FORUM_ID"] <= 0)
 				return false;
 		}
 		if (is_set($arFields, "LAST_POSTER_NAME") || $ACTION=="ADD")
 		{
 			$arFields["LAST_POSTER_NAME"] = trim($arFields["LAST_POSTER_NAME"]);
-			if (strLen($arFields["LAST_POSTER_NAME"]) <= 0 && $arFields["APPROVED"] !== "N" && $arFields["STATE"] !== "L")
+			if ($arFields["LAST_POSTER_NAME"] == '' && $arFields["APPROVED"] !== "N" && $arFields["STATE"] !== "L")
 				return false;
 		}
 		if (is_set($arFields, "ABS_LAST_POSTER_NAME") || $ACTION=="ADD")
 		{
 			$arFields["ABS_LAST_POSTER_NAME"] = trim($arFields["ABS_LAST_POSTER_NAME"]);
-			if (strLen($arFields["ABS_LAST_POSTER_NAME"]) <= 0 && $ACTION == "ADD" && !empty($arFields["LAST_POSTER_NAME"]))
+			if ($arFields["ABS_LAST_POSTER_NAME"] == '' && $ACTION == "ADD" && !empty($arFields["LAST_POSTER_NAME"]))
 				$arFields["ABS_LAST_POSTER_NAME"] = $arFields["LAST_POSTER_NAME"];
-			elseif (strLen($arFields["ABS_LAST_POSTER_NAME"]) <= 0 && $arFields["APPROVED"] !== "N" && $arFields["STATE"] !== "L")
+			elseif ($arFields["ABS_LAST_POSTER_NAME"] == '' && $arFields["APPROVED"] !== "N" && $arFields["STATE"] !== "L")
 				return false;
 		}
 
 		// Check Data
 		if (is_set($arFields, "USER_START_ID") || $ACTION=="ADD")
-			$arFields["USER_START_ID"] = (intVal($arFields["USER_START_ID"]) > 0 ? intVal($arFields["USER_START_ID"]) : false);
+			$arFields["USER_START_ID"] = (intval($arFields["USER_START_ID"]) > 0 ? intval($arFields["USER_START_ID"]) : false);
 		if (is_set($arFields, "LAST_POSTER_ID") || $ACTION=="ADD")
-			$arFields["LAST_POSTER_ID"] = (intVal($arFields["LAST_POSTER_ID"]) > 0 ? intVal($arFields["LAST_POSTER_ID"]) : false);
+			$arFields["LAST_POSTER_ID"] = (intval($arFields["LAST_POSTER_ID"]) > 0 ? intval($arFields["LAST_POSTER_ID"]) : false);
 		if (is_set($arFields, "LAST_MESSAGE_ID") || $ACTION=="ADD")
-			$arFields["LAST_MESSAGE_ID"] = (intVal($arFields["LAST_MESSAGE_ID"]) > 0 ? intVal($arFields["LAST_MESSAGE_ID"]) : false);
+			$arFields["LAST_MESSAGE_ID"] = (intval($arFields["LAST_MESSAGE_ID"]) > 0 ? intval($arFields["LAST_MESSAGE_ID"]) : false);
 		if (is_set($arFields, "ICON") || $ACTION=="ADD")
 			$arFields["ICON"] = trim($arFields["ICON"]);
 		if (is_set($arFields, "STATE") || $ACTION=="ADD")
@@ -196,17 +196,17 @@ class CAllForumTopic
 		if (is_set($arFields, "APPROVED") || $ACTION=="ADD")
 			$arFields["APPROVED"] = ($arFields["APPROVED"] == "N" ? "N" : "Y");
 		if (is_set($arFields, "SORT") || $ACTION=="ADD")
-			$arFields["SORT"] = (intVal($arFields["SORT"]) > 0 ? intVal($arFields["SORT"]) : 150);
+			$arFields["SORT"] = (intval($arFields["SORT"]) > 0 ? intval($arFields["SORT"]) : 150);
 		if (is_set($arFields, "VIEWS") || $ACTION=="ADD")
-			$arFields["VIEWS"] = (intVal($arFields["VIEWS"]) > 0 ? intVal($arFields["VIEWS"]) : 0);
+			$arFields["VIEWS"] = (intval($arFields["VIEWS"]) > 0 ? intval($arFields["VIEWS"]) : 0);
 		if (is_set($arFields, "POSTS") || $ACTION=="ADD")
-			$arFields["POSTS"] = (intVal($arFields["POSTS"]) > 0 ? intVal($arFields["POSTS"]) : 0);
+			$arFields["POSTS"] = (intval($arFields["POSTS"]) > 0 ? intval($arFields["POSTS"]) : 0);
 		if (is_set($arFields, "TOPIC_ID"))
-			$arFields["TOPIC_ID"]=intVal($arFields["TOPIC_ID"]);
+			$arFields["TOPIC_ID"]=intval($arFields["TOPIC_ID"]);
 		if (is_set($arFields, "SOCNET_GROUP_ID") || $ACTION=="ADD")
-			$arFields["SOCNET_GROUP_ID"] = (intVal($arFields["SOCNET_GROUP_ID"]) > 0 ? intVal($arFields["SOCNET_GROUP_ID"]) : false);
+			$arFields["SOCNET_GROUP_ID"] = (intval($arFields["SOCNET_GROUP_ID"]) > 0 ? intval($arFields["SOCNET_GROUP_ID"]) : false);
 		if (is_set($arFields, "OWNER_ID") || $ACTION=="ADD")
-			$arFields["OWNER_ID"] = (intVal($arFields["OWNER_ID"]) > 0 ? intVal($arFields["OWNER_ID"]) : false);
+			$arFields["OWNER_ID"] = (intval($arFields["OWNER_ID"]) > 0 ? intval($arFields["OWNER_ID"]) : false);
 		return True;
 	}
 
@@ -237,40 +237,57 @@ class CAllForumTopic
 		$data = [];
 		foreach ($arFields as $k => $v)
 		{
-			$k = (strpos($k, "=") === 0 ? substr($k, 1) : $k);
+			$k = (mb_strpos($k, "=") === 0? mb_substr($k, 1) : $k);
 			if ($entity->hasField($k))
 			{
+				$field = $entity->getField($k);
 				$data[$k] = $v;
-				if (preg_match("/{$k}\s*\\+\s*(\d+)/", $v, $matches))
+				if ($field instanceof \Bitrix\Main\ORM\Fields\DateField)
 				{
-					$data[$k] = new \Bitrix\Main\DB\SqlExpression("?# + ".$matches[1], $k);
+					$data[$k] = new \Bitrix\Main\Type\DateTime(\Bitrix\Main\Type\DateTime::isCorrect($v) ? $v : null);
 				}
-				else if (substr($k, -5) === "_DATE" && is_string($v))
+				else if (preg_match("/{$k}\s*(\+|\-)\s*(\d+)/", $v, $matches))
 				{
-					$data[$k] = new \Bitrix\Main\Type\DateTime($v);
+					$data[$k] = new \Bitrix\Main\DB\SqlExpression("?# $matches[1] $matches[2]", $k);
 				}
 			}
 		}
-		$topic->update($data);
+		$fieldForEdit = array_intersect_key($data, array_flip(["TITLE",
+			"TITLE_SEO",
+			"TAGS",
+			"DESCRIPTION",
+			"ICON",
+			"USER_START_NAME"])
+		);
+		if (!empty($fieldForEdit))
+		{
+			$topic->edit($data);
+			$data = array_diff_key($data, $data);
+		}
+		if (array_key_exists("FORUM_ID", $data))
+		{
+			$topic->moveToForum($data["FORUM_ID"]);
+			unset($GLOBALS["FORUM_CACHE"]["FORUM"]);
+			unset($data["FORUM_ID"]);
+		}
+		if (!empty($data))
+		{
+			\Bitrix\Forum\Topic::update($topic->getId(), $data);
+		}
 
 		unset($GLOBALS["FORUM_CACHE"]["TOPIC"][$ID]);
 		unset($GLOBALS["FORUM_CACHE"]["TOPIC_FILTER"][$ID]);
 
-		if (array_key_exists("FORUM_ID", $arFields))
-		{
-			$topic->moveToForum($arFields["FORUM_ID"]);
-			unset($GLOBALS["FORUM_CACHE"]["FORUM"]);
-		}
 		return $ID;
 	}
 
 	public static function MoveTopic2Forum($TID, $FID, $leaveLink = "N")
 	{
 		global $DB;
-		$FID = intVal($FID);
+		$FID = intval($FID);
 		$arForum = CForumNew::GetByID($FID);
-		$arTopics = (is_array($TID) ? $TID : (intVal($TID) > 0 ? array($TID) : array()));
-		$leaveLink = (strToUpper($leaveLink) == "Y" ? "Y" : "N");
+		$arTopics = (is_array($TID) ? $TID : (intval($TID) > 0 ? array($TID) : array()));
+		$leaveLink = (mb_strtoupper($leaveLink) == "Y" ? "Y" : "N");
 		$arMsg = array();
 		$arForums = array();
 
@@ -298,7 +315,7 @@ class CAllForumTopic
 		$arTopics = array();
 		foreach ($arTopicsCopy as $res)
 		{
-			$arTopics[intVal($res)] = array("ID" => intVal($res));
+			$arTopics[intval($res)] = array("ID" => intval($res));
 		}
 
 		$db_res = CForumTopic::GetList(array(), array("@ID" => implode(", ", array_keys($arTopics))));
@@ -306,7 +323,7 @@ class CAllForumTopic
 		{
 			do
 			{
-				if (intVal($res["FORUM_ID"]) == $FID)
+				if (intval($res["FORUM_ID"]) == $FID)
 				{
 					$arMsg[] = array(
 						"id" => "FORUM_ID_IDENTICAL",
@@ -346,13 +363,13 @@ class CAllForumTopic
 				$strSql = "UPDATE b_forum_message SET FORUM_ID=".$FID.", POST_MESSAGE_HTML='' WHERE TOPIC_ID=".$res["ID"];
 				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 				// move subscribe
-				$strSql = "UPDATE b_forum_subscribe SET FORUM_ID=".intVal($FID)." WHERE TOPIC_ID=".$res["ID"];
+				$strSql = "UPDATE b_forum_subscribe SET FORUM_ID=".intval($FID)." WHERE TOPIC_ID=".$res["ID"];
 				$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 
 				$arForums[$res["FORUM_ID"]] = $res["FORUM_ID"];
 				unset($GLOBALS["FORUM_CACHE"]["TOPIC"][$res["ID"]]);
 				unset($GLOBALS["FORUM_CACHE"]["TOPIC_FILTER"][$res["ID"]]);
-				$arTopics[intVal($res["ID"])] = $res;
+				$arTopics[intval($res["ID"])] = $res;
 //				$DB->Commit();
 
 				CForumCacheManager::ClearTag("F", $res["ID"]);
@@ -395,56 +412,14 @@ class CAllForumTopic
 
 	public static function Delete($ID)
 	{
-		global $DB, $USER_FIELD_MANAGER;
-		$ID = intVal($ID);
-		$arTopic = CForumTopic::GetByID($ID);
-		if (empty($arTopic)):
-			return false;
-		endif;
-/***************** Event onBeforeTopicDelete ***********************/
-		foreach(GetModuleEvents("forum", "onBeforeTopicDelete", true) as $arEvent)
+		if ($topic = \Bitrix\Forum\Topic::getById($ID))
 		{
-			if (ExecuteModuleEventEx($arEvent, array(&$ID, $arTopic)) === false)
-				return false;
+			$topic->remove();
 		}
-/***************** /Event ******************************************/
-		$arAuthor = array(); $arVotes = array();
-		$db_res = CForumMessage::GetList(array("ID" => "ASC"), array("TOPIC_ID" => $ID));
-		while ($res = $db_res->Fetch())
-		{
-			if (intVal($res["AUTHOR_ID"]) > 0)
-				$arAuthor[intVal($res["AUTHOR_ID"])] = $res["AUTHOR_ID"];
-			if ($res["PARAM1"] == "VT" && intVal($res["PARAM2"]) > 0)
-				$arVotes[] = intVal($res["PARAM2"]);
-			$USER_FIELD_MANAGER->Delete("FORUM_MESSAGE", $res["ID"]);
-		}
-		if (!empty($arVotes) && IsModuleInstalled("vote") && CModule::IncludeModule("vote")):
-			foreach ($arVotes as $res)
-			{
-				CVote::Delete($res);
-			}
-		endif;
-
-//		$DB->StartTransaction();
-			CForumFiles::Delete(array("TOPIC_ID" => $ID), array("DELETE_TOPIC_FILE" => "Y"));
-			$DB->Query("DELETE FROM b_forum_subscribe WHERE TOPIC_ID = ".$ID."");
-			$DB->Query("DELETE FROM b_forum_message WHERE TOPIC_ID = ".$ID."");
-			$DB->Query("DELETE FROM b_forum_user_topic WHERE TOPIC_ID = ".$ID."");
-			$DB->Query("DELETE FROM b_forum_topic WHERE ID = ".$ID."");
-			$DB->Query("DELETE FROM b_forum_topic WHERE TOPIC_ID = ".$ID."");
-			$DB->Query("DELETE FROM b_forum_stat WHERE TOPIC_ID = ".$ID."");
-//		$DB->Commit();
-
 		unset($GLOBALS["FORUM_CACHE"]["TOPIC"][$ID]);
 		unset($GLOBALS["FORUM_CACHE"]["TOPIC_FILTER"][$ID]);
-		foreach ($arAuthor as $key)
-			CForumUser::SetStat($key);
-		CForumNew::SetStat($arTopic["FORUM_ID"]);
 
-		if (IsModuleInstalled("search") && CModule::IncludeModule("search"))
-		{
-			CSearch::DeleteIndex("forum", false, $arTopic["FORUM_ID"], $ID);
-		}
+
 /***************** Event onAfterTopicDelete ************************/
 		foreach(GetModuleEvents("forum", "onAfterTopicDelete", true) as $arEvent)
 			ExecuteModuleEventEx($arEvent, array(&$ID, $arTopic));
@@ -456,7 +431,7 @@ class CAllForumTopic
 	{
 		global $DB;
 
-		if (strlen($ID) < 1) return False;
+		if (mb_strlen($ID) < 1) return False;
 
 		$NoFilter = ($arAddParams["NoFilter"] == true || COption::GetOptionString("forum", "FILTER", "Y") != "Y" ? true : false);
 
@@ -506,7 +481,7 @@ class CAllForumTopic
 	public static function GetByIDEx($ID, $arAddParams = array())
 	{
 		global $DB;
-		$ID = intVal($ID);
+		$ID = intval($ID);
 		if ($ID <= 0):
 			return false;
 		endif;
@@ -566,26 +541,26 @@ class CAllForumTopic
 					$res["FORUM_INFO"] = array();
 					foreach ($res as $key => $val)
 					{
-						if (substr($key, 0, 2) == "F_")
-							$res["FORUM_INFO"][substr($key, 2)] = $val;
+						if (mb_substr($key, 0, 2) == "F_")
+							$res["FORUM_INFO"][mb_substr($key, 2)] = $val;
 						else
 							$res["TOPIC_INFO"][$key] = $val;
 					}
 					if (!empty($res["TOPIC_INFO"]))
 					{
-						$GLOBALS["FORUM_CACHE"]["TOPIC"][intVal($res["TOPIC_INFO"]["ID"])] = $res["TOPIC_INFO"];
+						$GLOBALS["FORUM_CACHE"]["TOPIC"][intval($res["TOPIC_INFO"]["ID"])] = $res["TOPIC_INFO"];
 						if (COption::GetOptionString("forum", "FILTER", "Y") == "Y")
 						{
 							$db_res_filter = new CDBResult;
 							$db_res_filter->InitFromArray(array($res["TOPIC_INFO"]));
 							$db_res_filter = new _CTopicDBResult($db_res_filter);
 							if ($res_filter = $db_res_filter->Fetch())
-								$GLOBALS["FORUM_CACHE"]["TOPIC_FILTER"][intVal($res["TOPIC_INFO"]["ID"])] = $res_filter;
+								$GLOBALS["FORUM_CACHE"]["TOPIC_FILTER"][intval($res["TOPIC_INFO"]["ID"])] = $res_filter;
 						}
 					}
 					if (!empty($res["FORUM_INFO"]))
 					{
-						$GLOBALS["FORUM_CACHE"]["FORUM"][intVal($res["FORUM_INFO"]["ID"])] = $res["FORUM_INFO"];
+						$GLOBALS["FORUM_CACHE"]["FORUM"][intval($res["FORUM_INFO"]["ID"])] = $res["FORUM_INFO"];
 					}
 				}
 			}
@@ -596,7 +571,7 @@ class CAllForumTopic
 
 	public static function GetNeighboringTopics($TID, $arUserGroups) // out-of-date function
 	{
-		$TID = intVal($TID);
+		$TID = intval($TID);
 		$arTopic = CForumTopic::GetByID($TID);
 		if (!$arTopic) return False;
 
@@ -686,24 +661,24 @@ class CAllForumTopic
 
 	public static function SetReadLabels($ID, $arUserGroups) // out-of-date function
 	{
-		$ID = intVal($ID);
+		$ID = intval($ID);
 		$arTopic = CForumTopic::GetByID($ID);
 		if ($arTopic)
 		{
-			$FID = intVal($arTopic["FORUM_ID"]);
-			if (is_null($_SESSION["read_forum_".$FID]) || strLen($_SESSION["read_forum_".$FID])<=0)
+			$FID = intval($arTopic["FORUM_ID"]);
+			if (is_null($_SESSION["read_forum_".$FID]) || $_SESSION["read_forum_".$FID] == '')
 			{
 				$_SESSION["read_forum_".$FID] = "0";
 			}
 
-			$_SESSION["first_read_forum_".$FID] = intVal($_SESSION["first_read_forum_".$FID]);
+			$_SESSION["first_read_forum_".$FID] = intval($_SESSION["first_read_forum_".$FID]);
 
 			$arFilter = array(
 				"FORUM_ID" => $FID,
 				"TOPIC_ID" => $ID
 				);
-			if (intVal($_SESSION["first_read_forum_".$FID])>0)
-				$arFilter[">ID"] = intVal($_SESSION["first_read_forum_".$FID]);
+			if (intval($_SESSION["first_read_forum_".$FID])>0)
+				$arFilter[">ID"] = intval($_SESSION["first_read_forum_".$FID]);
 			if ($_SESSION["read_forum_".$FID]!="0")
 				$arFilter["!@ID"] = $_SESSION["read_forum_".$FID];
 			if (CForumNew::GetUserPermission($FID, $arUserGroups)<"Q")
@@ -713,94 +688,30 @@ class CAllForumTopic
 			{
 				while ($ar_res = $db_res->Fetch())
 				{
-					$_SESSION["read_forum_".$FID] .= ",".intVal($ar_res["ID"]);
+					$_SESSION["read_forum_".$FID] .= ",".intval($ar_res["ID"]);
 				}
 			}
 			CForumTopic::Update($ID, array("=VIEWS"=>"VIEWS+1"));
 		}
 	}
 
-	public static function SetReadLabelsNew($ID, $update = false, $LastVisit = false, $arAddParams = array())
+	public static function SetReadLabelsNew($ID, $updateForum = false, $LastVisit = false, $arAddParams = array())
 	{
-		global $DB, $USER;
-
-		$ID = intVal($ID);
-		$result = false;
-		$arAddParams = (is_array($arAddParams) ? $arAddParams : array());
-		$arAddParams["UPDATE_TOPIC_VIEWS"] = ($arAddParams["UPDATE_TOPIC_VIEWS"] == "N" ? "N" : "Y");
-		if (!$update)
+		global $USER;
+		$forumUser = \Bitrix\Forum\User::getById($USER->getId());
+		if ($updateForum === true)
 		{
-			$arTopic = CForumTopic::GetByID($ID, array("NoFilter" => true));
-			if ($arTopic)
-			{
-				if ($arAddParams["UPDATE_TOPIC_VIEWS"] == "Y")
-					CForumTopic::Update($ID, array("=VIEWS"=>"VIEWS+1"));
-
-				if (!$USER->IsAuthorized())
-					return false;
-
-				$USER_ID = intVal($USER->GetID());
-
-				$Fields = array(
-					"USER_ID" => $USER_ID,
-					"LAST_VISIT" => $DB->GetNowFunction(),
-					"FORUM_ID" => $arTopic["FORUM_ID"],
-					"TOPIC_ID" => $ID
-				);
-
-				if (intval($LastVisit) > 0)
-				{
-					$Fields["LAST_VISIT"] = $DB->CharToDateFunction($DB->ForSql(Date(CDatabase::DateFormatToPHP(CLang::GetDateFormat("FULL")), $LastVisit)), "FULL");
-				}
-
-				if ($DB->type == "MYSQL")
-				{
-					$ar1 = $ar2 = $ar3 = array();
-					foreach ($Fields as $field => $value)
-					{
-						$f = "`".$field."`";
-						$v = (strlen($value)<=0 ? "''" : $value);
-						$ar1[] = $f;
-						$ar2[] = $v;
-						if ($field != "USER_ID" && $field != "TOPIC_ID")
-							$ar3[] = $f." = ".$v;
-					}
-					$strSql = "INSERT INTO b_forum_user_topic (".implode(", ", $ar1).") VALUES(".implode(", ", $ar2).") ON DUPLICATE KEY UPDATE ".implode(", ", $ar3);
-					$DB->StartUsingMasterOnly();
-					$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
-					$DB->StopUsingMasterOnly();
-				}
-				else
-				{
-					$rows = $DB->Update("b_forum_user_topic", $Fields, "WHERE (TOPIC_ID=".$ID." AND USER_ID=".$USER_ID.")", "File: ".__FILE__."<br>Line: ".__LINE__);
-					if ($rows <= 0)
-					{
-						$DB->Insert("b_forum_user_topic", $Fields, "File: ".__FILE__."<br>Line: ".__LINE__);
-					}
-				}
-				return true;
-			}
+			$forumUser->readTopicsOnForum($ID);
 		}
-		elseif ($USER->IsAuthorized())
+		else
 		{
-			$Fields = array("LAST_VISIT" => $DB->GetNowFunction());
-			$DB->StartUsingMasterOnly();
-			$result = $DB->Update("b_forum_user_topic", $Fields, "WHERE (FORUM_ID=".$ID." AND USER_ID=".intVal($USER->GetID()).")", "File: ".__FILE__."<br>Line: ".__LINE__);
-			$DB->StopUsingMasterOnly();
-			return $result;
+			$forumUser->readTopic($ID);
 		}
 		return false;
 	}
 
 	public static function CleanUp($period = 168)
 	{
-		global $DB;
-		$period = intVal($period)*3600;
-		$date = $DB->CharToDateFunction($DB->ForSql(Date(CDatabase::DateFormatToPHP(CLang::GetDateFormat("FULL", LANG)), time()-$period)), "FULL") ;
-		$strSQL = "DELETE FROM b_forum_user_topic
-					WHERE (LAST_VISIT
-					< ".$date.")";
-		$DB->Query($strSQL, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 		return "CForumTopic::CleanUp();";
 	}
 
@@ -809,7 +720,7 @@ class CAllForumTopic
 	public static function SetStat($ID = 0, $arParams = array())
 	{
 		global $DB;
-		$ID = intVal($ID);
+		$ID = intval($ID);
 		if ($ID <= 0):
 			return false;
 		endif;
@@ -822,7 +733,7 @@ class CAllForumTopic
 		if (!empty($arMessage))
 		{
 			$arFields = array(
-				"ABS_LAST_POSTER_ID" => ((intVal($arMessage["AUTHOR_ID"])>0) ? $arMessage["AUTHOR_ID"] : false),
+				"ABS_LAST_POSTER_ID" => ((intval($arMessage["AUTHOR_ID"])>0) ? $arMessage["AUTHOR_ID"] : false),
 				"ABS_LAST_POSTER_NAME" => $arMessage["AUTHOR_NAME"],
 				"ABS_LAST_POST_DATE" => $arMessage["POST_DATE"],
 				"ABS_LAST_MESSAGE_ID" => $arMessage["ID"]);
@@ -842,14 +753,14 @@ class CAllForumTopic
 		else
 		{
 			$res = CForumMessage::GetList(array(), array("TOPIC_ID" => $ID), "cnt_not_approved");
-			$res["CNT"] = (intVal($res["CNT"]) - intVal($res["CNT_NOT_APPROVED"]));
+			$res["CNT"] = (intval($res["CNT"]) - intval($res["CNT_NOT_APPROVED"]));
 			$res["CNT"] = ($res["CNT"] > 0 ? $res["CNT"] : 0);
 			if (intval($res["ABS_FIRST_MESSAGE_ID"]) > 0 && intval($res["ABS_FIRST_MESSAGE_ID"]) != intval($res["FIRST_MESSAGE_ID"]))
 			{
 				$GLOBALS["DB"]->Query("UPDATE b_forum_message SET NEW_TOPIC = (CASE WHEN ID=".intval($res["ABS_FIRST_MESSAGE_ID"])." THEN 'Y' ELSE 'N' END) WHERE TOPIC_ID=".$ID, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 
-				CForumMessage::Reindex($res["ABS_FIRST_MESSAGE_ID"], ($messFirst = array()));
-				CForumMessage::Reindex($res["FIRST_MESSAGE_ID"], ($mess = array()));
+				CForumMessage::Reindex($res["ABS_FIRST_MESSAGE_ID"]);
+				CForumMessage::Reindex($res["FIRST_MESSAGE_ID"]);
 			}
 
 			$arFields = array(
@@ -858,23 +769,23 @@ class CAllForumTopic
 				"LAST_POSTER_ID" => false,
 				"LAST_POSTER_NAME" => false,
 				"LAST_POST_DATE" => false,
-				"LAST_MESSAGE_ID" => intVal($res["LAST_MESSAGE_ID"]),
-				"POSTS_UNAPPROVED" => intVal($res["CNT_NOT_APPROVED"]),
+				"LAST_MESSAGE_ID" => intval($res["LAST_MESSAGE_ID"]),
+				"POSTS_UNAPPROVED" => intval($res["CNT_NOT_APPROVED"]),
 				"ABS_LAST_POSTER_ID" => false,
 				"ABS_LAST_POSTER_NAME" => false,
 				"ABS_LAST_POST_DATE" => false,
-				"ABS_LAST_MESSAGE_ID" => intVal($res["ABS_LAST_MESSAGE_ID"]));
+				"ABS_LAST_MESSAGE_ID" => intval($res["ABS_LAST_MESSAGE_ID"]));
 
 			if ($arFields["ABS_LAST_MESSAGE_ID"] > 0):
 				$res = CForumMessage::GetByID($arFields["ABS_LAST_MESSAGE_ID"], array("FILTER" => "N"));
-				$arFields["ABS_LAST_POSTER_ID"] = (intVal($res["AUTHOR_ID"]) > 0 ? $res["AUTHOR_ID"] : false);
+				$arFields["ABS_LAST_POSTER_ID"] = (intval($res["AUTHOR_ID"]) > 0 ? $res["AUTHOR_ID"] : false);
 				$arFields["ABS_LAST_POSTER_NAME"] = $res["AUTHOR_NAME"];
 				$arFields["ABS_LAST_POST_DATE"] = $res["POST_DATE"];
-				if (intVal($arFields["LAST_MESSAGE_ID"]) > 0):
+				if (intval($arFields["LAST_MESSAGE_ID"]) > 0):
 					if ($arFields["LAST_MESSAGE_ID"] < $arFields["ABS_LAST_MESSAGE_ID"]):
 						$res = CForumMessage::GetByID($arFields["LAST_MESSAGE_ID"], array("FILTER" => "N"));
 					endif;
-					$arFields["LAST_POSTER_ID"] = (intVal($res["AUTHOR_ID"]) > 0 ? $res["AUTHOR_ID"] : false);
+					$arFields["LAST_POSTER_ID"] = (intval($res["AUTHOR_ID"]) > 0 ? $res["AUTHOR_ID"] : false);
 					$arFields["LAST_POSTER_NAME"] = $res["AUTHOR_NAME"];
 					$arFields["LAST_POST_DATE"] = $res["POST_DATE"];
 				endif;
@@ -898,7 +809,7 @@ class CAllForumTopic
 
 	public static function OnBeforeIBlockElementDelete($ELEMENT_ID)
 	{
-		$ELEMENT_ID = intVal($ELEMENT_ID);
+		$ELEMENT_ID = intval($ELEMENT_ID);
 		if ($ELEMENT_ID > 0 && CModule::IncludeModule("iblock"))
 		{
 			$rsElement = CIBlockElement::GetList(
@@ -1018,11 +929,11 @@ class _CTopicDBResult extends CDBResult
 	private $noFilter = false;
 	private static $icons;
 
-	function _CTopicDBResult($res, $params = array())
+	public function __construct($res, $params = array())
 	{
 		$this->sNameTemplate = (!empty($params["sNameTemplate"]) ? $params["sNameTemplate"] : '');
 		$this->noFilter = (array_key_exists('NoFilter', $params) && $params['NoFilter'] === true);
-		parent::CDBResult($res);
+		parent::__construct($res);
 	}
 	protected static function getIcon($iconTyping)
 	{
@@ -1052,19 +963,19 @@ class _CTopicDBResult extends CDBResult
 				{
 					if (!empty($res["HTML"]))
 					{
-						$arr = unserialize($res["HTML"]);
+						$arr = unserialize($res["HTML"], ["allowed_classes" => false]);
 						if (is_array($arr) && is_set($arr, "TITLE"))
 						{
 							foreach ($arr as $key => $val)
 							{
-								if (strLen($val)>0)
+								if ($val <> '')
 									$res[$key] = $val;
 							}
 						}
 					}
 					if (!empty($res["F_HTML"]))
 					{
-						$arr = unserialize($res["F_HTML"]);
+						$arr = unserialize($res["F_HTML"], ["allowed_classes" => false]);
 						if (is_array($arr))
 						{
 							foreach ($arr as $key => $val)
@@ -1082,9 +993,9 @@ class _CTopicDBResult extends CDBResult
 				{
 					$arSqlSearch = array();
 					if (is_set($res, "FIRST_POST"))
-						$arSqlSearch["FIRST_POST"] = "FM.ID=".intVal($res["FIRST_POST"]);
+						$arSqlSearch["FIRST_POST"] = "FM.ID=".intval($res["FIRST_POST"]);
 					if (is_set($res, "LAST_POST"))
-						$arSqlSearch["LAST_POST"] = "FM.ID=".intVal($res["LAST_POST"]);
+						$arSqlSearch["LAST_POST"] = "FM.ID=".intval($res["LAST_POST"]);
 					if (!empty($arSqlSearch)):
 						$strSql = "SELECT FM.ID, ".$DB->DateToCharFunction("FM.POST_DATE", "FULL")." AS POST_DATE ".
 							"FROM b_forum_message FM WHERE ".implode(" OR ", $arSqlSearch);

@@ -10,7 +10,7 @@ return array(
 	'block' => array(
 		'name' => Loc::getMessage('LANDING_BLOCK_44.7.THREE_COLUMNS_WITH_IMG_AND_PRICE_NAME'),
 		'section' => array('tariffs'),
-		'type' => ['page', 'store'],
+		'type' => ['page', 'store', 'smn'],
 	),
 	'cards' => array(
 		'.landing-block-node-card' => array(

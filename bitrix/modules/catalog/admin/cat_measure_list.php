@@ -5,6 +5,11 @@ global $APPLICATION;
 global $DB;
 global $USER;
 
+/** @global CAdminPage $adminPage */
+global $adminPage;
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+global $adminSidePanelHelper;
+
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
@@ -77,7 +82,7 @@ if(($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 
 	foreach ($arID as $ID)
 	{
-		if(strlen($ID) <= 0)
+		if($ID == '')
 			continue;
 
 		switch ($_REQUEST['action'])
@@ -287,11 +292,9 @@ if($arSelectFieldsMap['USER_ID'] || $arSelectFieldsMap['MODIFIED_BY'])
 {
 	if(!empty($arUserID))
 	{
-		$byUser = 'ID';
-		$byOrder = 'ASC';
 		$rsUsers = CUser::GetList(
-			$byUser,
-			$byOrder,
+			'ID',
+			'ASC',
 			array('ID' => implode(' | ', array_keys($arUserID))),
 			array('FIELDS' => array('ID', 'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL'))
 		);

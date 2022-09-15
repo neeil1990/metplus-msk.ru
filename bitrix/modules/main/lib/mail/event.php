@@ -105,6 +105,7 @@ class Event
 			"Success" => false,
 			"Fail" => false,
 			"Was" => false,
+			"Skip" => false,
 		);
 
 		$trackRead = null;
@@ -189,7 +190,7 @@ class Event
 		{
 			$eventMessage = MailInternal\EventMessageTable::getRowById($arMessage['ID']);
 
-			$eventMessage['FILES'] = array();
+			$eventMessage['FILE'] = array();
 			$attachmentDb = MailInternal\EventMessageAttachmentTable::getList(array(
 				'select' => array('FILE_ID'),
 				'filter' => array('=EVENT_MESSAGE_ID' => $arMessage['ID']),
@@ -204,7 +205,7 @@ class Event
 
 			foreach (GetModuleEvents("main", "OnBeforeEventSend", true) as $event)
 			{
-				if(ExecuteModuleEventEx($event, array(&$arFields, &$eventMessage, $context)) === false)
+				if(ExecuteModuleEventEx($event, array(&$arFields, &$eventMessage, $context, &$arResult)) === false)
 				{
 					continue 2;
 				}
@@ -268,6 +269,10 @@ class Event
 				if($arResult["Fail"])
 					$flag = static::SEND_RESULT_ERROR; // all templates failed
 			}
+		}
+		elseif($arResult["Skip"])
+		{
+			$flag = static::SEND_RESULT_NONE; // skip this event
 		}
 
 		return $flag;

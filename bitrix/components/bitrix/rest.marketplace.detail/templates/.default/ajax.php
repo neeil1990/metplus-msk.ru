@@ -4,7 +4,7 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_befo
 IncludeModuleLangFile(__FILE__);
 
 
-if ($_SERVER["REQUEST_METHOD"]=="POST" && strlen($_POST["action"])>0 && check_bitrix_sessid())
+if ($_SERVER["REQUEST_METHOD"]=="POST" && $_POST["action"] <> '' && check_bitrix_sessid())
 {
 	\CUtil::JSPostUnescape();
 
@@ -14,7 +14,7 @@ if ($_SERVER["REQUEST_METHOD"]=="POST" && strlen($_POST["action"])>0 && check_bi
 	}
 	else
 	{
-		$dbSite = \CSite::GetList($by="sort", $order="desc", array("DEFAULT"=>"Y"));
+		$dbSite = \CSite::GetList("sort", "desc", array("DEFAULT"=>"Y"));
 		if ($arSite = $dbSite->Fetch())
 		{
 			$siteID = $arSite["LID"];

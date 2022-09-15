@@ -36,20 +36,22 @@ $message = false;
 $channels = array();
 $VOTE_RIGHT = $APPLICATION->GetGroupRight("vote");
 $db_res = \Bitrix\Vote\Channel::getList(array(
-	'select' => array("*"),
-	'filter' => ($VOTE_RIGHT < "W" ? array(
+	"select" => array("*"),
+	"filter" => ($VOTE_RIGHT < "W" ? array(
 		"ACTIVE" => "Y",
 		"HIDDEN" => "N",
 		">=PERMISSION.PERMISSION" => 4,
 		"PERMISSION.GROUP_ID" => $USER->GetUserGroupArray()
 	) : array()),
-	'order' => array(
-		'TITLE' => 'ASC'
+	"order" => array(
+		"TITLE" => "ASC"
 	),
-	'group' => array("ID")
+	"group" => array("ID")
 ));
 while ($res = $db_res->GetNext())
+{
 	$channels[$res["ID"]] = $res;
+}
 if (empty($channels))
 {
 	$APPLICATION->SetTitle(GetMessage("VOTE_NEW_RECORD"));
@@ -168,11 +170,7 @@ try
 			}
 		}
 		$ID = isset($vote) ? $vote->getId() : 0;
-		if (!CVote::CheckFields(($ID > 0 ? "UPDATE" : "ADD"), $fields, $ID))
-		{
-			$result = false;
-		}
-		else if ($ID <= 0)
+		if ($ID <= 0)
 		{
 			$fields["AUTHOR_ID"] = $GLOBALS["USER"]->GetId();
 			$result = $ID = CVote::Add($fields);
@@ -189,8 +187,8 @@ try
 				$newID = $ID;
 				$DB->Update("b_vote", array("COUNTER" => "0"), "WHERE ID=" . $newID, $err_mess . __LINE__);
 				if ($copyVote->get("IMAGE_ID") > 0 &&
-					empty($arIMAGE_ID['name']) &&
-					$arIMAGE_ID['del'] != 'Y'
+					empty($arIMAGE_ID["name"]) &&
+					$arIMAGE_ID["del"] != "Y"
 				)
 				{
 					$newImageId = CFile::CopyFile($copyVote->get("IMAGE_ID"));
@@ -201,10 +199,10 @@ try
 				}
 
 				$state = true;
-				$rQuestions = CVoteQuestion::GetList($copyVote->getId(), $by, $order, array(), $is_filtered);
+				$rQuestions = CVoteQuestion::GetList($copyVote->getId());
 				while ($arQuestion = $rQuestions->Fetch())
 				{
-					$state = $state && (CVoteQuestion::Copy($arQuestion['ID'], $newID) !== false);
+					$state = $state && (CVoteQuestion::Copy($arQuestion["ID"], $newID) !== false);
 				}
 			}
 
@@ -340,7 +338,7 @@ if ($message)
 		</tr>
 		<?
 
-		$str_PREVIEW_PICTURE = intval($fields["IMAGE_ID"]);
+		$str_PREVIEW_PICTURE = is_scalar($fields["IMAGE_ID"]) ? intval($fields["IMAGE_ID"]) : 0;
 		$bFileman = CModule::IncludeModule("fileman");
 		?>
 		<tr class="adm-detail-file-row">
@@ -364,7 +362,7 @@ if ($message)
 				else
 				{
 					CFile::InputFile("IMAGE_ID", 20, $fields["IMAGE_ID"]);
-					if (strlen($fields["IMAGE_ID"])>0):
+					if ($fields["IMAGE_ID"] <> ''):
 						echo "<br />";
 						CFile::ShowImage($fields["IMAGE_ID"], 200, 200, "border=0", "", true);
 					endif;
@@ -400,7 +398,7 @@ if ($message)
 		$tabControl->BeginNextTab();
 		if (isset($vote))
 		{
-			if (strlen($vote->get("TIMESTAMP_X")) > 0 && $vote->get("TIMESTAMP_X") != "00.00.0000 00:00:00")
+			if ($vote->get("TIMESTAMP_X") <> '' && $vote->get("TIMESTAMP_X") != "00.00.0000 00:00:00")
 			{
 				?><tr><td><?= GetMessage("VOTE_TIMESTAMP") ?></td><td><?= $vote->get("TIMESTAMP_X") ?></td></tr><?
 			}

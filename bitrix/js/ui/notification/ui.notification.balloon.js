@@ -26,7 +26,6 @@ BX.UI.Notification.State = State;
  * @property {string|Element} [content]
  * @property {boolean} [autoHide=true]
  * @property {number} [autoHideDelay=8000]
- * @property {number} [zIndex=3200]
  * @property {boolean} [closeButton=true]
  * @property {string} [category]
  * @property {string} [id]
@@ -67,7 +66,6 @@ BX.UI.Notification.Balloon = function(options)
 	this.autoHideTimeout = null;
 
 	this.data = {};
-	this.zIndex = 3200;
 	this.width = 400;
 
 	this.closeButton = null;
@@ -107,6 +105,8 @@ BX.UI.Notification.Balloon.prototype =
 		{
 			firstLaunch = true;
 			document.body.appendChild(this.getContainer());
+			BX.ZIndexManager.register(this.getContainer(), { alwaysOnTop: true });
+
 			this.getStack().add(this);
 			if (this.getState() === State.QUEUED)
 			{
@@ -117,8 +117,14 @@ BX.UI.Notification.Balloon.prototype =
 		var paused = this.getState() === State.PAUSED;
 		this.setState(State.OPENING);
 		this.adjustPosition();
+		BX.ZIndexManager.bringToFront(this.getContainer());
 
 		this.animateIn(function() {
+
+			if (this.getState() !== State.OPENING)
+			{
+				return;
+			}
 
 			this.setState(State.OPEN);
 
@@ -149,7 +155,6 @@ BX.UI.Notification.Balloon.prototype =
 
 		this.setContent(options.content);
 		this.setWidth(options.width);
-		this.setZIndex(options.zIndex);
 		this.setData(options.data);
 		this.setCloseButtonVisibility(options.closeButton);
 		this.setActions(options.actions);
@@ -169,7 +174,6 @@ BX.UI.Notification.Balloon.prototype =
 
 		BX.cleanNode(this.getContainer());
 
-		this.getContainer().style.zIndex = this.getZIndex();
 		this.getContainer().appendChild(this.render());
 
 		this.deactivateAutoHide();
@@ -198,6 +202,7 @@ BX.UI.Notification.Balloon.prototype =
 
 			this.setState(State.CLOSED);
 
+			BX.ZIndexManager.unregister(this.getContainer());
 			BX.remove(this.getContainer());
 			this.container = null;
 
@@ -328,24 +333,22 @@ BX.UI.Notification.Balloon.prototype =
 	},
 
 	/**
-	 * @public
 	 * @return {number}
 	 */
 	getZIndex: function()
 	{
-		return this.zIndex;
+		var component = BX.ZIndexManager.getComponent(this.getContainer());
+
+		return component ? component.getZIndex() : 0;
 	},
 
 	/**
-	 * @public
+	 * @deprecated
 	 * @param {number} zIndex
 	 */
 	setZIndex: function(zIndex)
 	{
-		if (BX.type.isNumber(zIndex))
-		{
-			this.zIndex = zIndex;
-		}
+
 	},
 
 	/**
@@ -440,9 +443,6 @@ BX.UI.Notification.Balloon.prototype =
 			props: {
 				className: "ui-notification-balloon"
 			},
-			style: {
-				zIndex: this.getZIndex()
-			},
 			children: [
 				this.render()
 			],
@@ -524,7 +524,7 @@ BX.UI.Notification.Balloon.prototype =
 	 * @public
 	 * @return {BX.UI.Notification.Stack}
 	 */
-	getStack: function() 
+	getStack: function()
 	{
 		return this.stack;
 	},

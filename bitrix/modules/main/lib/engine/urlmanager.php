@@ -47,12 +47,20 @@ final class UrlManager
 	 * @throws \Bitrix\Main\ArgumentNullException
 	 * @throws \Bitrix\Main\ArgumentOutOfRangeException
 	 */
-	public function create($action, $params = array(), $absolute = false)
+	public function create($action, $params = [], $absolute = false)
 	{
 		$uri = $this->getEndPoint($absolute);
-		$uri->addParams(array(
+		$uri->addParams([
 			'action' => $action,
-		));
+		]);
+
+		if (defined('SITE_ID') && !Context::getCurrent()->getRequest()->isAdminSection())
+		{
+			$uri->addParams([
+				'SITE_ID' => SITE_ID,
+			]);
+		}
+
 		$uri->addParams($params);
 
 		return $uri;
@@ -73,12 +81,16 @@ final class UrlManager
 	 */
 	public function createByController(Controller $controller, $action, $params = array(), $absolute = false)
 	{
-		$name = strtolower(Resolver::getNameByController($controller));
+		$name = Resolver::getNameByController($controller);
+		if (!$controller->isLocatedUnderPsr4())
+		{
+			$name = mb_strtolower($name);
+		}
 
 		list($vendor) = $this->getVendorAndModule($controller->getModuleId());
 		if ($vendor === 'bitrix')
 		{
-			$name = substr($name, strlen('bitrix:'));
+			$name = mb_substr($name, mb_strlen('bitrix:'));
 		}
 
 		return $this->create(
@@ -126,7 +138,7 @@ final class UrlManager
 		{
 			$path = str_replace('\\', '/', $path);
 		}
-		$pathWithoutLocal = substr($path, strpos($path, '/components/') + strlen('/components/'));
+		$pathWithoutLocal = mb_substr($path, mb_strpos($path, '/components/') + mb_strlen('/components/'));
 		list($vendor, $componentName) = explode('/', $pathWithoutLocal);
 
 		if (!$componentName)
@@ -198,27 +210,30 @@ final class UrlManager
 	 * Returns host url with port and scheme.
 	 *
 	 * @return string
-	 * @throws \Bitrix\Main\ArgumentNullException
-	 * @throws \Bitrix\Main\ArgumentOutOfRangeException
 	 */
-	public function getHostUrl()
+	public function getHostUrl(): string
 	{
 		$request = Context::getCurrent()->getRequest();
 
-		$protocol = ($request->isHttps() ? 'https' : 'http');
-		$port = $request->getServerPort();
+		$protocol = $request->isHttps() ? 'https' : 'http';
+		$port = (int)$request->getServerPort();
 
-		if (defined("SITE_SERVER_NAME") && SITE_SERVER_NAME)
+		if (defined('SITE_SERVER_NAME') && SITE_SERVER_NAME)
 		{
 			$host = SITE_SERVER_NAME;
 		}
 		else
 		{
-			$host = (Option::get('main', 'server_name', $request->getHttpHost())? : $request->getHttpHost());
+			$host = Option::get('main', 'server_name', $request->getHttpHost()) ? : $request->getHttpHost();
 		}
 
-		$parsedUri = new Uri($protocol.'://'.$host.":".$port);
+		$portSuffix = '';
+		if ($port && !in_array($port, [443, 80], true))
+		{
+			$portSuffix = ':' . $port;
+		}
+		$parsedUri = new Uri($protocol . '://' . $host . $portSuffix);
 
-		return rtrim($parsedUri->getLocator(), "/");
+		return rtrim($parsedUri->getLocator(), '/');
 	}
 }

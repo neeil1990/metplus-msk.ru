@@ -139,20 +139,16 @@ class MFIController
 		return $this->uploader;
 	}
 
-
-	/**
-	 * @return Application|CAllMain|CMain
-	 */
-	protected function getApplication()
+	protected function restartBuffer(): void
 	{
+		while(ob_get_clean());
 		global $APPLICATION;
-		return $APPLICATION;
+		$APPLICATION->RestartBuffer();
 	}
 
 	protected function sendJSResponse($response)
 	{
-		$this->getApplication()->restartBuffer();
-		while(ob_end_clean()); // hack!
+		$this->restartBuffer();
 		header('Content-Type: text/html; charset='.LANG_CHARSET);
 		echo $response;
 		$this->end();
@@ -160,8 +156,7 @@ class MFIController
 
 	protected function sendJsonResponse($response)
 	{
-		$this->getApplication()->restartBuffer();
-		while(ob_end_clean()); // hack!
+		$this->restartBuffer();
 		header('Content-Type:application/json; charset=UTF-8');
 		echo Json::encode($response);
 		$this->end();
@@ -309,7 +304,7 @@ class MFIController
 
 			try
 			{
-				if (strlen($res) > 0)
+				if ($res <> '')
 					throw new \Bitrix\Main\ArgumentException($res);
 				$tmp = $this->saveFile($file);
 
@@ -345,9 +340,23 @@ class MFIController
 			$file["name"] = $tmp["fileName"];
 			$file["originalName"] = $tmp["originalName"];
 			$file["size"] = $tmp["~fileSize"];
+			$file["size_formatted"] = $tmp["fileSize"];
 			$file["type"] = $tmp["fileContentType"];
 			$file["url"] = $tmp["fileURL"];
 			$file["file_id"] = $tmp["fileID"];
+
+			if (
+				strpos($file["type"], 'image/') === 0
+				&& ($thumb = CFile::ResizeImageGet(
+					$tmp['fileID'],
+					["width" => 90, "height" => 90],
+					BX_RESIZE_IMAGE_EXACT,
+					true
+				))
+			)
+			{
+				$file['thumb_src'] = $thumb['src'];
+			}
 			return true;
 		}
 		catch(\Exception $e)
@@ -369,6 +378,7 @@ class MFIController
 			is_array($file)
 		)
 		{
+			$file['ID'] = $fileID;
 			$tmp = array(
 				"fileName" => $file["FILE_NAME"],
 				"originalName" => $file["ORIGINAL_NAME"],
@@ -385,6 +395,8 @@ class MFIController
 			foreach(GetModuleEvents("main", "main.file.input.upload", true) as $event)
 				ExecuteModuleEventEx($event, array(&$tmp));
 
+			foreach(GetModuleEvents("main", "main.file.input:onUploadAfter", true) as $event)
+				ExecuteModuleEventEx($event, array($file, &$tmp, $cid));
 			return $tmp;
 		}
 		throw new \Bitrix\Main\NotImplementedException();
@@ -405,8 +417,7 @@ class MFIController
 			!empty($file))
 		{
 
-			$this->getApplication()->RestartBuffer();
-			while(ob_end_clean()); // hack!
+			$this->restartBuffer();
 
 			if ($this->validate($this->getCid(), $_REQUEST["s"]))
 				CFile::ViewByUser($file, array("content_type" => $file["CONTENT_TYPE"]));
@@ -483,7 +494,7 @@ class MFIController
 	 */
 	public function validate($value, $signature)
 	{
-		if (is_string($signature) && strlen($signature) > 0)
+		if (is_string($signature) && $signature <> '')
 		{
 			$value = self::prepareValueForSigner($value);
 			$signer = new \Bitrix\Main\Security\Sign\Signer;

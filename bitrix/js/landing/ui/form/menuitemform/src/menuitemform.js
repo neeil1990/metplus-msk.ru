@@ -1,11 +1,15 @@
 import {Dom, Text, Type, Tag, Cache, Event} from 'main.core';
 import {BaseForm} from 'landing.ui.form.baseform';
+import 'ui.fonts.opensans';
 import './css/style.css';
 
 const depthKey = Symbol('depth');
 const onHeaderClick = Symbol('onHeaderClick');
 const onTextChange = Symbol('onTextChange');
 
+/**
+ * @memberOf BX.Landing.UI.Form
+ */
 export class MenuItemForm extends BaseForm
 {
 	constructor(options = {})

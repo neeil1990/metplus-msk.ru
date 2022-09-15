@@ -19,7 +19,10 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 	private $items = array();
 	private $topItems = array();
 	private $newItems = array();
+	private $saleItems = array();
 	private $ajaxMode = false;
+	private $pageSizeDefault = 20;
+	private $bannerTypeFeedback = 'FEEDBACK';
 
 	public function onPrepareComponentParams($arParams)
 	{
@@ -31,76 +34,114 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 
 	private function prepareUiFilter()
 	{
-		$categoryList = \Bitrix\Rest\Marketplace\Client::getCategories();
-		$this->arResult["CATEGORIES"] = $categoryList = (is_array($categoryList) ? $categoryList : []);
-		$categoryItems = array(
-			"all" => Loc::getMessage("MARKETPLACE_ALL_APPS")
-		);
-		foreach ($categoryList as $id => $category)
+		$categoryList = \Bitrix\Rest\Marketplace\Client::getCategoriesFull();
+		$this->arResult['CATEGORIES'] = (is_array($categoryList['ITEMS']) ? $categoryList['ITEMS'] : []);
+		$this->arResult['CATEGORIES_COUNT'] = ($categoryList['COUNT_TOTAL'] > 0 ? (int) $categoryList['COUNT_TOTAL'] : 0);
+
+		$categoryItems = [
+			'all' => Loc::getMessage('MARKETPLACE_ALL_APPS'),
+		];
+		foreach ($this->arResult['CATEGORIES'] as $id => $category)
 		{
-			$categoryItems[$category["CODE"]] = $category["NAME"];
+			$categoryItems[$category['CODE']] = $category['NAME'];
 		}
-		$this->arResult["FILTER"] = [
-			"FILTER_ID" => "marketplace_list",
-			"FILTER"  => [
-				[
-					"id"      => "CATEGORY",
-					"name"    => Loc::getMessage("MARKETPLACE_FILTER_CATEGORY"),
-					"type"    => "list",
-					"items"   => $categoryItems,
-					"default" => true,
-					"required" => isset($this->arParams["CATEGORY"]) ? true : false,
-					"strict" => isset($this->arParams["CATEGORY"]) ? true : false
-				],
-				[
-					"id"    => "PAID",
-					"name"  => Loc::getMessage("MARKETPLACE_FILTER_PAID"),
-					"type"  => "list",
-					"default" => true,
-					"items" => [
-						"Y" => Loc::getMessage("MARKETPLACE_FILTER_PAID"),
-						"N" => Loc::getMessage("MARKETPLACE_FILTER_FREE"),
-						"BY_SUBSCRIPTION" => Loc::getMessage("MARKETPLACE_FILTER_BY_SUBSCRIPTION")
-					]
-				],
-				[
-					"id"    => "INSTALLS",
-					"name"  => Loc::getMessage("MARKETPLACE_FILTER_INSTALLS"),
-					"type"  => "list",
-					"default" => true,
-					"items" => [
-						"100" => "1-100",
-						"500" => "100-500",
-						"5000" => "500-5000",
-						"10000" => "5000-10000",
-						"10000+" => Loc::getMessage("MARKETPLACE_FILTER_INSTALLS_10000"),
-					]
-				],
-				[
-					"id"    => "HIDDEN_BUY",
-					"name"  => Loc::getMessage("MARKETPLACE_FILTER_HIDDEN_BUY"),
-					"type"  => "checkbox",
-					"default" => true
-				],
-				[
-					"id"    => "PRICE",
-					"name"  => Loc::getMessage("MARKETPLACE_FILTER_PRICE"),
-					"type"  => "number",
-					"default" => true
-				],
-				[
-					"id"    => "MOBILE_COMPATIBLE",
-					"name"  => Loc::getMessage("MARKETPLACE_FILTER_MOBILE_COMPATIBLE"),
-					"type"  => "checkbox",
-					"default" => true
-				],
-				[
-					"id"    => "DATE",
-					"name"  => Loc::getMessage("MARKETPLACE_FILTER_DATE_PUBLIC"),
-					"type"  => "date"
+		$filter = [
+			[
+				'id' => 'CATEGORY',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_CATEGORY'),
+				'type' => 'list',
+				'items' => $categoryItems,
+				'default' => true,
+				'required' => isset($this->arParams['CATEGORY']) ? true : false,
+				'strict' => isset($this->arParams['CATEGORY']) ? true : false,
+			],
+			[
+				'id' => 'INSTALLS',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_INSTALLS'),
+				'type' => 'list',
+				'default' => true,
+				'items' => [
+					'100' => '1-100',
+					'500' => '100-500',
+					'5000' => '500-5000',
+					'10000' => '5000-10000',
+					'10000+' => Loc::getMessage('MARKETPLACE_FILTER_INSTALLS_10000'),
 				],
 			],
-			"DATA" => []
+			[
+				'id' => 'HIDDEN_BUY',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_HIDDEN_BUY'),
+				'type' => 'checkbox',
+				'default' => true,
+			],
+			[
+				'id' => 'MOBILE_COMPATIBLE',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_MOBILE_COMPATIBLE'),
+				'type' => 'checkbox',
+				'default' => true,
+			],
+			[
+				'id' => 'DATE',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_DATE_PUBLIC'),
+				'type' => 'date',
+			],
+		];
+
+		if (\Bitrix\Rest\Marketplace\Client::isPayApplicationAvailable())
+		{
+			$filter[] = [
+				'id' => 'PRICE',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_PRICE'),
+				'type' => 'number',
+				'default' => true,
+			];
+			$filter[] = [
+				'id' => 'SALE_OUT',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_SALE_OUT'),
+				'type' => 'checkbox',
+				'default' => true,
+			];
+			$appType = [
+				'Y' => Loc::getMessage('MARKETPLACE_FILTER_PAID'),
+				'N' => Loc::getMessage('MARKETPLACE_FILTER_FREE'),
+			];
+			if (\Bitrix\Rest\Marketplace\Client::isSubscriptionAccess())
+			{
+				$appType['BY_SUBSCRIPTION'] = Loc::getMessage('MARKETPLACE_FILTER_BY_SUBSCRIPTION');
+			}
+
+			$filter[] = [
+				'id' => 'PAID',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_PAID'),
+				'type' => 'list',
+				'default' => true,
+				'items' => $appType,
+			];
+		}
+		else
+		{
+			$appType = [
+				'N' => Loc::getMessage('MARKETPLACE_FILTER_FREE'),
+			];
+
+			if (\Bitrix\Rest\Marketplace\Client::isSubscriptionAccess())
+			{
+				$appType['BY_SUBSCRIPTION'] = Loc::getMessage('MARKETPLACE_FILTER_BY_SUBSCRIPTION');
+			}
+
+			$filter[] = [
+				'id' => 'PAID',
+				'name' => Loc::getMessage('MARKETPLACE_FILTER_PAID'),
+				'type' => 'list',
+				'default' => true,
+				'items' => $appType,
+			];
+		}
+
+		$this->arResult['FILTER'] = [
+			'FILTER_ID' => 'marketplace_list' . ($this->arParams['FILTER_ID'] ? : ''),
+			'FILTER' => $filter,
+			'DATA' => [],
 		];
 	}
 
@@ -191,7 +232,30 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 			$filterQuery["mobile_compatible"] = $filterData["MOBILE_COMPATIBLE"] == "Y" ? "Y" : "N";
 		}
 
+		if (isset($filterData["SALE_OUT"]))
+		{
+			$filterQuery["sale"] = $filterData["SALE_OUT"] == "Y" ? "Y" : "N";
+		}
+
 		return $filterQuery;
+	}
+
+	protected function getPageSize()
+	{
+		$size = $this->pageSizeDefault;
+		if(isset($this->arParams['BLOCK_COUNT']) && $this->arParams['BLOCK_COUNT'] > 0)
+		{
+			$size = intVal($this->arParams['BLOCK_COUNT']);
+		}
+
+		return $size;
+	}
+
+	protected function setDefaultPageSize($size)
+	{
+		$this->pageSizeDefault = $size;
+
+		return true;
 	}
 
 	private function getItemsByTag($tag)
@@ -210,7 +274,18 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 
 		if(count($tag) > 0)
 		{
-			$this->items = \Bitrix\Rest\Marketplace\Client::getByTag($tag, $this->curPage);
+			if(isset($this->arParams['SHOW_LAST_BLOCK']) && $this->arParams['SHOW_LAST_BLOCK'] == 'Y')
+			{
+				$this->setDefaultPageSize(4);
+				$count = $this->getPageSize();
+				$this->items = \Bitrix\Rest\Marketplace\Client::getLastByTag($tag, $this->curPage, $count);
+			}
+			else
+			{
+				$this->setDefaultPageSize(18);
+				$count = $this->getPageSize();
+				$this->items = \Bitrix\Rest\Marketplace\Client::getByTag($tag, $this->curPage, $count);
+			}
 		}
 	}
 
@@ -240,9 +315,44 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 		}
 		else
 		{
-			$this->topItems = \Bitrix\Rest\Marketplace\Client::getTop(\Bitrix\Rest\Marketplace\Transport::METHOD_GET_BEST, array("onPageSize" => 8));
-			$this->newItems = \Bitrix\Rest\Marketplace\Client::getTop(\Bitrix\Rest\Marketplace\Transport::METHOD_GET_LAST, array("onPageSize" => 8));
+			$this->setDefaultPageSize(8);
+			$count = $this->getPageSize();
+			$this->topItems = \Bitrix\Rest\Marketplace\Client::getTop(\Bitrix\Rest\Marketplace\Transport::METHOD_GET_BEST, array("onPageSize" => $count));
+			$this->newItems = \Bitrix\Rest\Marketplace\Client::getTop(\Bitrix\Rest\Marketplace\Transport::METHOD_GET_LAST, array("onPageSize" => $count));
+			$this->saleItems = \Bitrix\Rest\Marketplace\Client::getTop(\Bitrix\Rest\Marketplace\Transport::METHOD_GET_SALE_OUT, array("onPageSize" => $count));
 		}
+	}
+
+	private function prepareBannerList($itemList)
+	{
+		if(is_array($itemList))
+		{
+			foreach ($itemList as $k => $item)
+			{
+				if (!empty($item['URL']))
+				{
+					if ($item['SLIDER'] === 'Y')
+					{
+						$itemList[$k]['ONCLICK'] = "BX.SidePanel.Instance.open('" . $item['URL'] . "')";
+					}
+					else
+					{
+						$itemList[$k]['ONCLICK'] = "window.open('" . $item['URL'] . "', '_blank')";
+					}
+				}
+
+				if($item['TYPE'] == $this->bannerTypeFeedback)
+				{
+					$itemList[$k][$this->bannerTypeFeedback] = 'Y';
+				}
+				else
+				{
+					unset($itemList[$k]);
+				}
+			}
+		}
+
+		return $itemList;
 	}
 
 	private function prepareItems(&$items)
@@ -276,17 +386,17 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 		foreach($items as $key => $app)
 		{
 			$items[$key]["URL"] = str_replace(
-				array("#app#"),
-				array(urlencode($app["CODE"])),
+				array("#app#",'#ID#'),
+				urlencode($app["CODE"]),
 				$this->arParams["DETAIL_URL_TPL"]
 			);
 
 			$items[$key]["INSTALLED"] = in_array($app["CODE"], $installedItems) ? "Y" : "N";
 
-			if ($app["FREE"] == "N" && is_array($app["PRICE"]) && !empty($app["PRICE"][1]))
-				$items[$key]["PRICE"] = Loc::getMessage("MARKETPLACE_APP_PRICE", array("#PRICE#" => $app["PRICE"][1]));
-			else if ($app["FREE"] == "N" && $app["BY_SUBSCRIPTION"] == "Y")
+			if ($app["BY_SUBSCRIPTION"] === "Y")
 				$items[$key]["PRICE"] = Loc::getMessage("MARKETPLACE_APP_SUBSCRIPTION");
+			elseif ($app["FREE"] === "N" && is_array($app["PRICE"]) && !empty($app["PRICE"][1]))
+				$items[$key]["PRICE"] = Loc::getMessage("MARKETPLACE_APP_PRICE", array("#PRICE#" => $app["PRICE"][1]));
 			else
 				$items[$key]["PRICE"] = Loc::getMessage("MARKETPLACE_APP_FREE");
 		}
@@ -296,7 +406,7 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 	{
 		$nav = new \Bitrix\Main\UI\PageNavigation("nav");
 		$nav->allowAllRecords(false)
-			->setPageSize(20)
+			->setPageSize($this->getPageSize())
 			->initFromUri();
 		$this->curPage = $nav->getCurrentPage();
 
@@ -314,6 +424,16 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 		{
 			$this->getItemsByTag($this->arParams["TAG"]);
 		}
+		elseif ($this->request->get("tag"))
+		{
+			$tag = $this->request->get("tag");
+			if(!is_array($tag))
+			{
+				$tag = [ $tag ];
+			}
+			$this->arParams["TAG"] = $tag;
+			$this->getItemsByTag($this->arParams["TAG"]);
+		}
 		else
 		{
 			unset($this->arParams["TAG"]);
@@ -327,9 +447,18 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 			if(is_array($this->arResult["ITEMS"]))
 			{
 				$this->prepareItems($this->arResult["ITEMS"]);
+
+				if(
+					!empty($this->items['BANNER'])
+					&& (!isset($this->arParams['HOLD_BANNER_ITEMS']) || $this->arParams['HOLD_BANNER_ITEMS'] != 'Y')
+				)
+				{
+					$bannerList = $this->prepareBannerList($this->items['BANNER']);
+					$this->arResult["ITEMS"] = $this->mergeBanner($this->arResult["ITEMS"], $bannerList);
+				}
 			}
 
-			$nav->setRecordCount(intval($this->items["PAGES"]) * 20);
+			$nav->setRecordCount(intval($this->items["PAGES"]) * $this->getPageSize());
 
 			$this->arResult["NAV"] = $nav;
 			$this->arResult["PAGE_COUNT"] = $nav->getPageCount();
@@ -337,11 +466,37 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 			$this->arResult["CURRENT_PAGE"] = $nav->getCurrentPage();
 		}
 	}
+
+	private function mergeBanner($itemList, $bannerList)
+	{
+		if(is_array($bannerList))
+		{
+			$bannerGroupList = [
+				'BEFORE' => [],
+				'AFTER' => []
+			];
+			foreach ($bannerList  as $item)
+			{
+				$bannerGroupList[$item['POSITION']][] = $item;
+			}
+			$itemList = array_merge($bannerGroupList['BEFORE'], $itemList, $bannerGroupList['AFTER']);
+		}
+
+		return $itemList;
+	}
+
 	public function executeComponent()
 	{
 		$this->titleName = Loc::getMessage("MARKETPLACE_ALL_APPS");
 
 		$this->collectItems();
+
+		if (!empty($this->saleItems))
+		{
+			$this->prepareItems($this->saleItems['ITEMS']);
+			$this->arResult["SALE_OUT_ITEMS"] = $this->saleItems['ITEMS'];
+			$this->arResult["SALE_OUT_NAME"] = (!empty($this->saleItems['NAME'])) ? $this->saleItems['NAME'] : '';
+		}
 
 		if (!empty($this->topItems))
 		{
@@ -349,6 +504,8 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 			$this->arResult["TOP_ITEMS_PAID"] = $this->topItems["ITEMS"]["PAID"];
 			$this->prepareItems($this->topItems["ITEMS"]["FREE"]);
 			$this->arResult["TOP_ITEMS_FREE"] = $this->topItems["ITEMS"]["FREE"];
+			$this->prepareItems($this->topItems["ITEMS"]["SUBSCRIPTION"]);
+			$this->arResult["TOP_ITEMS_SUBSCRIPTION"] = $this->topItems["ITEMS"]["SUBSCRIPTION"];
 		}
 
 		if (!empty($this->newItems))
@@ -357,6 +514,8 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 			$this->arResult["NEW_ITEMS_PAID"] = $this->newItems["ITEMS"]["PAID"];
 			$this->prepareItems($this->newItems["ITEMS"]["FREE"]);
 			$this->arResult["NEW_ITEMS_FREE"] = $this->newItems["ITEMS"]["FREE"];
+			$this->prepareItems($this->newItems["ITEMS"]["SUBSCRIPTION"]);
+			$this->arResult["NEW_ITEMS_SUBSCRIPTION"] = $this->newItems["ITEMS"]["SUBSCRIPTION"];
 		}
 
 		if($this->arParams["SET_TITLE"] !== "N")
@@ -368,6 +527,7 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 		\CJSCore::Init(array("marketplace"));
 		$this->includeComponentTemplate();
 	}
+
 	public function configureActions()
 	{
 		return [];
@@ -376,7 +536,10 @@ class CRestMarketplaceCategoryComponent extends \CBitrixComponent  implements \B
 	protected function listKeysSignedParameters()
 	{
 		return [
-			"DETAIL_URL_TPL"
+			"DETAIL_URL_TPL",
+			"SHOW_LAST_BLOCK",
+			"BLOCK_COUNT",
+			"HOLD_BANNER_ITEMS"
 		];
 	}
 

@@ -8,11 +8,10 @@ use \Bitrix\Main\Localization\Loc;
 
 return array(
 	'block' => array(
-		'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.3'),
+		'name' => Loc::getMessage('LANDING_BLOCK_FORM_33_3'),
 		'section' => array('forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'type' => ['page', 'store'],
 	),
 	'nodes' => array(
 		'.landing-block-node-bgimg' => array(
@@ -20,6 +19,7 @@ return array(
 			'type' => 'img',
 			'dimensions' => array('width' => 1920, 'height' => 1080),
 			'allowInlineEdit' => false,
+			'create2xByDefault' => false,
 		),
 	),
 	'style' => array(

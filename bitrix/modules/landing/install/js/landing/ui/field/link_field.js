@@ -40,13 +40,18 @@
 
 		if (!this.containsImage() && !this.containsHtml())
 		{
+			if (BX.Type.isStringFilled(this.content.text))
+			{
+				this.content.text = this.content.text.replace('&nbsp;', ' ');
+			}
+
 			this.content.text = escapeText(this.content.text);
 		}
 
 		this.input = new BX.Landing.UI.Field.Text({
 			placeholder: BX.Landing.Loc.getMessage("FIELD_LINK_TEXT_LABEL"),
 			selector: this.selector,
-			content: this.content.text,
+			content: BX.Text.decode(this.content.text),
 			textOnly: true,
 			onValueChange: function() {
 				this.onValueChangeHandler(this);
@@ -83,6 +88,7 @@
 			placeholder: BX.Landing.Loc.getMessage("FIELD_LINK_HREF_PLACEHOLDER"),
 			selector: this.selector,
 			content: this.content.href,
+			contentRoot: this.contentRoot,
 			onInput: this.onHrefInput.bind(this),
 			textOnly: true,
 			options: this.options,
@@ -119,6 +125,7 @@
 			selector: this.selector,
 			className: "landing-ui-field-dropdown-inline",
 			content: this.content.target,
+			contentRoot: this.contentRoot,
 			items: {
 				"_self": BX.Landing.Loc.getMessage("FIELD_LINK_TARGET_SELF"),
 				"_blank": BX.Landing.Loc.getMessage("FIELD_LINK_TARGET_BLANK"),
@@ -273,7 +280,7 @@
 			var type = this.hrefInput.getPlaceholderType();
 			var pageType = BX.Landing.Env.getInstance().getType();
 
-			if (type === "landing" && pageType !== "KNOWLEDGE" && pageType !== "GROUP")
+			if (type === "PAGE" && pageType !== "KNOWLEDGE" && pageType !== "GROUP")
 			{
 				var value = this.hrefInput.getValue();
 
@@ -363,7 +370,7 @@
 				target: trim(this.targetInput.getValue())
 			};
 
-			if (this.isAvailableMedia() && this.isEnabledMedia())
+			if (this.isAvailableMedia() && this.isEnabledMedia() && this.mediaService)
 			{
 				value.attrs = {
 					"data-url": trim(this.mediaService.getEmbedURL())
@@ -414,11 +421,17 @@
 				var type = BX.Landing.Env.getInstance().getType();
 				var value = this.getValue();
 
+				this.targetInput.enable();
+
 				if (type === 'KNOWLEDGE' || type === 'GROUP')
 				{
 					this.targetInput.disable();
 
-					if (
+					if (/^#diskFile([0-9]+)$/.test(value.href))
+					{
+						this.targetInput.setValue('_blank');
+					}
+					else if (
 						// #landing123 || #block123 || #myAnchor
 						/^#(\w+)([0-9])$/.test(value.href)
 					)
@@ -432,8 +445,15 @@
 				}
 				else
 				{
-					this.targetInput.enable();
-					this.targetInput.setValue('_self');
+					if (value.href.startsWith('#crmFormPopup'))
+					{
+						this.targetInput.disable();
+					}
+
+					if (value.href.startsWith('#crmPhone'))
+					{
+						this.targetInput.disable();
+					}
 				}
 			}
 		},
@@ -450,6 +470,20 @@
 			this.targetInput.disable();
 			this.targetInput.closePopup();
 			this.targetInput.setValue("_popup");
+
+
+			this.readyToSave = true;
+			if (!this.mediaService.isDataLoaded)
+			{
+				this.readyToSave = false;
+				BX.addCustomEvent(this.mediaService, 'onDataLoaded', () =>
+				{
+					this.readyToSave = true;
+					this.emit('onChangeReadyToSave');
+				});
+			}
+			this.emit('onChangeReadyToSave');
+
 			this.showMediaPreview();
 		},
 
@@ -461,6 +495,11 @@
 				this.targetInput.enable();
 				this.targetInput.closePopup();
 				this.targetInput.setValue("_self");
+				if (!this.readyToSave)
+				{
+					this.readyToSave = true;
+					this.emit('onChangeReadyToSave');
+				}
 				this.hideMediaPreview();
 				this.hideMediaSettings();
 			}
@@ -503,8 +542,8 @@
 		 */
 		isAvailableMedia: function()
 		{
-			var ServiceFactory = new BX.Landing.MediaService.Factory();
-			return !!ServiceFactory.create(this.hrefInput.getValue());
+			const ServiceFactory = new BX.Landing.MediaService.Factory();
+			return !!ServiceFactory.getRelevantClass(this.hrefInput.getValue())
 		},
 
 		onMediaClick: function()
@@ -543,7 +582,7 @@
 							}),
 							BX.create("div", {
 								props: {className: "landing-ui-field-link-media-help-popup-content-content"},
-								html: BX.Landing.Loc.getMessage("LANDING_CONTENT_URL_MEDIA_HELP")
+								html: BX.Landing.Loc.getMessage("LANDING_CONTENT_URL_MEDIA_HELP_2")
 							})
 						]
 					}).outerHTML,
@@ -558,23 +597,6 @@
 				.hide();
 		},
 
-		onVideoPreviewClick: function()
-		{
-			$.fancybox.open({
-				src: this.mediaService.getEmbedURL(),
-				type: "iframe",
-				afterShow: function(instance, current)
-				{
-					var iframe = current.$slide.find("iframe")[0];
-					void BX.Landing.MediaPlayer.Factory.create(iframe);
-				}
-			}, {
-				iframe: {
-					scrolling : "auto"
-				}
-			});
-		},
-
 		showMediaPreview: function()
 		{
 			// Make and show loader
@@ -586,16 +608,14 @@
 			this.video = loader.layout;
 			loader.show();
 
-			this.mediaService.getURLPreviewElement()
+			return this.mediaService.getURLPreviewElement()
 				.then(function(element) {
 					// Remove loader
 					BX.remove(this.video);
 
 					// Make and show URL preview
 					this.video = element;
-					this.video.title = BX.Landing.Loc.getMessage("LANDING_CONTENT_URL_PREVIEW_TITLE");
 					this.mediaLayout.appendChild(this.video);
-					this.video.addEventListener("click", this.onVideoPreviewClick.bind(this));
 					this.showMediaSettings();
 				}.bind(this), function() {
 					this.hideMediaSettings();
@@ -614,27 +634,28 @@
 
 		adjustVideo: function()
 		{
-			var embedURL = "attrs" in this.content && "data-url" in this.content.attrs ? this.content.attrs["data-url"] : "";
-			var ServiceFactory = new BX.Landing.MediaService.Factory();
-			this.mediaService = ServiceFactory.create(
-				this.hrefInput.getValue(),
-				BX.Landing.Utils.getQueryParams(embedURL)
-			);
-
-			if (this.mediaService)
+			var pageType = BX.Landing.Env.getInstance().getType();
+			if (pageType !== 'KNOWLEDGE' && pageType !== 'GROUP')
 			{
-				this.mediaService.url = this.hrefInput.getValue();
+				var embedURL = "attrs" in this.content && "data-url" in this.content.attrs ? this.content.attrs["data-url"] : "";
+				var ServiceFactory = new BX.Landing.MediaService.Factory();
+				this.mediaService = ServiceFactory.create(
+					this.hrefInput.getValue(),
+					BX.Landing.Utils.getQueryParams(embedURL)
+				);
 
-				this.disableMedia();
-
-				if (this.isAvailableMedia())
+				if (this.mediaService)
 				{
-					this.enableMedia();
+					this.disableMedia();
+					if (this.isAvailableMedia())
+					{
+						this.enableMedia();
+					}
 				}
-			}
-			else
-			{
-				this.disableMedia();
+				else
+				{
+					this.disableMedia();
+				}
 			}
 		},
 

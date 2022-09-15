@@ -46,6 +46,12 @@ class LandingFilterComponent extends LandingBaseComponent
 	protected static $isDeleted = false;
 
 	/**
+	 * External filter.
+	 * @var array
+	 */
+	protected static $externalFilter = [];
+
+	/**
 	 * Allowed or not some type.
 	 * @param string $type Type.
 	 * @return boolean
@@ -82,6 +88,20 @@ class LandingFilterComponent extends LandingBaseComponent
 	}
 
 	/**
+	 * Sets external filter.
+	 * @param string $key Filter row key.
+	 * @param mixed $value Filter row value.
+	 * @return void
+	 */
+	public static function setExternalFilter($key, $value)
+	{
+		if (is_string($key))
+		{
+			self::$externalFilter[$key] = $value;
+		}
+	}
+
+	/**
 	 * Returns current raw filter by type.
 	 * @param string $type Filter type.
 	 * @param string $siteType Site type.
@@ -109,7 +129,7 @@ class LandingFilterComponent extends LandingBaseComponent
 	 */
 	public static function getFilter($type, $siteType = 'PAGE')
 	{
-		$filter = array();
+		$filter = self::$externalFilter;
 
 		// in slider filter must be ignored
 		$context = Application::getInstance()->getContext();
@@ -161,6 +181,18 @@ class LandingFilterComponent extends LandingBaseComponent
 					}
 					$filter[] = $flt;
 				}
+				// include areas
+				if (isset($search['IS_AREA']))
+				{
+					if ($search['IS_AREA'] == 'Y')
+					{
+						$filter['!==AREAS.ID'] = null;
+					}
+					else
+					{
+						$filter['==AREAS.ID'] = null;
+					}
+				}
 				// simple fields
 				if (isset($search['DELETED']))
 				{
@@ -179,9 +211,9 @@ class LandingFilterComponent extends LandingBaseComponent
 						$filter[$code] = [];
 						foreach ((array) $search[$code] as $uid)
 						{
-							$filter[$code][] = (substr($uid, 0, 1) == 'U')
-												? substr($uid, 1)
-												: $uid;
+							$filter[$code][] = (mb_substr($uid, 0, 1) == 'U')
+								? mb_substr($uid, 1)
+								: $uid;
 						}
 					}
 				}
@@ -263,6 +295,11 @@ class LandingFilterComponent extends LandingBaseComponent
 				'default' => true,
 				'type' => 'checkbox'
 			],
+			'IS_AREA' => [
+				'id' => 'IS_AREA',
+				'default' => true,
+				'type' => 'checkbox'
+			],
 			'ID' => [
 				'id' => 'ID',
 				'default' => false,
@@ -299,6 +336,11 @@ class LandingFilterComponent extends LandingBaseComponent
 				'type' => 'date'
 			]
 		];
+
+		if ($this->arParams['FILTER_TYPE'] == self::TYPE_SITE)
+		{
+			unset($return['IS_AREA']);
+		}
 
 		if ($this->arParams['DRAFT_MODE'] == 'Y')
 		{
@@ -341,9 +383,11 @@ class LandingFilterComponent extends LandingBaseComponent
 
 		if ($init)
 		{
+			$this->checkParam('TYPE', '');
 			$this->checkParam('FILTER_TYPE', '');
 			$this->checkParam('SETTING_LINK', '');
 			$this->checkParam('DRAFT_MODE', 'N');
+			$this->checkParam('FOLDER_ID', 0);
 			$this->checkParam('FOLDER_SITE_ID', 0);
 
 			$this->arParams['TYPE'] = trim($this->arParams['TYPE']);
@@ -352,6 +396,10 @@ class LandingFilterComponent extends LandingBaseComponent
 			$this->arParams['FILTER_ID'] .= $this->arParams['TYPE'] . '_';
 			$this->arParams['FILTER_ID'] .= $this->arParams['FILTER_TYPE'];
 			$this->arParams['FILTER_ID'] .= self::FILTER_SUFFIX;
+
+			\Bitrix\Landing\Site\Type::setScope(
+				$this->arParams['TYPE']
+			);
 
 			$this->arResult['NAVIGATION_ID'] = $this::NAVIGATION_ID;
 			$this->arResult['CURRENT_PAGE'] = $this->request($this::NAVIGATION_ID);

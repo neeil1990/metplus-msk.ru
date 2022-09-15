@@ -25,7 +25,7 @@ abstract class Entity implements \ArrayAccess
 		$this->id = $id;
 		if ($id <= 0)
 		{
-			throw new \Bitrix\Main\ArgumentException(__CLASS__ . " empty id.");
+			throw new \Bitrix\Main\ArgumentNullException(static::class . " empty id.");
 		}
 		$this->init();
 
@@ -58,8 +58,13 @@ abstract class Entity implements \ArrayAccess
 	{
 		return $this->authorId;
 	}
-
+	// entity actions
 	abstract public function edit(array $fields);
-
+	abstract public function remove();
 	abstract public static function create($parentObject, array $fields);
+
+	// crud actions
+	//abstract public static function add($parentObject, array $fields);
+	abstract public static function update(int $id, array &$fields);
+	abstract public static function delete(int $id);
 }

@@ -13,13 +13,16 @@ import * as debugNs from './lib/runtime/debug';
 import {isReady} from './lib/event/ready';
 import getElement from './internal/get-element';
 import getWindow from './internal/get-window';
-import EventEmitter from "./lib/event/event-emitter";
-import BaseEvent from "./lib/event/base-event";
+import EventEmitter from './lib/event/event-emitter';
+import BaseEvent from './lib/event/base-event';
 
 // BX.*
 export const {getClass, namespace} = Reflection;
 export const message = messageFunction;
 
+/**
+ * @memberOf BX
+ */
 export const {
 	replace,
 	remove,
@@ -289,7 +292,7 @@ export function addCustomEvent(eventObject, eventName, eventHandler)
 
 	eventName = eventName.toLowerCase();
 
-	EventEmitter.subscribe(eventObject, eventName, eventHandler, { compatMode: true });
+	EventEmitter.subscribe(eventObject, eventName, eventHandler, { compatMode: true, useGlobalNaming: true });
 }
 
 export function onCustomEvent(eventObject, eventName, eventParams, secureParams)
@@ -318,7 +321,7 @@ export function onCustomEvent(eventObject, eventName, eventParams, secureParams)
 	event.setData(eventParams);
 	event.setCompatData(eventParams);
 
-	EventEmitter.emit(eventObject, eventName, event, { cloneData: secureParams === true });
+	EventEmitter.emit(eventObject, eventName, event, { cloneData: secureParams === true, useGlobalNaming: true });
 }
 
 export function removeCustomEvent(eventObject, eventName, eventHandler)
@@ -343,7 +346,7 @@ export function removeCustomEvent(eventObject, eventName, eventHandler)
 
 	eventName = eventName.toLowerCase();
 
-	EventEmitter.unsubscribe(eventObject, eventName, eventHandler);
+	EventEmitter.unsubscribe(eventObject, eventName, eventHandler, { useGlobalNaming: true });
 }
 
 export function removeAllCustomEvents(eventObject, eventName)
@@ -361,5 +364,5 @@ export function removeAllCustomEvents(eventObject, eventName)
 
 	eventName = eventName.toLowerCase();
 
-	EventEmitter.unsubscribeAll(eventObject, eventName);
+	EventEmitter.unsubscribeAll(eventObject, eventName, { useGlobalNaming: true });
 }

@@ -27,6 +27,86 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 	public static $internalClass = 'RoleTable';
 
 	/**
+	 * Set forbidden rights in default role manager.
+	 * @var array
+	 */
+	public static $forbiddenManagerRights = [
+		'admin',
+		'knowledge_admin',
+		'unexportable',
+		'knowledge_unexportable',
+	];
+
+	/**
+	 * Set forbidden rights in default role admin.
+	 * @var array
+	 */
+	public static $forbiddenAdminRights = [
+		'unexportable',
+		'knowledge_unexportable'
+	];
+
+	/**
+	 * For correct work we need at least one role.
+	 * @return void
+	 */
+	public static function checkRequiredRoles(): void
+	{
+		$type = Site\Type::getCurrentScopeId();
+		$res = self::getList([
+			'select' => [
+				'ID'
+			],
+			'filter' => [
+				'=TYPE' => $type
+			],
+			'order' => [
+				'ID' => 'asc'
+			]
+		]);
+		while ($role = $res->fetch())
+		{
+			$taskRefs = Rights::getAccessTasksReferences();
+			$taskReadId = $taskRefs[Rights::ACCESS_TYPES['read']];
+			$taskDenyId = $taskRefs[Rights::ACCESS_TYPES['denied']];
+			$resRight = RightsTable::getList([
+				'select' => [
+					'ID'
+				],
+				'filter' => [
+					'ENTITY_ID' => 0,
+					'TASK_ID' => [$taskReadId, $taskDenyId],
+					'ROLE_ID' => $role['ID'],
+					'=ENTITY_TYPE' => Rights::ENTITY_TYPE_SITE
+				]
+			]);
+			if (!$resRight->fetch())
+			{
+				RightsTable::add([
+					'ENTITY_ID' => 0,
+					'ENTITY_TYPE' => Rights::ENTITY_TYPE_SITE,
+					'TASK_ID' => $taskReadId,
+					'ROLE_ID' => $role['ID'],
+					'ACCESS_CODE' => 'G1'
+				]);
+			}
+		}
+
+		if (isset($taskRefs))
+		{
+			return;
+		}
+
+		$keyDemoInstalled = 'role_demo_installed';
+		if ($type)
+		{
+			$keyDemoInstalled .= '_' . mb_strtolower($type);
+		}
+		Manager::setOption($keyDemoInstalled, 'N');
+		self::fetchAll();
+	}
+
+	/**
 	 * Gets all roles. Install demo data if need.
 	 * @return array
 	 */
@@ -97,7 +177,7 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 		$keyDemoInstalled = 'role_demo_installed';
 		if ($type)
 		{
-			$keyDemoInstalled .= '_' . strtolower($type);
+			$keyDemoInstalled .= '_'.mb_strtolower($type);
 		}
 		if (
 			empty($roles) &&
@@ -146,10 +226,10 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 		$addRights = [];
 		foreach (Rights::ADDITIONAL_RIGHTS as $accessCode)
 		{
-			if (strpos($accessCode, '_') > 0)
+			if (mb_strpos($accessCode, '_') > 0)
 			{
-				list($prefix, ) = explode('_', $accessCode);
-				$prefix = strtoupper($prefix);
+				[$prefix, ] = explode('_', $accessCode);
+				$prefix = mb_strtoupper($prefix);
 				if ($prefix == $type)
 				{
 					$addRights[] = $accessCode;
@@ -158,6 +238,25 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 			else if ($type === null)
 			{
 				$addRights[] = $accessCode;
+			}
+		}
+
+		$addRightsManager = $addRights;
+		foreach (self::$forbiddenManagerRights as $rightCode)
+		{
+			$key = array_search($rightCode, $addRightsManager, true);
+			if ($key)
+			{
+				array_splice($addRightsManager, $key, 1);
+			}
+		}
+		$addRightsAdmin = $addRights;
+		foreach (self::$forbiddenAdminRights as $rightCode)
+		{
+			$key = array_search($rightCode, $addRightsAdmin, true);
+			if ($key)
+			{
+				array_splice($addRightsAdmin, $key, 1);
 			}
 		}
 
@@ -170,7 +269,7 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 					'public',
 					'delete'
 				],
-				'additional_rights' => $addRights,
+				'additional_rights' => $addRightsAdmin,
 				'access' => [
 					$defGroup
 				]
@@ -181,14 +280,14 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 					'edit',
 					'public'
 				],
-				'additional_rights' => $addRights,
+				'additional_rights' => $addRightsManager,
 				'access' => []
 			]
 		];
 		$type = (string)$type;
 		foreach ($demoData as $code => $rights)
 		{
-			$code = strtoupper($code);
+			$code = mb_strtoupper($code);
 			$check = false;
 			/*$check = self::getList([
 				'filter' => [
@@ -263,6 +362,7 @@ class Role extends \Bitrix\Landing\Internals\BaseTable
 	{
 		$tasks = Rights::getAccessTasksReferences();
 		$tasks = array_flip($tasks);
+		$roleId = intval($roleId);
 		$return = [];
 
 		$res = RightsTable::getlist([

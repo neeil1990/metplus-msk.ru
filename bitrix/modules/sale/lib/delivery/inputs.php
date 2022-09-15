@@ -1,7 +1,8 @@
 <?php
 
 namespace Bitrix\Sale\Delivery\Inputs;
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/internals/input.php");
+
+require_once __DIR__.'/../internals/input.php';
 
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ArgumentTypeException;
@@ -107,7 +108,7 @@ Input\Manager::register('DELIVERY_PERIOD', array(
 	'NAME' => Loc::getMessage('INPUT_DELIVERY_PERIOD')
 ));
 
-class ReadOnly extends Input\Base
+class ReadOnlyField extends Input\Base
 {
 	public static function getViewHtmlSingle(array $input, $value)
 	{
@@ -157,7 +158,7 @@ class ReadOnly extends Input\Base
 }
 
 Input\Manager::register('DELIVERY_READ_ONLY', array(
-	'CLASS' => __NAMESPACE__.'\\ReadOnly',
+	'CLASS' => __NAMESPACE__.'\\ReadOnlyField',
 	'NAME' => Loc::getMessage('INPUT_DELIVERY_READ_ONLY')
 ));
 
@@ -347,7 +348,7 @@ class LocationMulti extends Input\Base
 			"",
 			array(
 				"ENTITY_PRIMARY" => $input["DELIVERY_ID"],
-				"LINK_ENTITY_NAME" => substr(static::$d2LClass, 0, -5),
+				"LINK_ENTITY_NAME" => mb_substr(static::$d2LClass, 0, -5),
 				"INPUT_NAME" => $name
 			),
 			false
@@ -420,98 +421,12 @@ class LocationMultiExclude extends LocationMulti
 
 Input\Manager::register('LOCATION_MULTI_EXCLUDE', array(
 	'CLASS' => __NAMESPACE__.'\\LocationMultiExclude',
-	'NAME' => Loc::getMessage('INPUT_DELIVERY_LOCATION_MULTI')
+	'NAME' => Loc::getMessage('INPUT_DELIVERY_LOCATION_MULTI_EXCLUDE')
 ));
 
-class ProductCategories extends Input\Base
-{
-	public static function getViewHtml(array $input, $values = null)
-	{
-		if(!is_array($values))
-			return '';
-
-		$result = '<br><br>';
-		$catList = self::getCategoriesList($values);
-
-		foreach($catList as $catName)
-			$result .= '<div> - '.$catName.'</div>';
-
-		return $result;
-	}
-
-	public static function getEditHtml($name, array $input, $values = null)
-	{
-		if(!is_array($values))
-			$values = array();
-
-		$result = '<br><a style="color:#113c7d;text-decoration:none;border-bottom:1px dashed #113c7d;font-weight: bold;" href="javascript:void(0);" id="'.$input["ID"].'" onclick="window.open(\''.$input["URL"].'\',\'choose category\',\'width=850,height=600\');">'.Loc::getMessage('SALE_DELIVERY_INP_ADD').'</a><br><br>'.
-			'<script type="text/javascript">'.$input["SCRIPT"].'</script>'.
-			'<script type="text/javascript">BX.message({SALE_DELIVERY_INP_DELETE: "'.Loc::getMessage("SALE_DELIVERY_INP_DELETE").'"});</script>';
-
-		$catList = self::getCategoriesList($values);
-		$existCatHtml = '<table id="sale-admin-delivery-restriction-cat-content" width="100%">';
-
-		foreach($catList as $catId => $catName)
-			$existCatHtml .= '
-				<tr class="adm-s-delivery-restriction-delcat" id="sale-admin-delivery-restriction-cat-'.$catId.'">
-					<td>
-						<span> - '.$catName.'</span>
-						<input type="hidden" name="RESTRICTION[CATEGORIES][]" value="'.$catId.'">
-					</td>
-					<td align="right">
-						&nbsp;<a class="adm-s-bus-morelinkqhsw" href="javascript:void(0);" onclick="BX.Sale.Delivery.deleteRestrictionProductSection(\''.$catId.'\');">'.Loc::getMessage('SALE_DELIVERY_INP_DELETE').'</a>
-					</td>
-				</tr>';
-
-		$existCatHtml .= '</table>';
-
-		return $existCatHtml.$result;
-	}
-
-	protected static function getCategoriesList($ids)
-	{
-		if(!\Bitrix\Main\Loader::includeModule('iblock'))
-			return array();
-
-		$result = array();
-
-		$res = \Bitrix\Iblock\SectionTable::getList(array(
-			'filter' => array(
-				'ID' => $ids
-			),
-			'select' => array('ID', 'NAME')
-		));
-
-		while($section = $res->fetch())
-			$result[$section['ID']]  = htmlspecialcharsbx($section['NAME']);
-
-		return $result;
-	}
-
-	public static function getValueSingle(array $input, $userValue)
-	{
-		return $userValue;
-	}
-
-
-	public static function getError(array $input, $values)
-	{
-		return self::getErrorSingle($input, $values);
-	}
-
-	public static function getErrorSingle(array $input, $values)
-	{
-		return array();
-	}
-
-	public static function getSettings(array $input, $reload)
-	{
-		return array();
-	}
-}
-
+// Deprecated type
 Input\Manager::register('DELIVERY_PRODUCT_CATEGORIES', array(
-	'CLASS' => __NAMESPACE__.'\\ProductCategories',
+	'CLASS' => \Bitrix\Sale\Internals\Input\ProductCategories::class,
 	'NAME' => Loc::getMessage('INPUT_DELIVERY_PRODUCT_CATEGORIES')
 ));
 
@@ -522,9 +437,9 @@ class ButtonSelector extends Input\Base
 		if(!is_array($values))
 			throw new ArgumentTypeException('values', 'array');
 
-		$itemName = (strlen($values['NAME']) > 0 ? htmlspecialcharsbx($values['NAME']) : '');
+		$itemName = ($values['NAME'] <> '' ? htmlspecialcharsbx($values['NAME']) : '');
 
-		if(strlen($itemName) <= 0 && strlen($input['NAME_DEFAULT']) > 0)
+		if($itemName == '' && $input['NAME_DEFAULT'] <> '')
 		{
 			$itemName = htmlspecialcharsbx($input['NAME_DEFAULT']);
 		}
@@ -540,16 +455,16 @@ class ButtonSelector extends Input\Base
 		if(!isset($input["VALUE"]))
 			$input["VALUE"] = '';
 
-		$itemName = (strlen($values['NAME']) > 0 ? htmlspecialcharsbx($values['NAME']) : '');
+		$itemName = ($values['NAME'] <> '' ? htmlspecialcharsbx($values['NAME']) : '');
 
-		if(strlen($itemName) <= 0 && strlen($input['NAME_DEFAULT']) > 0)
+		if($itemName == '' && $input['NAME_DEFAULT'] <> '')
 		{
 			$itemName = htmlspecialcharsbx($input['NAME_DEFAULT']);
 		}
 
-		$itemValue = (strlen($values['VALUE']) > 0 ? htmlspecialcharsbx($values['VALUE']) : '');
+		$itemValue = ($values['VALUE'] <> '' ? htmlspecialcharsbx($values['VALUE']) : '');
 
-		if(strlen($itemName) <= 0 && strlen($input['VALUE_DEFAULT']) > 0)
+		if($itemName == '' && $input['VALUE_DEFAULT'] <> '')
 		{
 			$itemValue = htmlspecialcharsbx($input['VALUE_DEFAULT']);
 		}
@@ -591,4 +506,3 @@ Input\Manager::register('DELIVERY_BUTTON_SELECTOR', array(
 	'CLASS' => __NAMESPACE__.'\\ButtonSelector',
 	'NAME' => Loc::getMessage('INPUT_DELIVERY_BUTTON_SELECTOR')
 ));
-

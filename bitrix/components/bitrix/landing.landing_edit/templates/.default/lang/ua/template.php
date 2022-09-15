@@ -1,10 +1,9 @@
-<?
+<?php
 $MESS["LANDING_FIELD_TITLE_METAOG_NAME"] = "Вигляд сторінки в соцмережах";
 $MESS["LANDING_FIELD_TITLE_METAOG_NAME_GROUP"] = "Вигляд багатого посилання";
 $MESS["LANDING_FIELD_TITLE_METAOG_NAME_KNOWLEDGE"] = "Вигляд багатого посилання";
 $MESS["LANDING_TPL_ACTION_ADD_IN_SITEMAP"] = "Додати сторінку в карту сайту";
 $MESS["LANDING_TPL_ADDITIONAL"] = "Додатково";
-$MESS["LANDING_TPL_ADDITIONAL_BG"] = "Тло";
 $MESS["LANDING_TPL_ADDITIONAL_CSS"] = "CSS";
 $MESS["LANDING_TPL_ADDITIONAL_HTML"] = "HTML";
 $MESS["LANDING_TPL_ADDITIONAL_HTMLCSS"] = "HTML/CSS";
@@ -17,6 +16,7 @@ $MESS["LANDING_TPL_ADDITIONAL_VIEW"] = "Подання";
 $MESS["LANDING_TPL_BUTTON_ADD"] = "Додати";
 $MESS["LANDING_TPL_BUTTON_CANCEL"] = "Скасувати";
 $MESS["LANDING_TPL_BUTTON_SAVE"] = "Зберегти";
+$MESS["LANDING_TPL_CODE_FOLDER_SETTINGS"] = "Для головної сторінки папки зміна адреси здійснюється в #LINK1#Налаштуваннях папки#LINK2#.";
 $MESS["LANDING_TPL_CODE_SETTINGS"] = "Для головної сторінки зміна адреси здійснюється в #LINK1#Налаштуваннях сайту#LINK2#.";
 $MESS["LANDING_TPL_CODE_SETTINGS_KNOWLEDGE"] = "Для головної сторінки зміна адреси здійснюється в #LINK1#Налаштуваннях бази знань#LINK2#.";
 $MESS["LANDING_TPL_FIELD_CODE"] = "Адреса сторінки";
@@ -28,4 +28,3 @@ $MESS["LANDING_TPL_LAYOUT_AREA"] = "Область";
 $MESS["LANDING_TPL_LAYOUT_USE"] = "Змінити для цієї сторінки";
 $MESS["LANDING_TPL_TITLE_ADD"] = "Нова сторінка";
 $MESS["LANDING_TPL_TITLE_EDIT"] = "Налаштування сторінки";
-?>

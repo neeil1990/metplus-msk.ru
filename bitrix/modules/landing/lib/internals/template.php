@@ -6,6 +6,22 @@ use \Bitrix\Main\Entity;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class TemplateTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Template_Query query()
+ * @method static EO_Template_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Template_Result getById($id)
+ * @method static EO_Template_Result getList(array $parameters = array())
+ * @method static EO_Template_Entity getEntity()
+ * @method static \Bitrix\Landing\Internals\EO_Template createObject($setDefaultValues = true)
+ * @method static \Bitrix\Landing\Internals\EO_Template_Collection createCollection()
+ * @method static \Bitrix\Landing\Internals\EO_Template wakeUpObject($row)
+ * @method static \Bitrix\Landing\Internals\EO_Template_Collection wakeUpCollection($rows)
+ */
 class TemplateTable extends Entity\DataManager
 {
 	/**
@@ -41,9 +57,9 @@ class TemplateTable extends Entity\DataManager
 					return array(
 						function ($value)
 						{
-							if (substr($value, 0, 1) == '#')
+							if (mb_substr($value, 0, 1) == '#')
 							{
-								$langCode = substr(substr($value, 1), 0, -1);
+								$langCode = mb_substr(mb_substr($value, 1), 0, -1);
 								$mess = Loc::getMessage('LANDING_TABLE_TPL_' . $langCode);
 								if ($mess)
 								{

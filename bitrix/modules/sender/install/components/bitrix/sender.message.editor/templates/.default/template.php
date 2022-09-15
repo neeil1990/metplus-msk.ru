@@ -2,8 +2,22 @@
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
 use Bitrix\Sender\Message\ConfigurationOption as ConOpt;
+
+Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
+	'ui.layout-form',
+	'ui.alerts',
+	'ui.hint',
+	'ui.sidepanel-content',
+	'ui.buttons',
+	'ui.common',
+	'sender.rc_editor'
+]);
+
 
 /** @var CAllMain $APPLICATION */
 /** @var array $arParams */
@@ -120,8 +134,13 @@ $fieldPrefix = 'CONFIGURATION_';
 			$arResult['MESSAGE_VIEW']
 		);
 	}
-	else foreach ($arResult['LIST'] as $group)
+	foreach ($arResult['LIST'] as $group)
 	{
+		if ($arResult['MESSAGE_VIEW'] && !$group['isAdditional'])
+		{
+			continue;
+		}
+
 		if ($group['isAdditional'])
 		{
 			?>
@@ -133,9 +152,11 @@ $fieldPrefix = 'CONFIGURATION_';
 						</div>
 						<div class="sender-message-editor-more-list">
 							<?foreach ($group['options'] as $option):?>
+								<?php if ($option['name']):?>
 								<span class="sender-message-editor-more-list-item">
-									<?=htmlspecialcharsbx($option['name'])?>
+									<?= htmlspecialcharsbx($option['name']) ?>
 								</span>
+								<?php endif?>
 							<?endforeach;?>
 						</div>
 					</div>
@@ -160,6 +181,7 @@ $fieldPrefix = 'CONFIGURATION_';
 				$inputView
 			);
 			$hint = $getHintHtml($option);
+			$hintUsed = false;
 			$hintText = htmlspecialcharsbx($getHintText($option));
 			$placeholder = strip_tags($getHintText($option));
 
@@ -167,7 +189,10 @@ $fieldPrefix = 'CONFIGURATION_';
 			$inputDisplay = '';
 			$isEditor = false;
 			$isCustomCaption = false;
-			$optionType = strlen($inputView) == 0 ? $option['type'] : ConOpt::TYPE_CUSTOM;
+			$loadHtml = false;
+			$maxLength = isset($option['max_length']) ? "maxlength='".$option['max_length']."'":"";
+
+			$optionType = $inputView == '' ? $option['type'] : ConOpt::TYPE_CUSTOM;
 			switch ($optionType)
 			{
 				case ConOpt::TYPE_FILE:
@@ -189,6 +214,36 @@ $fieldPrefix = 'CONFIGURATION_';
 						"cloud" => true
 					)
 					))->show($fileParameters);
+				break;
+				case ConOpt::TYPE_DATE_TIME:
+					$inputHtml = "<input type='text' id='".$inputName."' name='".$inputName."' 
+					class='bx-sender-form-control' value='".$inputValue."'
+					onclick=\"BX.calendar({node: this, field: this, bTime: true,bHideTime:false});\"
+					".$option["required"]."
+					/>";
+				break;
+				case ConOpt::TYPE_TIME:
+					$inputHtml = "<select name=\"$inputName\"
+ 					value='".$inputValue."'
+ 					class=\"bx-sender-form-control bx-sender-message-editor-field-select\">";
+
+					for ($i = 0; $i < 24; $i++)
+					{
+						foreach ([0, 30] as $minute)
+						{
+							$formatted = sprintf("%02d:%02d", $i, $minute);
+							$inputHtml .= "<option value='{$formatted}'";
+							$inputHtml .= $formatted === $inputValue ? "selected" : "";
+							$inputHtml .= ">{$formatted}</option>";
+						}
+					}
+					$inputHtml .= "</select>";
+
+				break;
+				case ConOpt::TYPE_NUMBER:
+					$inputHtml = "<input type='number' step='1' id='".$inputName."' name='".$inputName."'
+					class='bx-sender-form-control' value='".$inputValue."'/>";
+				break;
 
 					/*
 					ob_start();
@@ -255,11 +310,13 @@ $fieldPrefix = 'CONFIGURATION_';
 							"VALUE" => $option['value'],
 							"TEMPLATE_TYPE" => $arParams['TEMPLATE_TYPE'],
 							"TEMPLATE_ID" => $arParams['TEMPLATE_ID'],
+							"IS_TRIGGER" => $arParams['IS_TRIGGER'],
 						),
 						null
 					);
 					$inputHtml = ob_get_clean();
 					$isEditor = true;
+					$loadHtml = true;
 					break;
 
 				case ConOpt::TYPE_SMS_EDITOR:
@@ -308,8 +365,8 @@ $fieldPrefix = 'CONFIGURATION_';
 					$inputHtml = "<select name=\"$inputName\" class=\"bx-sender-form-control bx-sender-message-editor-field-select\">";
 					foreach ($option['items'] as $item)
 					{
-						$itemKey = htmlspecialcharsbx($item['code']);
-						$itemValue = htmlspecialcharsbx($item['value']);
+						$itemKey = htmlspecialcharsbx($item['code']??'');
+						$itemValue = htmlspecialcharsbx($item['value']??'');
 						$selected = $itemKey == $inputValue ? 'selected' : '';
 						$inputHtml .= "<option value=\"$itemKey\" $selected>$itemValue</option>";
 					}
@@ -317,7 +374,7 @@ $fieldPrefix = 'CONFIGURATION_';
 					break;
 
 				case ConOpt::TYPE_TEXT:
-					$inputHtml = "<textarea id=\"$inputId\" name=\"$inputName\" placeholder=\"$placeholder\" class=\"bx-sender-form-control bx-sender-message-editor-field-text\">";
+					$inputHtml = "<textarea id=\"$inputId\" name=\"$inputName\" placeholder=\"$placeholder\" class=\"bx-sender-form-control bx-sender-message-editor-field-text\" $maxLength>";
 					$inputHtml .= $inputValue;
 					$inputHtml .= "</textarea>";
 					break;
@@ -332,23 +389,117 @@ $fieldPrefix = 'CONFIGURATION_';
 					$isCustomCaption = true;
 					break;
 
+				case ConOpt::TYPE_CONSENT:
+					$hintText = htmlspecialcharsbx($hintText);
+					$value = $inputValue === 'Y' ? 'checked="checked"' : '';
+					$inputHtml .= <<<TEXT
+						<div style="padding: 0; width: 100%;" class="ui-form">
+						<div>
+							<div class="ui-form-label">
+								<label class="ui-ctl ui-ctl-checkbox">
+									<input type="checkbox" class="bx-sender-message-editor-field-checkbox"
+										id="{$inputId}"
+										name="{$inputName}"
+										value="Y"
+										{$value}
+									>
+									<div class="bx-sender-caption sender-message-title">{$inputCaption}</div>
+									<div data-hint="{$hintText}"></div>
+								</label>
+							</div>
+TEXT;
+
+					$inputHtml .= '</div></div>';
+					$inputDisplay = 'sender-consent-margin';
+
+					$isCustomCaption = true;
+					$hintUsed = true;
+					break;
+				case ConOpt::TYPE_CONSENT_CONTENT:
+					$inputHtml .= '<div class="sender-consent-block">';
+
+					if ($option['show_helper'])
+					{
+						$alertText = Loc::getMessage("SENDER_INTEGRATION_MAIL_MESSAGE_CONSENT_WARNING");
+						$buttonText = Loc::getMessage("SENDER_INTEGRATION_MAIL_MESSAGE_COPY");
+						$contentText = htmlspecialcharsbx(
+							""
+							."<a style=\"color: #0054a5;\" href=\"#UNSUBSCRIBE_LINK#\">"
+							. Loc::getMessage("SENDER_MESSAGE_EDITOR_UNSUB")
+							."</a>");
+
+						$inputHtml .= <<<TEXT
+						<div data-role="consent-block-to-copy" class="main-user-consent-selector-wrapper">
+							<div class="main-user-consent-selector-alert">$alertText</div>	
+							<div class="main-user-consent-selector-block">
+								<span class="sender-footer-to-copy">$contentText</span>
+								<button type="button" id="ui-button-copy" name="copy" value="Y" class="ui-btn ui-btn-success">$buttonText</button>
+							</div>
+						</div>
+TEXT;
+					}
+
+					ob_start();
+					$APPLICATION->IncludeComponent(
+						'bitrix:main.userconsent.selector',
+						'',
+						array_merge($arParams['CONSENT_PARAMS'], [
+							'ID' => $inputValue,
+							'INPUT_NAME' => $inputName
+						])
+					);
+					$inputHtml .= ob_get_clean();
+					if ($option['show_preview'])
+					{
+						$previewText = Loc::getMessage('SENDER_MESSAGE_EDITOR_CONSENT_PREVIEW');
+						$inputHtml .= <<<PREVIEW
+							<div class="main-user-consent-selector-footer sender-message-editor-preview">
+								<a class="main-user-consent-selector-block-link" data-role="consent-preview"
+								data-bx-input-name="$inputName"
+								data-bx-slider-href="" data-bx-slider-reload="true" href="#">
+								$previewText
+								</a>
+							</div>
+PREVIEW;
+					}
+
+					$inputHtml .= '</div>';
+					$isCustomCaption = true;
+					break;
 				case ConOpt::TYPE_STRING:
 				default:
-					$inputHtml = "<input type=\"text\" id=\"$inputId\"  name=\"$inputName\" value=\"$inputValue\" class=\"bx-sender-form-control bx-sender-message-editor-field-input\">";
+					$inputHtml = "<input type=\"text\" id=\"$inputId\"  name=\"$inputName\" value=\"$inputValue\" class=\"bx-sender-form-control bx-sender-message-editor-field-input\" $maxLength>";
 					break;
 			}
-
-			?>
+				?>
 			<div data-bx-field="<?=$inputId?>" class="bx-sender-message-editor-field <?=$inputDisplay?>">
-				<div class="bx-sender-caption sender-message-title">
-					<?if (!$isCustomCaption):?>
+				<?if (!$isCustomCaption):?>
+					<div class="bx-sender-caption sender-message-title">
 						<?=$inputCaption?>:
-					<?endif;?>
-				</div>
+					</div>
+				<?endif;?>
 				<div data-role="editor-field" class="bx-sender-value">
-					<?=$inputHtml?>
+					<?if($arParams['CAN_EDIT']):?>
+						<?=$inputHtml?>
+					<?elseif($loadHtml):?>
+						<div data-role="bx-sender-view-loader" class="bx-sender-insert-loader">
+							<div class="bx-faceid-tracker-user-loader">
+								<div class="bx-faceid-tracker-user-loader-item">
+									<div class="bx-faceid-tracker-loader">
+										<svg class="bx-faceid-tracker-circular" viewBox="25 25 50 50">
+											<circle class="bx-faceid-tracker-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"></circle>
+										</svg>
+									</div>
+								</div>
+							</div>
+						</div>
+						<iframe data-role="bx-sender-template-iframe" class="bx-sender-message-iframe-full"  height="400"
+								src></iframe>
+					<?else:?>
+						<?=str_replace("<input", "<input disabled", $inputHtml)?>
+					<?endif;?>
 
-					<?if ($hint):?>
+					<?if ($hint && !$hintUsed):?>
 						<?=$hint?>
 					<?endif;?>
 				</div>

@@ -16,7 +16,6 @@
 
 		this.setItems(options.items || []);
 
-		this.zIndex = options.zIndex || 999999;
 		this.isBodyPaddingAdded = null;
 		this.cycleMode = options.hasOwnProperty('cycleMode')? options.cycleMode : true;
 		this.preload = options.hasOwnProperty('preload')? options.preload : 3;
@@ -44,7 +43,6 @@
 			darkMode: true,
 			floatMode: false,
 			autoHide: false,
-			zIndex: this.zIndex,
 			showTotalSelectedBlock: false,
 			showResetAllBlock: false,
 			alignItems: 'center',
@@ -52,6 +50,8 @@
 				return this.getPanelWrapper();
 			}.bind(this)
 		});
+
+		this.eventsAlreadyBinded = false;
 
 		this.init();
 	};
@@ -64,10 +64,20 @@
 		buildItemListByNode: function (node)
 		{
 			var promise = new BX.Promise();
-			var nodes = node.dataset.viewerGroupBy?
-				[].slice.call(node.ownerDocument.querySelectorAll("[data-viewer][data-viewer-group-by='" + node.dataset.viewerGroupBy + "']")) :
-				[node]
-			;
+			var nodes = [];
+
+			if (this.isSeparateItem(node))
+			{
+				nodes = [node];
+			}
+			else if(node.dataset.viewerGroupBy)
+			{
+				nodes = [].slice.call(node.ownerDocument.querySelectorAll("[data-viewer][data-viewer-group-by='" + node.dataset.viewerGroupBy + "']"));
+			}
+			else
+			{
+				nodes = [node];
+			}
 
 			this.loadExtensions(this.collectExtensionsForItems(nodes)).then(function (){
 				var items = nodes.map(function(node) {
@@ -78,6 +88,20 @@
 			}.bind(this));
 
 			return promise;
+		},
+
+		/**
+		 * @param {HTMLElement} node
+		 * @return {boolean}
+		 */
+		isSeparateItem: function (node)
+		{
+			return node.dataset.viewerSeparateItem;
+		},
+
+		shouldProcessSeparateMode: function (items)
+		{
+			return items.length === 1 && items[0].isSeparateItem();
 		},
 
 		shouldRunViewer: function (node)
@@ -112,7 +136,10 @@
 
 			var extensions = [];
 			extensionSet.forEach(function (ext) {
-				extensions.push(ext);
+				if (shouldLoadExtensions(ext))
+				{
+					extensions.push(ext);
+				}
 			});
 
 			return extensions;
@@ -164,6 +191,15 @@
 					return;
 				}
 
+				if (this.shouldProcessSeparateMode(items))
+				{
+					this.setItems(items).then(function(){
+						this.openSeparate(0);
+					}.bind(this));
+
+					return;
+				}
+
 				//shortcut for download
 				if ((BX.browser.IsMac() && event.metaKey) || event.ctrlKey)
 				{
@@ -180,6 +216,13 @@
 
 		bindEvents: function ()
 		{
+			if (this.eventsAlreadyBinded)
+			{
+				return;
+			}
+
+			this.eventsAlreadyBinded = true;
+
 			this.handlers.keyPress = this.handleKeyPress.bind(this);
 			this.handlers.touchStart = this.handleTouchStart.bind(this);
 			this.handlers.touchEnd = this.handleTouchEnd.bind(this);
@@ -188,8 +231,6 @@
 			this.handlers.showPrev = this.showPrev.bind(this);
 			this.handlers.close = this.close.bind(this);
 			this.handlers.handleClickOnItemContainer = this.handleClickOnItemContainer.bind(this);
-			this.handlers.handleSliderOpen = this.handleSliderOpen.bind(this);
-			this.handlers.handleSliderCloseComplete = this.handleSliderCloseComplete.bind(this);
 			this.handlers.handleSliderCloseByEsc = this.handleSliderCloseByEsc.bind(this);
 
 			BX.bind(document, 'keydown', this.handlers.keyPress);
@@ -202,8 +243,6 @@
 			BX.bind(this.getPrevButton(), 'click', this.handlers.showPrev);
 			BX.bind(this.getCloseButton(), 'click', this.handlers.close);
 
-			BX.addCustomEvent('SidePanel.Slider:onOpen', this.handlers.handleSliderOpen);
-			BX.addCustomEvent('SidePanel.Slider:onCloseComplete', this.handlers.handleSliderCloseComplete);
 			BX.addCustomEvent('SidePanel.Slider:onCloseByEsc', this.handlers.handleSliderCloseByEsc);
 		},
 
@@ -289,39 +328,6 @@
 			}
 		},
 
-		/**
-		 * @param {BX.SidePanel.Event} event
-		 */
-		handleSliderCloseComplete: function(event)
-		{
-			var slider = BX.SidePanel.Instance.getTopSlider();
-			if (slider)
-			{
-				console.log('set zIndex above top slider after closing another slider', slider.getZindex());
-				this.setZindex(slider.getZindex() + 1);
-			}
-			else
-			{
-				console.log('reset zIndex by originalZIndex', this.originalZIndex);
-				this.setZindex(this.originalZIndex);
-				this.originalZIndex = null;
-			}
-		},
-
-		/**
-		 * @param {BX.SidePanel.Event} event
-		 */
-		handleSliderOpen: function (event)
-		{
-			if (!this.originalZIndex)
-			{
-				this.originalZIndex = this.getZindex();
-			}
-			console.log('SidePanel.Slider:onOpen', this.originalZIndex, event.getSlider().getZindex() - 1);
-
-			this.setZindex(event.getSlider().getZindex() - 1);
-		},
-
 		adjustViewport: function ()
 		{
 			var viewportNode = document.querySelector('[name="viewport"]');
@@ -344,30 +350,10 @@
 			viewportNode.setAttribute('content', this._viewportContent);
 		},
 
-		adjustZindex: function ()
-		{
-			if (!BX.getClass('BX.SidePanel.Instance'))
-			{
-				return;
-			}
-
-			if (!BX.SidePanel.Instance.isOpen())
-			{
-				this.setZindex(this.originalZIndex || this.zIndex);
-				this.originalZIndex = null;
-
-				return;
-			}
-
-			//we have to show viewer over sidepanel
-			var slider = BX.SidePanel.Instance.getTopSlider();
-			this.originalZIndex = this.zIndex;
-
-			this.setZindex(slider.getZindex() + 1);
-		},
-
 		unbindEvents: function()
 		{
+			this.eventsAlreadyBinded = false;
+
 			BX.unbind(document, 'keydown', this.handlers.keyPress);
 			BX.unbind(window, 'resize', this.handlers.resize);
 			BX.unbind(this.getItemContainer(), 'touchstart', this.handlers.touchStart);
@@ -377,9 +363,6 @@
 			BX.unbind(this.getNextButton(), 'click', this.handlers.showNext);
 			BX.unbind(this.getPrevButton(), 'click', this.handlers.showPrev);
 			BX.unbind(this.getCloseButton(), 'click', this.handlers.close);
-
-			BX.removeCustomEvent('SidePanel.Slider:onOpen', this.handlers.handleSliderOpen);
-			BX.removeCustomEvent('SidePanel.Slider:onCloseComplete', this.handlers.handleSliderCloseComplete);
 		},
 
 		init: function ()
@@ -390,6 +373,15 @@
 			this.buildItemListByNode(node).then(function (items) {
 				if (items.length === 0)
 				{
+					return;
+				}
+
+				if (this.shouldProcessSeparateMode(items))
+				{
+					this.setItems(items).then(function(){
+						this.openSeparate(0);
+					}.bind(this));
+
 					return;
 				}
 
@@ -430,25 +422,20 @@
 			actionToRun.action.call(this, item, additionalParams);
 		},
 
+		/**
+		 * @returns {number}
+		 */
 		getZindex: function ()
 		{
-			return this.zIndex;
-		},
-
-		setZindex: function (zIndex)
-		{
-			console.log('setZindex', zIndex);
-			this.zIndex = zIndex;
-			this.getViewerContainer().style.zIndex = zIndex;
-			this.setActionPanelZindex(zIndex);
-		},
-
-		setActionPanelZindex: function (zIndex)
-		{
-			if (this.actionPanel)
+			var container = this.getViewerContainer();
+			if (!container.parentNode)
 			{
-				this.actionPanel.layout.container.style.zIndex = zIndex;
+				return 0;
 			}
+
+			var component = BX.ZIndexManager.getComponent(container);
+
+			return component.getZIndex();
 		},
 
 		/**
@@ -512,7 +499,10 @@
 
 			var extensions = [];
 			extensionSet.forEach(function (ext) {
-				extensions.push(ext);
+				if (shouldLoadExtensions(ext))
+				{
+					extensions.push(ext);
+				}
 			});
 
 			return extensions;
@@ -715,6 +705,8 @@
 
 			item.afterRender();
 			this.adjustControlsSize(item.getContentWidth());
+
+			BX.onCustomEvent('BX.UI.Viewer.Controller:onAfterShow', [this, item]);
 		},
 
 		adjustControlsSize: function(contentWidth)
@@ -1140,18 +1132,57 @@
 			this.isBodyPaddingAdded = false;
 		},
 
+		openSeparate: function(index)
+		{
+			var item = this.getItemByIndex(index);
+			if (!item)
+			{
+				return;
+			}
+
+			item.load()
+				.then(function (loadedItem) {}.bind(this))
+				.catch(function (reason) {
+					var loadedItem = reason.item;
+
+					console.log('catch viewer');
+
+					BX.onCustomEvent('BX.UI.Viewer.Controller:onItemError', [this, reason, loadedItem]);
+
+					if (this.getCurrentItem() === loadedItem)
+					{
+						this.processError(reason, loadedItem);
+					}
+
+					BX.onCustomEvent('BX.UI.Viewer.Controller:onAfterProcessItemError', [this, reason, loadedItem]);
+				}.bind(this));
+		},
+
 		open: function(index)
 		{
 			this.adjustViewport();
-			this.adjustZindex();
 			this.addBodyPadding();
-			this.baseContainer.appendChild(this.getViewerContainer());
-			BX.focus(this.getViewerContainer());
+
+			var container = this.getViewerContainer();
+			this.baseContainer.appendChild(container);
+			BX.focus(container);
+
+			this.showPanel();
+
+			var component = BX.ZIndexManager.getComponent(container);
+			if (!component)
+			{
+				BX.ZIndexManager.register(container, {
+					overlay: this.actionPanel.getPanelContainer(),
+					overlayGap: 1
+				});
+			}
+
+			BX.ZIndexManager.bringToFront(container);
 
 			this.show(index, {
 				asFirstToShow: true
 			});
-			this.showPanel();
 
 			this.bindEvents();
 
@@ -1174,7 +1205,6 @@
 
 		showPanel: function()
 		{
-			this.setActionPanelZindex(this.getZindex());
 			this.actionPanel.layout.container.style.background = 'none';
 
 			this.actionPanel.draw();
@@ -1325,6 +1355,7 @@
 
 			BX.bind(this.layout.container, 'transitionend', function()
 			{
+				BX.ZIndexManager.unregister(this.layout.container);
 				BX.remove(this.layout.container);
 				BX.removeClass(this.layout.container, 'ui-viewer-hide');
 				BX.unbindAll(this.layout.container);
@@ -1392,7 +1423,6 @@
 						tabIndex: 22081990
 					},
 					style: {
-						zIndex: this.zIndex,
 						height: window.clientHeight + 'px'
 					},
 					children: [
@@ -1739,6 +1769,10 @@
 			var nodes = BX.findChildren(container, filter, true);
 			var indexToShow = 0;
 			var targetNode = BX.getEventTarget(event);
+			if (targetNode.tagName !== 'A' && targetNode.closest('a[target="_blank"]'))
+			{
+				return false;
+			}
 
 			var items = nodes.map(function(node, index) {
 				if (node === targetNode)
@@ -1755,6 +1789,19 @@
 			event.preventDefault();
 		});
 	};
+
+	var shouldLoadExtensions = function(extension) {
+		if (extension === 'disk.viewer.actions' && BX.getClass('BX.Disk.Viewer.Actions'))
+		{
+			return false;
+		}
+		if (extension === 'disk.viewer.document-item' && BX.getClass('BX.Disk.Viewer.DocumentItem'))
+		{
+			return false;
+		}
+
+		return true;
+	}
 
 
 	var instance = null;

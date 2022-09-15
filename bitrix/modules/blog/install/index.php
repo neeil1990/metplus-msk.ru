@@ -13,13 +13,11 @@ Class blog extends CModule
 	var $MODULE_CSS;
 	var $MODULE_GROUP_RIGHTS = "Y";
 
-	function blog()
+	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		$path = str_replace("\\", "/", __FILE__);
-		$path = substr($path, 0, strlen($path) - strlen("/index.php"));
-		include($path."/version.php");
+		include(__DIR__.'/version.php');
 
 		if (is_array($arModuleVersion) && array_key_exists("VERSION", $arModuleVersion))
 		{
@@ -93,7 +91,51 @@ Class blog extends CModule
 		return $errors;
 	}
 
-	function InstallUserFields($id = "all")
+	public static function installMailUserFields(&$errors = [])
+	{
+		global $APPLICATION;
+
+		if (!\Bitrix\Main\ModuleManager::isModuleInstalled('mail'))
+		{
+			return;
+		}
+
+		$rsUserType = \CUserTypeEntity::getList(
+			array(),
+			array(
+				'ENTITY_ID'  => 'BLOG_POST',
+				'FIELD_NAME' => 'UF_MAIL_MESSAGE',
+			)
+		);
+		if (!$rsUserType->fetch())
+		{
+			$userType = new \CUserTypeEntity();
+			$intID = $userType->add(array(
+				'ENTITY_ID'     => 'BLOG_POST',
+				'FIELD_NAME'    => 'UF_MAIL_MESSAGE',
+				'USER_TYPE_ID'  => 'mail_message',
+				'XML_ID'        => '',
+				'SORT'          => 100,
+				'MULTIPLE'      => 'N',
+				'MANDATORY'     => 'N',
+				'SHOW_FILTER'   => 'N',
+				'SHOW_IN_LIST'  => 'N',
+				'EDIT_IN_LIST'  => 'Y',
+				'IS_SEARCHABLE' => 'N',
+			));
+			if (false == $intID)
+			{
+				if ($strEx = $APPLICATION->getException())
+				{
+					$errors[] = $strEx->getString();
+				}
+			}
+		}
+
+		return $errors;
+	}
+
+	public static function InstallUserFields($id = "all")
 	{
 		global $USER_FIELD_MANAGER;
 		$errors = null;
@@ -101,6 +143,10 @@ Class blog extends CModule
 		if($id == 'disk' || $id == 'all')
 		{
 			self::installDiskUserFields();
+		}
+		if ($id == 'mail' || $id == 'all')
+		{
+			self::installMailUserFields($errors);
 		}
 		if($id == 'all')
 		{
@@ -224,17 +270,17 @@ Class blog extends CModule
 
 	function InstallDB($install_wizard = true)
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 
 		if (!$DB->Query("SELECT 'x' FROM b_blog_user_group", true))
 		{
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/".$DBType."/install.sql");
+			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/mysql/install.sql");
 			COption::SetOptionString("blog", "socNetNewPerms", "Y");
 		}
 
 		if (empty($errors))
 		{
-			$errors = $this->InstallUserFields();
+			$errors = static::InstallUserFields();
 		}
 
 		if (!empty($errors))
@@ -289,7 +335,7 @@ Class blog extends CModule
 
 	function UnInstallDB($arParams = Array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		if(array_key_exists("savedata", $arParams) && $arParams["savedata"] != "Y")
 		{
 			if ($DB->TableExists("b_blog_smile") || $DB->TableExists("B_BLOG_SMILE"))
@@ -298,7 +344,7 @@ Class blog extends CModule
 				$DB->Query("DROP TABLE b_blog_smile");
 				$DB->Query("DROP TABLE b_blog_smile_lang");
 			}
-			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/".$DBType."/uninstall.sql");
+			$errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/mysql/uninstall.sql");
 
 			if (!empty($errors))
 			{
@@ -379,7 +425,11 @@ Class blog extends CModule
 				"ENTITY_ID" => "BLOG_COMMENT",
 				"FIELD_NAME" => "UF_BLOG_COMM_URL_PRV",
 				"XML_ID" => "UF_BLOG_COMM_URL_PRV",
-			)
+			),
+			'UF_MAIL_MESSAGE' => array(
+				'ENTITY_ID'  => 'BLOG_POST',
+				'FIELD_NAME' => 'UF_MAIL_MESSAGE',
+			),
 		);
 
 		foreach ($arFields as $fieldName => $arField)
@@ -432,7 +482,8 @@ Class blog extends CModule
 
 		$arSite = Array();
 		$public_installed = false;
-		$dbSites = CSite::GetList(($b = ""), ($o = ""), Array("ACTIVE" => "Y"));
+
+		$dbSites = CSite::GetList('', '', Array("ACTIVE" => "Y"));
 		while ($site = $dbSites->Fetch())
 		{
 			$arSite[] = Array(
@@ -516,7 +567,7 @@ Class blog extends CModule
 	function DoInstall()
 	{
 		global $APPLICATION, $step;
-		$step = IntVal($step);
+		$step = intval($step);
 		if ($step < 2)
 			$APPLICATION->IncludeAdminFile(GetMessage("BLOG_INSTALL_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/step1.php");
 		elseif($step==2)
@@ -533,7 +584,7 @@ Class blog extends CModule
 	function DoUninstall()
 	{
 		global $APPLICATION, $step;
-		$step = IntVal($step);
+		$step = intval($step);
 		if($step<2)
 			$APPLICATION->IncludeAdminFile(GetMessage("BLOG_INSTALL_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/blog/install/unstep1.php");
 		elseif($step==2)

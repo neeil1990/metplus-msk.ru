@@ -1,5 +1,8 @@
 import {Type, Cache} from 'main.core';
 
+/**
+ * @memberOf BX.Landing
+ */
 export class PageObject
 {
 	static cache = new Cache.MemoryCache();
@@ -53,6 +56,28 @@ export class PageObject
 	{
 		return this.cache.remember('topPanel', () => {
 			return this.getRootWindow().document.querySelector('.landing-ui-panel-top');
+		});
+	}
+
+	static getEditPanelContent(): ?HTMLDivElement
+	{
+		return this.cache.remember('editPanel', () => {
+			return this.getRootWindow()
+				.document
+				.querySelector(
+					'.landing-ui-panel-content.landing-ui-panel-content-edit .landing-ui-panel-content-body-content'
+				);
+		});
+	}
+
+	static getStylePanelContent(): ?HTMLDivElement
+	{
+		return this.cache.remember('stylePanel', () => {
+			return this.getRootWindow()
+				.document
+				.querySelector(
+					'.landing-ui-panel-content.landing-ui-panel-style .landing-ui-panel-content-body-content'
+				);
 		});
 	}
 

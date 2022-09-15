@@ -19,7 +19,7 @@ elseif(isset($_POST["YANDEX_MARKET_OFF"]))
 
 $siteList = array();
 $defaultSite = "";
-$rsSites = CSite::GetList($by = "sort", $order = "asc", Array());
+$rsSites = CSite::GetList();
 
 while($arRes = $rsSites->Fetch())
 {
@@ -240,7 +240,7 @@ if(CSaleYMHandler::isActive())
 	$orderPropsList = array();
 
 	while ($arOrderProps = $dbOrderProps->Fetch())
-		if(strlen($arOrderProps["CODE"]) > 0)
+		if($arOrderProps["CODE"] <> '')
 			$orderPropsList[$arOrderProps["CODE"]] = $arOrderProps["NAME"];
 
 	$tabControl->Begin();

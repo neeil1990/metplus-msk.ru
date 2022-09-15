@@ -97,7 +97,7 @@ $tabControl = new CAdminTabControl("tabControl", $tabs, false, true);
 if ($_SERVER["REQUEST_METHOD"] == "POST" &&
 	check_bitrix_sessid() &&
 	$isAdmin &&
-	((isset($_REQUEST["composite_save_opt"]) && strlen($_REQUEST["composite_save_opt"]) > 0) ||
+	((isset($_REQUEST["composite_save_opt"]) && $_REQUEST["composite_save_opt"] <> '') ||
 	 isset($_REQUEST["autocomposite_mode_button"]) ||
 	 isset($_REQUEST["composite_mode_button"]))
 )
@@ -136,9 +136,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" &&
 	if (isset($_REQUEST["group"]) && is_array($_REQUEST["group"]))
 	{
 		$compositeOptions["GROUPS"] = array();
-		$b = "";
-		$o = "";
-		$rsGroups = CGroup::GetList($b, $o, array());
+		$rsGroups = CGroup::GetList();
 		while ($arGroup = $rsGroups->Fetch())
 		{
 			if ($arGroup["ID"] > 2)
@@ -151,7 +149,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" &&
 		}
 	}
 
-	if (isset($_REQUEST["composite_domains"]) && strlen($_REQUEST["composite_domains"]) > 0)
+	if (isset($_REQUEST["composite_domains"]) && $_REQUEST["composite_domains"] <> '')
 	{
 		$compositeOptions["DOMAINS"] = array();
 		foreach(explode("\n", $_REQUEST["composite_domains"]) as $domain)
@@ -163,7 +161,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" &&
 			}
 		}
 
-		$isSaveOptions = (isset($_REQUEST["composite_save_opt"]) && strlen($_REQUEST["composite_save_opt"]) > 0);
+		$isSaveOptions = (isset($_REQUEST["composite_save_opt"]) && $_REQUEST["composite_save_opt"] <> '');
 		$isTurnOnComposite = (
 			(isset($_REQUEST["composite_mode_button"]) && isset($_REQUEST["composite"]) && $_REQUEST["composite"] === "Y")
 			|| (isset($_REQUEST["autocomposite_mode_button"]) && isset($_REQUEST["auto_composite"]) && $_REQUEST["auto_composite"] === "Y")
@@ -299,7 +297,7 @@ if (
 		$text = GetMessage("MAIN_COMPOSITE_CHECK_CONNECTION_ERR1");
 		$status = "error";
 	}
-	elseif (strlen($host) > 0 && strlen($port) > 0 && ($memcached = new \Memcache()) && @$memcached->connect($host, $port))
+	elseif ($host <> '' && $port <> '' && ($memcached = new \Memcache()) && @$memcached->connect($host, $port))
 	{
 		$text = GetMessage("MAIN_COMPOSITE_CHECK_CONNECTION_OK");
 		$status = "success";
@@ -947,7 +945,7 @@ if (!isset($compositeOptions["MEMCACHED_PORT"]))
 					$disabled = " disabled";
 					$nameDesc = " (".GetMessage("MAIN_COMPOSITE_MODULE_ERROR", array("#MODULE#" => $storage["module"])).")";
 				}
-				elseif (isset($storage["extension"]) && strlen($storage["extension"]) > 0 && !extension_loaded($storage["extension"]))
+				elseif (isset($storage["extension"]) && $storage["extension"] <> '' && !extension_loaded($storage["extension"]))
 				{
 					$disabled = " disabled";
 					$nameDesc = " (".GetMessage("MAIN_COMPOSITE_EXT_ERROR", array("#EXTENSION#" => $storage["extension"])).")";
@@ -1046,9 +1044,7 @@ $tabControl->BeginNextTab();
 $arUsedGroups = array();
 $groups = $compositeOptions["GROUPS"];
 $arGROUPS = array();
-$b = "";
-$o = "";
-$rsGroups = CGroup::GetList($b, $o, array("ACTIVE"=>"Y", "ADMIN"=>"N", "ANONYMOUS"=>"N"));
+$rsGroups = CGroup::GetList('', '', array("ACTIVE"=>"Y", "ADMIN"=>"N", "ANONYMOUS"=>"N"));
 while ($arGroup = $rsGroups->Fetch())
 {
 	$arGROUPS[] = $arGroup;

@@ -177,7 +177,7 @@ JS;
 		$params = Array();
 		$appCacheUrl = $server->get("HTTP_BX_APPCACHE_URL");
 		$appCacheParams = $server->get("HTTP_BX_APPCACHE_PARAMS");
-		if (strlen($appCacheUrl) > 0)
+		if ($appCacheUrl <> '')
 		{
 			//TODO compare $_SERVER["REQUEST_URI"] and $_SERVER["HTTP_BX_APPCACHE_URL"]
 			$selfObject->setIsSided(true);
@@ -221,10 +221,10 @@ JS;
 	 * Gets file path for getting of manifest content
 	 * @return string
 	 */
-	public function getManifestCheckFile()
+	public static function getManifestCheckFile()
 	{
 		$checkFile = self::MANIFEST_CHECK_FILE;
-		if(self::$customCheckFile != null && strlen(self::$customCheckFile)>0)
+		if(self::$customCheckFile != null && self::$customCheckFile <> '')
 			$checkFile = self::$customCheckFile;
 		return $checkFile;
 	}
@@ -340,6 +340,9 @@ JS;
 					$fileUrl = parse_url($cssFilePath);
 					$file = new  \Bitrix\Main\IO\File(Application::getDocumentRoot() . $fileUrl['path']);
 
+					if($file->getExtension() !== "css")
+						continue;
+
 					if ($file->isExists() && $file->isReadable())
 					{
 						$fileContent = $file->getContents();
@@ -362,7 +365,7 @@ JS;
 
 							$file = self::replaceUrlCSS($match[3][$k], addslashes($cssPath));
 
-							if (!in_array($file, $files) && !strpos($file, ";base64"))
+							if (!in_array($file, $files) && !mb_strpos($file, ";base64"))
 							{
 								$fileData["FULL_FILE_LIST"][] = $files[] = $file;
 								$fileData["CSS_FILE_IMAGES"][$cssFilePath][] = $file;
@@ -395,12 +398,12 @@ JS;
 	 */
 	private static function replaceUrlCSS($url, $cssPath)
 	{
-		if (strpos($url, "://") !== false || strpos($url, "data:") !== false)
+		if (mb_strpos($url, "://") !== false || mb_strpos($url, "data:") !== false)
 		{
 			return $url;
 		}
 		$url = trim(stripslashes($url), "'\" \r\n\t");
-		if (substr($url, 0, 1) == "/")
+		if (mb_substr($url, 0, 1) == "/")
 		{
 			return $url;
 		}
@@ -555,7 +558,7 @@ JS;
 		return true;
 	}
 
-	public function readManifestCache($manifestId)
+	public static function readManifestCache($manifestId)
 	{
 		$cache = new \CPHPCache();
 
@@ -583,13 +586,13 @@ JS;
 	 */
 	public static function getCachePath($manifestId)
 	{
-		$cachePath = "/appcache/" . substr($manifestId, 0, 2) . "/" . substr($manifestId, 2, 4) . "/";
+		$cachePath = "/appcache/".mb_substr($manifestId, 0, 2)."/".mb_substr($manifestId, 2, 4) . "/";
 
 		return $cachePath;
 	}
 
 
-	private function getManifestID($pageURI, $arParams)
+	private static function getManifestID($pageURI, $arParams)
 	{
 		$id = $pageURI;
 		if (count($arParams) > 0)

@@ -1,5 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\BsmSiteMaster\Steps;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main,
 	Bitrix\Main\Application,
@@ -71,12 +77,12 @@ class SiteStep extends \CWizardStep
 		if (isset($steps["NEXT_STEP"]))
 		{
 			$this->SetNextStep($steps["NEXT_STEP"]);
-			$this->SetNextCaption(Loc::getMessage("SALE_BSM_WIZARD_".strtoupper($shortClassName)."_NEXT"));
+			$this->SetNextCaption(Loc::getMessage("SALE_BSM_WIZARD_".mb_strtoupper($shortClassName)."_NEXT"));
 		}
 		if (isset($steps["PREV_STEP"]))
 		{
 			$this->SetPrevStep($steps["PREV_STEP"]);
-			$this->SetPrevCaption(Loc::getMessage("SALE_BSM_WIZARD_".strtoupper($shortClassName)."_PREV"));
+			$this->SetPrevCaption(Loc::getMessage("SALE_BSM_WIZARD_".mb_strtoupper($shortClassName)."_PREV"));
 		}
 	}
 
@@ -249,9 +255,6 @@ class SiteStep extends \CWizardStep
 
 		$this->component->setBsmSiteId($bsmSite);
 
-		// set site for person types
-		$this->preparePersonTypes($bsmSite);
-
 		return true;
 	}
 
@@ -260,32 +263,30 @@ class SiteStep extends \CWizardStep
 	 */
 	private function checkSite()
 	{
-		if (trim($this->request->get("DOC_ROOT")) === $_SERVER["DOCUMENT_ROOT"])
-		{
-			$error = Loc::getMessage("SALE_BSM_WIZARD_SITESTEP_DOC_ROOT_ERROR");
-			throw new Main\SystemException($error);
-		}
-
 		if ($this->request->get("BSM_SITE") !== "new")
 		{
 			$site = $this->getSiteDataById($this->request->get("BSM_SITE"));
 			if (!empty($site["DIR"]) && $site["DIR"] !== "/")
 			{
-				$error = Loc::getMessage("SALE_BSM_WIZARD_SITESTEP_SITE_DIR_ERROR", [
-					"#SITE_NAME#" => $site["NAME"]
-				]);
+				$error = Loc::getMessage("SALE_BSM_WIZARD_SITESTEP_SITE_DIR_ERROR");
 				throw new Main\SystemException($error);
 			}
 
-			$documentRoot = $site["DOC_ROOT"].$site["DIR"];
+			$documentRoot = trim($site["DOC_ROOT"].$site["DIR"]);
 		}
 		else
 		{
-			$documentRoot = $this->request->get("DOC_ROOT")."/";
+			$documentRoot = trim($this->request->get("DOC_ROOT"));
 		}
 
 		$documentRoot = Rel2Abs($_SERVER["DOCUMENT_ROOT"], $documentRoot);
+		if (rtrim($documentRoot, "/") === $_SERVER["DOCUMENT_ROOT"])
+		{
+			$error = Loc::getMessage("SALE_BSM_WIZARD_SITESTEP_DOC_ROOT_ERROR");
+			throw new Main\SystemException($error);
+		}
 
+		$documentRoot = $documentRoot."/";
 		if (!$this->isDocumentRootExists($documentRoot))
 		{
 			$error = Loc::getMessage("SALE_BSM_WIZARD_SITESTEP_DOC_ROOT_NOT_EXISTS");
@@ -814,30 +815,6 @@ class SiteStep extends \CWizardStep
 	}
 
 	/**
-	 * Set site for person types
-	 *
-	 * @param $siteId
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	private function preparePersonTypes($siteId)
-	{
-		$personTypePreparer = new Tools\PersonTypePreparer();
-		$personTypeList = $personTypePreparer->getPersonTypeList();
-
-		$result = $personTypePreparer->preparePersonType($siteId, $personTypeList);
-		if (!$result)
-		{
-			$errors = $personTypePreparer->getErrors();
-			foreach ($errors as $error)
-			{
-				$this->SetError($error);
-			}
-		}
-	}
-
-	/**
 	 * Show extended errors
 	 *
 	 * @param $strError
@@ -953,14 +930,13 @@ class SiteStep extends \CWizardStep
 	private function createWizardIndex($siteId, $wizardName, $path)
 	{
 		/** @noinspection PhpUndefinedClassInspection */
-		$siteResult = \CSite::GetList($by="sort", $order="asc", ["ID" => $siteId]);
+		$siteResult = \CSite::GetList("sort", "asc", ["ID" => $siteId]);
 		$siteData = $siteResult->GetNext();
 
 		$indexContent = '<'.'?'.
 				'define("B_PROLOG_INCLUDED", true);'.
 				'define("WIZARD_DEFAULT_SITE_ID", "'.$siteId.'");'.
 				'define("ADDITIONAL_INSTALL", true);'.
-				$this->getPersonTypeIndexContent().
 				'define("WIZARD_DEFAULT_TONLY", true);'.
 				'define("PRE_LANGUAGE_ID","'.$siteData["LANGUAGE_ID"].'");'.
 				'define("PRE_INSTALL_CHARSET","'.$siteData["CHARSET"].'");'.
@@ -1005,23 +981,5 @@ class SiteStep extends \CWizardStep
 			true,
 			false
 		);
-	}
-
-	/**
-	 * @return string
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	private function getPersonTypeIndexContent()
-	{
-		$personTypePreparer = new Tools\PersonTypePreparer();
-		$personTypeList = $personTypePreparer->getPersonTypeList();
-		if (empty($personTypeList))
-		{
-			return 'define("NEED_PERSON_TYPE", true);';
-		}
-
-		return "";
 	}
 }

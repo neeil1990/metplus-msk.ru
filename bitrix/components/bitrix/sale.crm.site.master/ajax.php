@@ -1,5 +1,9 @@
 <?php
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main\Localization\Loc,
 	Bitrix\Main\Config\Option;
@@ -16,7 +20,7 @@ class SaleCrmSiteMasterAjaxController extends Bitrix\Main\Engine\Controller
 	 */
 	public function updateLicenseKeyAction($key)
 	{
-		$key = strtoupper($key);
+		$key = mb_strtoupper($key);
 		if ($this->isLicenseKey($key))
 		{
 			$this->updateLicenseKey($key);

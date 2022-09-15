@@ -20,6 +20,9 @@
 	overflow: hidden;
 	background: #fff;
 	padding: 18px;
+	border-radius: var(--ui-border-radius-md);
+	border-bottom-right-radius: 0;
+	border-bottom-left-radius: 0;
 }
 
 .mp-detail-main-preview {
@@ -34,18 +37,43 @@
 }
 
 .mp-detail-main-info {
-	display: block;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
 	width: 100%;
 	overflow: hidden;
 	position: relative;
 	margin-left: 34px;
-	padding-bottom: 39px;
 }
 
 .mp-detail-main-controls {
-	position: absolute;
-	bottom: 0;
-	left: 0;
+	padding-top: 10px;
+	display: flex;
+	align-items: center;
+}
+
+.mp-detail-main-controls-separator {
+	width: 1px;
+	height: 29px;
+	background: rgba(168, 173, 180, 0.3);
+	margin-left: 19px;
+	margin-right: 23px;
+}
+
+
+.mp-detail-main-controls-offer {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 16px;
+	line-height: 12px;
+	color: #525C69;
+}
+.mp-detail-main-controls-description {
+	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-size: 13px;
+	line-height: 12px;
+	color: #525C69;
+	opacity: 0.5;
+	margin-top: 8px;
 }
 
 .mp-detail-main-title {
@@ -113,6 +141,9 @@
 	padding: 0 23px;
 	height: 55px;
 	background: #fafafa;
+	border-radius: var(--ui-border-radius-md);
+	border-top-right-radius: 0;
+	border-top-left-radius: 0;
 	margin-bottom: 10px;
 	font-family: "Helvetica Neue", Arial, sans-serif;
 	font-size: 0;
@@ -257,6 +288,7 @@
 .mp-detail-content {
 	padding: 0 18px 18px 18px;
 	background: #fff;
+	border-radius: var(--ui-border-radius-md);
 }
 
 .mp-detail-content-menu {

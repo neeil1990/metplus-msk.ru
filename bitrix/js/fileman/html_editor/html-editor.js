@@ -383,6 +383,7 @@
 				BX.addCustomEvent(this, "OnInsertHtml", BX.proxy(this.AutoResizeSceleton, this));
 				BX.addCustomEvent(this, "OnIframeSetValue", BX.proxy(this.AutoResizeSceleton, this));
 				BX.addCustomEvent(this, "OnFocus", BX.proxy(this.AutoResizeSceleton, this));
+				BX.addCustomEvent(this, "OnSetViewAfter", BX.proxy(this.AutoResizeSceleton, this));
 			}
 
 			BX.addCustomEvent(this, "OnIframeKeyup", BX.proxy(this.CheckBodyHeight, this));
@@ -523,20 +524,25 @@
 			if (this.iframeView.IsShown())
 			{
 				var
-					padding = 8,
+					padding = 15,
 					minHeight,
 					doc = this.GetIframeDoc();
 
 				if (doc && doc.body)
 				{
 					minHeight = doc.body.parentNode.offsetHeight - padding * 2;
+					
 					if (minHeight <= 20)
 					{
 						setTimeout(BX.proxy(this.CheckBodyHeight, this), 300);
 					}
 					else if (this.config.autoResize || minHeight > doc.body.offsetHeight)
 					{
-						doc.body.style.minHeight = minHeight + 'px';
+						setTimeout(function()
+						{
+							minHeight = doc.body.parentNode.offsetHeight - padding * 2;
+							doc.body.style.minHeight = minHeight + 'px';
+						}, 300);
 					}
 				}
 			}
@@ -1062,6 +1068,13 @@
 				BX.addCustomEvent(this, 'OnIframeKeydown', BX.proxy(this.CheckEscCollapse, this));
 				BX.bind(document.body, "keydown", BX.proxy(this.CheckEscCollapse, this));
 				BX.bind(window, "scroll", BX.proxy(this.PreventScroll, this));
+
+				if (BX.ZIndexManager)
+				{
+					BX.ZIndexManager.register(this.dom.cont);
+					BX.ZIndexManager.addStack(this.dom.cont);
+					BX.ZIndexManager.bringToFront(this.dom.cont);
+				}
 			}
 			else
 			{
@@ -1084,7 +1097,7 @@
 			this.dom.cont.style.top = startTop + 'px';
 			this.dom.cont.style.left = startLeft + 'px';
 
-			var content = this.GetContent();
+			var content = this.content;
 
 			this.expandAnimation = new BX.easing({
 				duration : 300,
@@ -1121,6 +1134,11 @@
 						_this.dom.cont.style.top = '';
 						_this.dom.cont.style.left = '';
 						BX.removeClass(_this.dom.cont, 'bx-html-editor-absolute');
+						if (BX.ZIndexManager)
+						{
+							BX.ZIndexManager.unregister(_this.dom.cont);
+						}
+						_this.dom.cont.style.removeProperty('z-index');
 						document.body.style.overflow = _this._bodyOverflow;
 						_this.config.width = _this.savedSize.configWidth;
 						_this.config.height = _this.savedSize.configHeight;
@@ -2809,11 +2827,21 @@
 			BX.bind(this.iframeView.element, 'paste', function (e)
 			{
 				var
+					chromeVerion = 0,
 					imageHandled = false,
 					clipboard = e.clipboardData;
 
-				// For firefox works wrong (see mantis:88928)
-				if (clipboard && clipboard.items && !BX.browser.IsFirefox())
+					if (BX.browser.IsChrome() || BX.browser.IsSafari())
+					{
+						var ua = navigator.userAgent.match(/Chrom(e|ium)\/([0-9]+)\./);
+						chromeVerion = ua ? parseInt(ua[2], 10) : Infinity;
+					}
+
+				// For firefox works wrong (see mantis:88928, mantis:122421)
+				if (clipboard && clipboard.items
+					&& !BX.browser.IsFirefox()
+					&& (!chromeVerion || chromeVerion < 83)
+				)
 				{
 					var item = clipboard.items[0];
 					if (item && item.type.indexOf('image/') > -1)
@@ -2841,17 +2869,13 @@
 
 				if (!imageHandled)
 				{
-					var
-						doc = _this.GetIframeDoc(),
-						images = doc.body.getElementsByTagName('IMG');
-
 					_this.pasteCheckItteration = 0;
-					checkImages(images);
+					checkImages(_this.GetIframeDoc().body.getElementsByTagName('IMG'));
 				}
 			});
 
+			BX.removeCustomEvent(this, 'OnImageDataUriCaughtUploaded', BX.proxy(this.HandleImageDataUriCaughtUploadedCallback, this));
 			BX.addCustomEvent(this, 'OnImageDataUriCaughtUploaded', BX.proxy(this.HandleImageDataUriCaughtUploadedCallback, this));
-			//BX.addCustomEvent(this, 'OnImageDataUriCaughtFailed', BX.proxy(this.HandleImageDataUriCaughtFailedCallback, this));
 		},
 
 		GetBase64Image: function(base64source)
@@ -5073,6 +5097,7 @@
 			"video": {},
 			"source": {},
 			"audio": {},
+			"nofollow": {},
 
 			// tags to remove
 			"title": {remove: 1},

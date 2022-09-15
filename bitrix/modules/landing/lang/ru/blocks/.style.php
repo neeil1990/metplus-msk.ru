@@ -1,15 +1,23 @@
 <?
 $MESS["LANDING_BLOCK_STYLE_TEXT_ALIGN"] = "Выравнивание текста";
+$MESS["LANDING_BLOCK_STYLE_TEXT_ALIGN_SHORT"] = "Выравнивание";
 $MESS["LANDING_BLOCK_STYLE_ROW_ALIGN"] = "Выравнивание элементов";
 $MESS["LANDING_BLOCK_STYLE_TEXT_COLOR"] = "Цвет текста";
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_COLOR"] = "Цвет фона";
+$MESS["LANDING_BLOCK_STYLE_BACKGROUND_COLOR_NEW"] = "Фон";
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_GRADIENT"] = "Цвет фона (градиент)";
 $MESS["LANDING_BLOCK_STYLE_BORDER_COLOR"] = "Цвет рамки";
+$MESS["LANDING_BLOCK_STYLE_BORDER_COLOR_HOVER"] = "Цвет рамки при наведении";
 $MESS["LANDING_BLOCK_STYLE_BORDER_TOP_COLOR"] = "Цвет верхней рамки";
+$MESS["LANDING_BLOCK_STYLE_BORDER_BOTTOM_COLOR"] = "Цвет нижней рамки";
+$MESS["LANDING_BLOCK_STYLE_BORDER_SIDES_COLOR"] = "Цвет боковых рамок";
+$MESS["LANDING_BLOCK_STYLE_ELEMENT_COLOR"] = "Цвет указателей";
 $MESS["LANDING_BLOCK_STYLE_FONT_SIZE"] = "Размер шрифта";
 $MESS["LANDING_BLOCK_STYLE_FONT_FAMILY"] = "Шрифт";
 $MESS["LANDING_BLOCK_STYLE_TEXT_WEIGHT"] = "Начертание";
 $MESS["LANDING_BLOCK_STYLE_TEXT_TRANSFORM2"] = "Регистр";
+$MESS["LANDING_BLOCK_STYLE_TEXT_FONT_WEIGHT"] = "Насыщенность шрифта";
+$MESS["LANDING_BLOCK_STYLE_TEXT_FONT_WEIGHT_HELP"] = "Чем больше значение, тем насыщеннее текст. Не все шрифты могут поддерживать все значения жирности. Если нужное значение отсутствует, будет выбрано ближайшее.";
 $MESS["LANDING_BLOCK_STYLE_TEXT_DECORATION"] = "Оформление";
 $MESS["LANDING_BLOCK_STYLE_LINE_HEIGHT"] = "Интерлиньяж";
 $MESS["LANDING_BLOCK_STYLE_LETTER_SPACING"] = "Разрядка";
@@ -44,12 +52,10 @@ $MESS["LANDING_BLOCK_STYLE_BORDER_WIDTH"] = "Толщина рамки";
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_HOVER"] = "Фон при наведении";
 $MESS["LANDING_BLOCK_STYLE_COLOR_HOVER"] = "Цвет при наведении";
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_OVERLAY"] = "Цвет наложения";
-$MESS["LANDING_BLOCK_STYLE_COLOR_BUTTON"] = "Цвет кнопки (без рамки)";
-$MESS["LANDING_BLOCK_STYLE_COLOR_BUTTON_OUTLINE"] = "Цвет рамки (кнопка на белом фоне)";
+$MESS["LANDING_BLOCK_STYLE_BUTTON_COLOR"] = "Цвет кнопки";
 $MESS["LANDING_BLOCK_STYLE_ANIMATION"] = "Анимация появления";
 $MESS["LANDING_BLOCK_STYLE_ANIMATION_NONE"] = "Без анимации";
 $MESS["LANDING_BLOCK_STYLE_BG_COLOR_BEFORE"] = "Цвет элемента";
-$MESS["LANDING_BLOCK_STYLE_BG_COLOR_BEFORE"] = "Цвет";
 $MESS["LANDING_BLOCK_STYLE_ALIGN_ITEMS"] = "Вертикальное выравнивание";
 
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_ATTACHMENT"] = "Положение фоновой картинки";
@@ -59,6 +65,7 @@ $MESS["LANDING_BLOCK_STYLE_BACKGROUND_ATTACHMENT_SCROLL"] = "Прокручив�
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_SIZE"] = "Отображение картинки";
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_SIZE_COVER"] = "Заполнение";
 $MESS["LANDING_BLOCK_STYLE_BACKGROUND_SIZE_CONTAIN"] = "По размеру";
+$MESS["LANDING_BLOCK_STYLE_BACKGROUND_SIZE_NONE"] = "Автоматически";
 
 $MESS["LANDING_STYLE_AUTO"] = "Авто";
 
@@ -69,9 +76,28 @@ $MESS["LANDING_BLOCK_STYLE_NAVBAR_COLOR_FIX_MOMENT_HOVER"] = "Цвет акти�
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_ALIGN"] = "Выравнивание ссылок";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_BG"] = "Фон ссылок";
 $MESS["LANDING_BLOCK_STYLE_NAVBAR_BG_HOVER"] = "Фон активных ссылок";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_COLLAPSE_BG"] = "Фон раскрывающегося меню";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_OPEN_TYPE"] = "Тип раскрытия";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_MODAL"] = "Поверх всех";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_NO_MODAL"] = "Обычное раскрытие";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE"] = "Размер гамбургера";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_ANIMATION"] = "Анимация гамбургера";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_SM"] = "Маленький";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_MD"] = "Стандартный";
+$MESS["LANDING_BLOCK_STYLE_HAMBURGER_SIZE_LG"] = "Увеличинный";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_MARKER"] = "Маркер списка";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_MARKER_ARROW"] = "Стрелка";
+$MESS["LANDING_BLOCK_STYLE_NAVBAR_MARKER_NO"] = "Без маркера";
+
+$MESS["LND_BL_STL_HEADER_SCROLL"] = "Поведение меню";
+$MESS["LND_BL_STL_HEADER_SCROLL_STICKY"] = "Фиксируется";
+$MESS["LND_BL_STL_HEADER_SCROLL_STATIC"] = "Прокручивается";
+$MESS["LND_BL_STL_HEADER_POS"] = "Расположить";
+$MESS["LND_BL_STL_HEADER_POS_FLOAT"] = "Поверх нижнего блока";
+$MESS["LND_BL_STL_HEADER_POS_REL"] = "По умолчанию";
+
 
 $MESS["LANDING_STYLE_WEIGHT_BOLD"] = "Полужирный";
-//$MESS["LANDING_STYLE_WEIGHT_LIGHT"] = "Тонкий";
 $MESS["LANDING_STYLE_ITALIC"] = "Курсив";
 
 $MESS["LANDING_BLOCK_STYLE-BLOCK_BORDER"] = "Рамка блока";
@@ -88,8 +114,19 @@ $MESS["LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_SM"] = "Маленький";
 $MESS["LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_MD"] = "Средний";
 $MESS["LANDING_BLOCK_STYLE-BLOCK_BORDER_MARGIN_LG"] = "Большой";
 
-$MESS["LANDING_BLOCK_STYLE-TEXT_CONTAINER"] = "Ширина текста";
+$MESS["LANDING_BLOCK_STYLE-CONTENT_CONTAINER"] = "Ширина контента";
 $MESS["LANDING_BLOCK_STYLE-TEXT_CONTAINER_FULL"] = "На весь экран";
 $MESS["LANDING_BLOCK_STYLE-TEXT_CONTAINER_CONTAINER"] = "Стандартная";
 $MESS["LANDING_BLOCK_STYLE-TEXT_CONTAINER_MINI"] = "Уменьшенная";
+
+$MESS["LANDING_BLOCK_BUTTON_SIZE"] = "Размер кнопки";
+$MESS["LANDING_BLOCK_BUTTON_STYLE"] = "Стиль кнопки";
+$MESS["LANDING_BLOCK_BUTTON_WIDTH"] = "Ширина кнопки";
+
+$MESS["LANDING_BLOCK_BUTTON_STYLE_SOLID"] = "Сплошная";
+$MESS["LANDING_BLOCK_BUTTON_STYLE_OUTLINE"] = "Контурная";
+$MESS["LANDING_BLOCK_BUTTON_STYLE_SOLID_DOUBLE"] = "Сплошная с двумя рамками";
+$MESS["LANDING_BLOCK_BUTTON_STYLE_OUTLINE_DOUBLE"] = "Контурная с двумя рамками";
+
+$MESS["LANDING_BLOCK_TITLE_STYLE"] = "Стиль заголовка";
 

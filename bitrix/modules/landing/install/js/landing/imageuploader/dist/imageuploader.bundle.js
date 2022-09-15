@@ -7,9 +7,11 @@ this.BX = this.BX || {};
 	  return name ? name.replace(/\.[^.]+$/, "@".concat(x, "x.").concat(BX.util.getExtension(name))) : name;
 	}
 
-	var ImageUploader =
-	/*#__PURE__*/
-	function () {
+	/**
+	 * @memberOf BX.Landing
+	 */
+
+	var ImageUploader = /*#__PURE__*/function () {
 	  function ImageUploader(options) {
 	    babelHelpers.classCallCheck(this, ImageUploader);
 	    this.options = babelHelpers.objectSpread({
@@ -21,6 +23,12 @@ this.BX = this.BX || {};
 	  }
 
 	  babelHelpers.createClass(ImageUploader, [{
+	    key: "setSizes",
+	    value: function setSizes(sizes) {
+	      this.options.sizes = sizes;
+	      return this;
+	    }
+	  }, {
 	    key: "getDimensions",
 	    value: function getDimensions() {
 	      var dimensions = Object.entries(this.options.dimensions);

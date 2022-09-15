@@ -1,23 +1,12 @@
-<?
-global $DBType;
+<?php
 
-CModule::AddAutoloadClasses(
-	'report',
-	array(
-		'CReport' => 'classes/general/report.php',
-		'CReportHelper' => 'classes/general/report_helper.php',
-		'BXUserException' => 'classes/general/report.php',
-		'BXFormException' => 'classes/general/report.php',
-		'Bitrix\Report\ReportTable' => 'lib/report.php',
-		'\Bitrix\Report\ReportTable' => 'lib/report.php',
-	)
-);
+require_once __DIR__.'/autoload.php';
 
 CJSCore::RegisterExt('report', array(
 	'js' => '/bitrix/js/report/js/report.js',
 	'css' => '/bitrix/js/report/css/report.css',
 	'lang' => BX_ROOT.'/modules/report/lang/'.LANGUAGE_ID.'/install/js/report.php',
-	'rel' => array('core', 'popup', 'json', 'ajax')
+	'rel' => array('ui.design-tokens', 'ui.fonts.opensans', 'core', 'popup', 'json', 'ajax')
 ));
 
 CJSCore::RegisterExt('report_visual_constructor', array(
@@ -39,6 +28,8 @@ CJSCore::RegisterExt('report_visual_constructor', array(
 		'amcharts_radar',
 		'amcharts_serial',
 		'amcharts_xy',
+		'amcharts4',
+		'amcharts4_theme_animated',
 		'core',
 		'json',
 		'ajax',
@@ -47,3 +38,4 @@ CJSCore::RegisterExt('report_visual_constructor', array(
 ));
 
 \Bitrix\Main\Page\Asset::getInstance()->addJsKernelInfo("report", array("/bitrix/js/report/js/report.js"));
+

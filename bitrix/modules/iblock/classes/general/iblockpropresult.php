@@ -28,7 +28,7 @@ class CIBlockPropertyResult extends CDBResult
 			$res = parent::Fetch();
 		}
 
-		if ($res && $res["USER_TYPE"]!="")
+		if ($res && isset($res["USER_TYPE"]) && $res["USER_TYPE"]!="")
 		{
 			$arUserType = CIBlockProperty::GetUserType($res["USER_TYPE"]);
 			if (isset($arUserType["ConvertFromDB"]))
@@ -47,8 +47,10 @@ class CIBlockPropertyResult extends CDBResult
 					$res["DEFAULT_VALUE"] = $value["VALUE"];
 				}
 			}
-			if(strlen($res["USER_TYPE_SETTINGS"]))
-				$res["USER_TYPE_SETTINGS"] = unserialize($res["USER_TYPE_SETTINGS"]);
+			if($res["USER_TYPE_SETTINGS"] <> '')
+			{
+				$res["USER_TYPE_SETTINGS"] = unserialize($res["USER_TYPE_SETTINGS"], ['allowed_classes' => false]);
+			}
 		}
 
 		if($res && !empty($this->arProperties))
@@ -69,13 +71,13 @@ class CIBlockPropertyResult extends CDBResult
 							$res[$field_name] = $res[$field_name]->load();
 
 						$update = false;
-						if(strlen($res[$field_name]) <= 0)
+						if($res[$field_name] == '')
 						{
 							$update = true;
 						}
 						else
 						{
-							$tmp = unserialize($res[$field_name]);
+							$tmp = unserialize($res[$field_name], ['allowed_classes' => false]);
 							if (!isset($tmp['ID']))
 								$update = true;
 						}
@@ -277,8 +279,8 @@ class CIBlockPropertyResult extends CDBResult
 						}
 					}
 				}
-				if ($property['USER_TYPE_SETTINGS'] !== '' || $property['USER_TYPE_SETTINGS'] !== null)
-					$property['USER_TYPE_SETTINGS'] = unserialize($property['USER_TYPE_SETTINGS']);
+				if ($property['USER_TYPE_SETTINGS'] !== '' && $property['USER_TYPE_SETTINGS'] !== null)
+					$property['USER_TYPE_SETTINGS'] = unserialize($property['USER_TYPE_SETTINGS'], ['allowed_classes' => false]);
 				$this->arProperties[$property['ID']] = $property;
 			}
 			unset($property, $propertyIterator);

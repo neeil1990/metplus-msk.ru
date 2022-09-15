@@ -800,7 +800,7 @@
 				var insertCallback = params.TABLE_SETTINGS.callback;
 				params.TABLE_SETTINGS.callback = function (data)
 				{
-					insertCallback(BitrixMobile.Utils.htmlspecialchars(data));
+					insertCallback(data);
 				}
 			}
 		}
@@ -2061,6 +2061,9 @@
 
 					image.node.setAttribute("data-src", "");
 					image.status = this.status.loaded;
+					image.node.onload = function() {
+						BX.onCustomEvent('BX.LazyLoad:ImageLoaded', [ this ]);
+					};
 				}
 			}
 		},
@@ -2643,349 +2646,46 @@
 		}
 	};
 
+	BMAjaxWrapper = null;
+	BX.ready(function() {
 
-
-	window.MobileAjaxWrapper = function ()
-	{
-		this.type = null;
-		this.method = null;
-		this.url = null;
-		this.callback = null;
-		this.failure_callback = null;
-		this.progress_callback = null;
-		this.offline = null;
-		this.processData = null;
-		this.xhr = null;
-		this.data = null;
-		this.headers = null;
-};
-
-	MobileAjaxWrapper.prototype.Init = function (params)
-	{
-		if (params.type != 'json')
-			params.type = 'html';
-
-		if (params.method != 'POST')
-			params.method = 'GET';
-
-		if (params.processData == 'undefined')
-			params.processData = true;
-
-		this.type = params.type;
-		this.method = params.method;
-		this.url = params.url;
-		this.data = params.data;
-		this.headers = (typeof params.headers != 'undefined' ? params.headers : []);
-		this.processData = params.processData;
-		this.start = params.start;
-		this.preparePost = params.preparePost;
-		this.callback = params.callback;
-
-		if (params.callback_failure != 'undefined')
-			this.failure_callback = params.callback_failure;
-		if (params.callback_progress != 'undefined')
-			this.progress_callback = params.callback_progress;
-		if (params.callback_loadstart != 'undefined')
-			this.loadstart_callback = params.callback_loadstart;
-		if (params.callback_loadend != 'undefined')
-			this.loadend_callback = params.callback_loadend;
-	};
-
-	MobileAjaxWrapper.prototype.Wrap = function (params)
-	{
-		this.Init(params);
-
-		this.xhr = BX.ajax({
-			timeout: 30,
-			start : this.start,
-			preparePost : this.preparePost,
-			method: this.method,
-			dataType: this.type,
-			url: this.url,
-			data: this.data,
-			headers: this.headers,
-			processData: this.processData,
-			onsuccess: BX.defer(
-				function (response)
-				{
-					var bFailed = false;
-
-					if (this.xhr.status === 0)
-					{
-						bFailed = true;
-					}
-					else if (this.type == 'json')
-					{
-						bFailed = (typeof response == 'object' && typeof response.status != 'undefined' && response.status == 'failed');
-					}
-					else if (this.type == 'html')
-					{
-						bFailed = (response == '{"status":"failed"}');
-					}
-
-					if (bFailed)
-					{
-						this.RepeatRequest();
-					}
-					else
-					{
-						this.callback(response);
-					}
-				},
-				this
-			),
-			onfailure: BX.delegate(function (errorCode, requestStatus)
-			{
-				if (
-					errorCode !== undefined
-					&& errorCode == 'status'
-					&& requestStatus !== undefined
-					&& requestStatus == 401
-				)
-				{
-					this.RepeatRequest();
-				}
-				else
-				{
-					this.failure_callback();
-				}
-			}, this)
-		});
-
-		if (this.progress_callback != null)
-			BX.bind(this.xhr, "progress", this.progress_callback);
-
-		if (this.load_callback != null)
-			BX.bind(this.xhr, "load", this.load_callback);
-
-		if (this.loadstart_callback != null)
-			BX.bind(this.xhr, "loadstart", this.loadstart_callback);
-
-		if (this.loadend_callback != null)
-			BX.bind(this.xhr, "loadend", this.loadend_callback);
-
-		if (this.error_callback != null)
-			BX.bind(this.xhr, "error", this.error_callback);
-
-		if (this.abort_callback != null)
-			BX.bind(this.xhr, "abort", this.abort_callback);
-		return this.xhr;
-	};
-
-	MobileAjaxWrapper.prototype.runComponentAction = function(component, action, config, callbacks)
-	{
-		config.onrequeststart = function(requestXhr) {
-			this.xhr = requestXhr;
-		}.bind(this);
-
-		BX.ajax.runComponentAction(component, action, config).then(function(response) {
-			if (BX.type.isFunction(callbacks.success))
-			{
-				callbacks.success(response);
-			}
-		}.bind(this), function(response) {
-			if (this.xhr.status == 401)
-			{
-				this.repeatComponentAction(component, action, config, callbacks);
-			}
-			else if (BX.type.isFunction(callbacks.failure))
-			{
-				callbacks.failure(response);
-			}
-		}.bind(this));
-
-		if (BX.type.isFunction(this.progress_callback))
+		if (BX.type.isUndefined(BX.Mobile))
 		{
-			BX.bind(this.xhr, "progress", this.progress_callback);
-		}
-		if (BX.type.isFunction(this.load_callback))
-		{
-			BX.bind(this.xhr, "load", this.load_callback);
-		}
-		if (BX.type.isFunction(this.loadstart_callback))
-		{
-			BX.bind(this.xhr, "loadstart", this.loadstart_callback);
-		}
-		if (BX.type.isFunction(this.loadend_callback))
-		{
-			BX.bind(this.xhr, "loadend", this.loadend_callback);
-		}
-		if (BX.type.isFunction(this.error_callback))
-		{
-			BX.bind(this.xhr, "error", this.error_callback);
-		}
-		if (BX.type.isFunction(this.abort_callback))
-		{
-			BX.bind(this.xhr, "abort", this.abort_callback);
+			return;
 		}
 
-		return this.xhr;
-	};
-
-	MobileAjaxWrapper.prototype.repeatComponentAction = function(component, action, config, callbacks)
-	{
-		app.BasicAuth({
-			success: function (auth_data)
-			{
-				BX.ajax.runComponentAction(component, action, config).then(function(response) {
-					if (BX.type.isFunction(callbacks.success))
-					{
-						callbacks.success(response);
-					}
-				}.bind(this), function(response) {
-					if (BX.type.isFunction(callbacks.failure))
-					{
-						callbacks.failure(response);
-					}
-				}.bind(this));
-
-			}.bind(this),
-			failture: function ()
-			{
-				this.failure_callback();
-			}.bind(this)
-		});
-	};
-
-	MobileAjaxWrapper.prototype.runAction = function(action, config, callbacks)
-	{
-		config.onrequeststart = function(requestXhr) {
-			this.xhr = requestXhr;
-		}.bind(this);
-
-		BX.ajax.runAction(action, config).then(function(response) {
-			if (BX.type.isFunction(callbacks.success))
-			{
-				callbacks.success(response);
-			}
-		}.bind(this), function(response) {
-			if (this.xhr.status == 401)
-			{
-				this.repeatAction(action, config, callbacks);
-			}
-			else if (BX.type.isFunction(callbacks.failure))
-			{
-				callbacks.failure(response);
-			}
-		}.bind(this));
-
-		if (BX.type.isFunction(this.progress_callback))
+		/**
+		 * @deprecated since version 2.0
+		 */
+		window.MobileAjaxWrapper = function ()
 		{
-			BX.bind(this.xhr, "progress", this.progress_callback);
-		}
-		if (BX.type.isFunction(this.load_callback))
+			this.instance = new BX.Mobile.Ajax();
+		};
+
+		MobileAjaxWrapper.prototype.Wrap = function (params)
 		{
-			BX.bind(this.xhr, "load", this.load_callback);
-		}
-		if (BX.type.isFunction(this.loadstart_callback))
+			var result = this.instance.instanceWrap(params);
+			this.xhr = this.instance.xhr;
+			return result;
+		};
+
+		MobileAjaxWrapper.prototype.runComponentAction = function(component, action, config, callbacks)
 		{
-			BX.bind(this.xhr, "loadstart", this.loadstart_callback);
-		}
-		if (BX.type.isFunction(this.loadend_callback))
+			return this.instance.instanceRunComponentAction(component, action, config, callbacks);
+		};
+
+		MobileAjaxWrapper.prototype.runAction = function(action, config, callbacks)
 		{
-			BX.bind(this.xhr, "loadend", this.loadend_callback);
-		}
-		if (BX.type.isFunction(this.error_callback))
+			return this.instance.instanceRunAction(action, config, callbacks);
+		};
+
+		MobileAjaxWrapper.prototype.OfflineAlert = function (callback)
 		{
-			BX.bind(this.xhr, "error", this.error_callback);
-		}
-		if (BX.type.isFunction(this.abort_callback))
-		{
-			BX.bind(this.xhr, "abort", this.abort_callback);
-		}
+			navigator.notification.alert(BX.message('MobileAppOfflineMessage'), (callback || BX.DoNothing), BX.message('MobileAppOfflineTitle'));
+		};
 
-		return this.xhr;
-	};
-
-	MobileAjaxWrapper.prototype.repeatAction = function(action, config, callbacks)
-	{
-		app.BasicAuth({
-			success: function (auth_data)
-			{
-				BX.ajax.runAction(action, config).then(function(response) {
-					if (BX.type.isFunction(callbacks.success))
-					{
-						callbacks.success(response);
-					}
-				}.bind(this), function(response) {
-					if (BX.type.isFunction(callbacks.failure))
-					{
-						callbacks.failure(response);
-					}
-				}.bind(this));
-
-			}.bind(this),
-			failture: function ()
-			{
-				this.failure_callback();
-			}.bind(this)
-		});
-	};
-
-	MobileAjaxWrapper.prototype.RepeatRequest = function ()
-	{
-		app.BasicAuth({
-			success: BX.delegate(
-				function (auth_data)
-				{
-					this.data.sessid = auth_data.sessid_md5;
-					this.xhr = BX.ajax({
-						timeout: 30,
-						method: this.method,
-						dataType: this.type,
-						url: this.url,
-						data: this.data,
-						onsuccess: BX.delegate(
-							function (response_ii)
-							{
-								var bFailed = false;
-
-								if (this.xhr.status === 0)
-								{
-									bFailed = true;
-								}
-								else if (this.type == 'json')
-								{
-									bFailed = (typeof response_ii == 'object' && typeof response_ii.status != 'undefined' && response_ii.status == 'failed');
-								}
-								else if (this.type == 'html')
-								{
-									bFailed = (response_ii == '{"status":"failed"}');
-								}
-
-								if (bFailed)
-								{
-									this.failure_callback();
-								}
-								else
-								{
-									this.callback(response_ii);
-								}
-							},
-							this
-						),
-						onfailure: BX.delegate(function ()
-						{
-							this.failure_callback();
-						}, this)
-					});
-				},
-				this
-			),
-			failture: BX.delegate(function ()
-			{
-				this.failure_callback();
-			}, this)
-		});
-	};
-
-
-	MobileAjaxWrapper.prototype.OfflineAlert = function (callback)
-	{
-		navigator.notification.alert(BX.message('MobileAppOfflineMessage'), (callback || BX.DoNothing), BX.message('MobileAppOfflineTitle'));
-	};
-
-	BMAjaxWrapper = new MobileAjaxWrapper;
+		BMAjaxWrapper = new MobileAjaxWrapper;
+	});
 
 	MobileNetworkStatus = function ()
 	{

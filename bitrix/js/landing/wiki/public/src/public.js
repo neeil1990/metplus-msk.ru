@@ -4,12 +4,18 @@ import {SliderHacks} from 'landing.sliderhacks';
 Event.bind(document, 'click', (event: MouseEvent) => {
 	if (Type.isDomNode(event.target))
 	{
-		const link = event.target.closest('a:not(.ui-btn)');
+		const link = event.target.closest('a:not(.ui-btn):not([data-fancybox])');
 		if (Type.isDomNode(link))
 		{
-			if (Type.isStringFilled(link.href) && link.target !== '_blank')
+			const isCurrentPageLink =
+				Type.isStringFilled(link.href)
+				&& link.hash !== ''
+				&& link.pathname === document.location.pathname
+				&& link.hostname === document.location.hostname;
+			if (Type.isStringFilled(link.href) && link.target !== '_blank' && !isCurrentPageLink)
 			{
 				event.preventDefault();
+				BX.Landing.Pub.TopPanel.pushHistory(link.href);
 				void SliderHacks.reloadSlider(link.href);
 			}
 		}
@@ -24,8 +30,21 @@ Event.bind(document, 'click', (event: MouseEvent) => {
 				&& Type.isStringFilled(urlParams.href)
 			)
 			{
-				event.stopImmediatePropagation();
-				void SliderHacks.reloadSlider(urlParams.href);
+				if (urlParams.query)
+				{
+					urlParams.href += (urlParams.href.indexOf('?') === -1) ? '?' : '&';
+					urlParams.href += urlParams.query;
+				}
+				if (urlParams.target === '_self')
+				{
+					event.stopImmediatePropagation();
+					BX.Landing.Pub.TopPanel.pushHistory(urlParams.href);
+					void SliderHacks.reloadSlider(urlParams.href);
+				}
+				else
+				{
+					top.open(urlParams.href, urlParams.target);
+				}
 			}
 		}
 	}

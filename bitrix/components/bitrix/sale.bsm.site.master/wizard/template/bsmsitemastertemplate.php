@@ -1,8 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\BsmSiteMaster\Templates;
 
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
 	die();
+}
 
 use Bitrix\Main\UI,
 	Bitrix\Main\Localization\Loc;
@@ -51,7 +54,7 @@ class BsmSiteMasterTemplate extends \CWizardTemplate
 				}
 			}
 
-			if (strlen($strError) > 0)
+			if ($strError <> '')
 			{
 				if (method_exists($obStep, "showExtendedErrors"))
 				{

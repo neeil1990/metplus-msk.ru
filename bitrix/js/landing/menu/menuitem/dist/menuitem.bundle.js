@@ -3,9 +3,11 @@ this.BX.Landing = this.BX.Landing || {};
 (function (exports,main_core,landing_ui_form_menuitemform) {
 	'use strict';
 
-	var MenuItem =
-	/*#__PURE__*/
-	function (_Event$EventEmitter) {
+	/**
+	 * @memberOf BX.Landing.Menu
+	 */
+
+	var MenuItem = /*#__PURE__*/function (_Event$EventEmitter) {
 	  babelHelpers.inherits(MenuItem, _Event$EventEmitter);
 
 	  function MenuItem() {

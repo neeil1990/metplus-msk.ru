@@ -1,4 +1,5 @@
-<?
+<?php
+
 use Bitrix\Main\Security\Sign;
 IncludeModuleLangFile(__FILE__);
 
@@ -9,10 +10,18 @@ class CPullChannel
 
 	const CHANNEL_TTL = 43205;
 
-	public static function GetNewChannelId($extraString = '')
+	private const CACHE_TABLE = "b_pull_channel";
+
+	public static function GetNewChannelId($suffix = '')
 	{
 		global $APPLICATION;
-		return md5(uniqid().$_SERVER["REMOTE_ADDR"].$_SERVER["SERVER_NAME"].(is_object($APPLICATION)? $APPLICATION->GetServerUniqID(): '').$extraString);
+		return md5(uniqid().$_SERVER["REMOTE_ADDR"].$_SERVER["SERVER_NAME"].(is_object($APPLICATION)? $APPLICATION->GetServerUniqID(): '').$suffix);
+	}
+
+	public static function GetNewChannelIdByTag(string $tag, string $suffix = '')
+	{
+		global $APPLICATION;
+		return md5($tag.(is_object($APPLICATION)? $APPLICATION->GetServerUniqID(): '').$suffix);
 	}
 
 	public static function GetChannelShared($channelType = self::TYPE_SHARED, $cache = true, $reOpen = false)
@@ -42,7 +51,7 @@ class CPullChannel
 
 		if ($nginxStatus && $cache)
 		{
-			$res = $CACHE_MANAGER->Read(self::CHANNEL_TTL, $cache_id, "b_pull_channel");
+			$res = $CACHE_MANAGER->Read(self::CHANNEL_TTL, $cache_id, self::CACHE_TABLE);
 			if ($res)
 			{
 				$arResult = $CACHE_MANAGER->Get($cache_id);
@@ -58,23 +67,21 @@ class CPullChannel
 			";
 			CTimeZone::Enable();
 			$res = $DB->Query($strSql);
-			if ($arResult = $res->Fetch())
+			$arResult = $res->Fetch();
+			if ($arResult && $nginxStatus && $cache)
 			{
-				if ($nginxStatus)
-				{
-					self::SaveToCache($cache_id, $arResult);
-				}
+				self::SaveToCache($cache_id, $arResult);
 			}
 		}
 		if (empty($arResult) || intval($arResult['DATE_CREATE'])+ self::CHANNEL_TTL < time() || ($userId > 0 && $arResult['CHANNEL_PUBLIC_ID'] == ''))
 		{
-			$arChannel = Array(
+			$arChannel = [
 				'CHANNEL_ID' => self::GetNewChannelId(),
 				'CHANNEL_PUBLIC_ID' => $userId>0? self::GetNewChannelId('public'): '',
 				'CHANNEL_TYPE' => $channelType,
 				'DATE_CREATE' => time(),
 				'LAST_ID' => 0,
-			);
+			];
 			self::SaveToCache($cache_id, $arChannel);
 
 			if (isset($arResult['CHANNEL_ID']))
@@ -84,42 +91,51 @@ class CPullChannel
 			}
 
 			$arChannelData = self::Add($userId, $arChannel['CHANNEL_ID'], $arChannel['CHANNEL_PUBLIC_ID'], $arChannel['CHANNEL_TYPE']);
+			if (!$arChannelData)
+			{
+				return false;
+			}
+
 			$channelId = $arChannelData['CHANNEL_ID'];
 			$publicChannelId = $arChannelData['CHANNEL_PUBLIC_ID'];
+			if (!is_string($channelId) || $channelId === '')
+			{
+				return false;
+			}
 
 			if (isset($arResult['CHANNEL_ID']) && $channelId != $arResult['CHANNEL_ID'])
 			{
-				$params = Array(
+				$params = [
 					'action' => $channelType != self::TYPE_PRIVATE? 'reconnect': 'get_config',
-					'channel' => Array(
+					'channel' => [
 						'id' => self::SignChannel($arResult['CHANNEL_ID']),
 						'type' => $channelType,
-					),
-				);
+					],
+				];
 				if ($userId == 0)
 				{
-					$params['new_channel'] = Array(
+					$params['new_channel'] = [
 						'id' => self::SignChannel($channelId),
 						'start' => date('c', time()),
 						'end' => date('c', time()+ self::CHANNEL_TTL),
 						'type' => $channelType,
-					);
+					];
 				}
-				$arMessage = Array(
+				$arMessage = [
 					'module_id' => 'pull',
 					'command' => 'channel_expire',
 					'params' => $params
-				);
+				];
 				CPullStack::AddByChannel($arResult['CHANNEL_ID'], $arMessage);
 			}
 
-			return $channelId? Array(
+			return [
 				'CHANNEL_ID' => $channelId,
 				'CHANNEL_PUBLIC_ID' => $publicChannelId,
 				'CHANNEL_TYPE' => $channelType,
 				'CHANNEL_DT' => time(),
 				'LAST_ID' => 0,
-			): false;
+			];
 		}
 		else
 		{
@@ -138,20 +154,26 @@ class CPullChannel
 					),
 				)));
 			}
-			return Array(
+			return [
 				'CHANNEL_ID' => $arResult['CHANNEL_ID'],
 				'CHANNEL_PUBLIC_ID' => $arResult['CHANNEL_PUBLIC_ID'],
 				'CHANNEL_TYPE' => $arResult['CHANNEL_TYPE'],
 				'CHANNEL_DT' => $arResult['DATE_CREATE'],
 				'LAST_ID' => $arResult['LAST_ID'],
-			);
+			];
 		}
 	}
 
 	public static function SignChannel($channelId)
 	{
 		$signatureKey = \Bitrix\Pull\Config::getSignatureKey();
-		if ($signatureKey === "" || !is_string($channelId))
+		if (!is_string($channelId))
+		{
+			trigger_error("Channel ID must be the string", E_USER_WARNING);
+
+			return $channelId;
+		}
+		if ($signatureKey === "")
 		{
 			return $channelId;
 		}
@@ -222,7 +244,7 @@ class CPullChannel
 			'LAST_ID' => 0,
 			'~DATE_CREATE' => $DB->CurrentTimeFunction(),
 		);
-		$result = intval($DB->Add("b_pull_channel", $arParams, Array(), "", true));
+		$result = intval($DB->Add(self::CACHE_TABLE, $arParams, Array(), "", true));
 		if ($result > 0)
 		{
 			$arChannel = Array(
@@ -262,6 +284,10 @@ class CPullChannel
 			CTimeZone::Enable();
 			$res = $DB->Query($strSql);
 			$arChannel = $res->Fetch();
+			if (!$arChannel)
+			{
+				return false;
+			}
 			$channelId = $arChannel['CHANNEL_ID'];
 			self::SaveToCache($cache_id, $arChannel);
 
@@ -299,7 +325,7 @@ class CPullChannel
 			$strSql = "DELETE FROM b_pull_channel WHERE USER_ID = ".$arRes['USER_ID']." AND CHANNEL_TYPE = '".$DB->ForSql($arRes['CHANNEL_TYPE'])."'";
 			$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 
-			$CACHE_MANAGER->Clean("b_pchc_".$arRes['USER_ID']."_".$arRes['CHANNEL_TYPE'], "b_pull_channel");
+			$CACHE_MANAGER->Clean("b_pchc_".$arRes['USER_ID']."_".$arRes['CHANNEL_TYPE'], self::CACHE_TABLE);
 
 			$channelType = $arRes['CHANNEL_TYPE'];
 
@@ -313,6 +339,10 @@ class CPullChannel
 			if ($channelType != self::TYPE_PRIVATE)
 			{
 				$result = self::GetShared(false);
+				if (!$result)
+				{
+					return true;
+				}
 				$params['new_channel'] = Array(
 					'id' => self::SignChannel($result['CHANNEL_ID']),
 					'start' => $result['CHANNEL_DT'],
@@ -352,7 +382,7 @@ class CPullChannel
 			}
 		}
 
-		if (strlen($channelType) <= 0)
+		if ($channelType == '')
 			$channelTypeSql = "(CHANNEL_TYPE = '' OR CHANNEL_TYPE IS NULL)";
 		else
 			$channelTypeSql = "CHANNEL_TYPE = '".$DB->ForSQL($channelType)."'";
@@ -360,7 +390,7 @@ class CPullChannel
 		$strSql = "DELETE FROM b_pull_channel WHERE USER_ID = ".$userId." AND ".$channelTypeSql;
 		$DB->Query($strSql, false, "File: ".__FILE__."<br>Line: ".__LINE__);
 
-		$CACHE_MANAGER->Clean("b_pchc_".$userId."_".$channelType, "b_pull_channel");
+		$CACHE_MANAGER->Clean("b_pchc_".$userId."_".$channelType, self::CACHE_TABLE);
 
 		$params = Array(
 			'action' => $channelType != self::TYPE_PRIVATE? 'reconnect': 'get_config',
@@ -372,6 +402,10 @@ class CPullChannel
 		if ($channelType != self::TYPE_PRIVATE)
 		{
 			$result = self::GetShared(false);
+			if (!$result)
+			{
+				return true;
+			}
 			$params['new_channel'] = Array(
 				'id' => self::SignChannel($result['CHANNEL_ID']),
 				'start' => $result['CHANNEL_DT'],
@@ -443,6 +477,10 @@ class CPullChannel
 		else
 		{
 			$result = self::SendCommand($channelId, $message, $options);
+			if($result === false)
+			{
+				return $result;
+			}
 			$result = json_decode($result_start.$result.$result_end);
 		}
 
@@ -456,7 +494,7 @@ class CPullChannel
 
 		$channelId = implode('/', array_unique($channelId));
 
-		if (strlen($channelId) <=0 || strlen($message) <= 0)
+		if ($channelId == '' || $message == '')
 			return false;
 
 		$defaultOptions = array(
@@ -473,7 +511,7 @@ class CPullChannel
 		$nginx_error = COption::GetOptionString("pull", "nginx_error", "N");
 		if ($nginx_error != "N")
 		{
-			$nginx_error = unserialize($nginx_error);
+			$nginx_error = unserialize($nginx_error, ["allowed_classes" => false]);
 			if (intval($nginx_error['date'])+120 < time())
 			{
 				COption::SetOptionString("pull", "nginx_error", "N");
@@ -544,8 +582,8 @@ class CPullChannel
 	{
 		global $CACHE_MANAGER;
 
-		$CACHE_MANAGER->Clean($cacheId, "b_pull_channel");
-		$CACHE_MANAGER->Read(self::CHANNEL_TTL, $cacheId, "b_pull_channel");
+		$CACHE_MANAGER->Clean($cacheId, self::CACHE_TABLE);
+		$CACHE_MANAGER->Read(self::CHANNEL_TTL, $cacheId, self::CACHE_TABLE);
 		$CACHE_MANAGER->SetImmediate($cacheId, $data);
 	}
 
@@ -564,12 +602,12 @@ class CPullChannel
 	{
 		global $DB;
 		$sqlDateFunction = null;
-		$dbType = strtolower($DB->type);
-		if ($dbType== "mysql")
+
+		if ($DB->type == "MYSQL")
 			$sqlDateFunction = "DATE_SUB(NOW(), INTERVAL 13 HOUR)";
-		else if ($dbType == "mssql")
+		elseif ($DB->type == "MSSQL")
 			$sqlDateFunction = "dateadd(HOUR, -13, getdate())";
-		else if ($dbType == "oracle")
+		elseif ($DB->type == "ORACLE")
 			$sqlDateFunction = "SYSDATE-1/13";
 
 		if (!is_null($sqlDateFunction))

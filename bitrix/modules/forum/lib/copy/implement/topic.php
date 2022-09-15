@@ -115,6 +115,7 @@ class Topic extends CopyImplementer
 	private function cleanDataToCopy(array $fields)
 	{
 		unset($fields["ID"]);
+		unset($fields["POSTS"]);
 		unset($fields["START_DATE"]);
 		unset($fields["LAST_POST_DATE"]);
 		unset($fields["ABS_LAST_POST_DATE"]);

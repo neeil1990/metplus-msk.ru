@@ -25,6 +25,7 @@ BX.namespace("BX.Kanban");
  * @param {string} [options.bgColor]
  * @param {object} [options.data] Custom Data For Grid
  * @param {object} [options.messages] Custom Messages For Grid
+ * @param {boolean} [options.multiSelect]
  * @constructor
  */
 BX.Kanban.Grid = function(options)
@@ -51,9 +52,12 @@ BX.Kanban.Grid = function(options)
 		earLeft: null,
 		earRight: null,
 		emptyStub: null,
-		loader: null
+		loader: null,
+		leftShadow: null,
+		rightShadow: null
 	};
 
+	this.emptyStubItems = options.emptyStubItems;
 	this.itemType = this.getItemType(options.itemType);
 	this.columnType = this.getColumnType(options.columnType);
 
@@ -72,6 +76,12 @@ BX.Kanban.Grid = function(options)
 	this.earTimer = null;
 	this.firstRenderComplete = null;
 	this.dragMode = BX.Kanban.DragMode.NONE;
+
+	this.multiSelect = options.multiSelect;
+	this.ahaMode = null;
+	this.selectedItems = [];
+	this.addItemTitleText = options.addItemTitleText;
+	this.addDraftItemInfo = options.addDraftItemInfo;
 
 	/** @private **/
 	this.canAddColumn = false;
@@ -107,11 +117,41 @@ BX.Kanban.Grid = function(options)
 		}
 	}
 
-	BX.addCustomEvent(this, "Kanban.Grid:onItemDragStart", BX.delegate(this.onItemDragStart, this));
-	BX.addCustomEvent(this, "Kanban.Grid:onItemDragStop", BX.delegate(this.onItemDragStop, this));
+	this.bindEvents();
 
+	BX.addCustomEvent(this, "Kanban.Grid:onItemDragStart", BX.delegate(this.onItemDragStart, this));
+	BX.addCustomEvent(this, "Kanban.Grid:onItemsDragStart", BX.delegate(this.onItemDragStart, this));
+	BX.addCustomEvent(this, "Kanban.Grid:onItemDragStop", BX.delegate(this.onItemDragStop, this));
 	BX.addCustomEvent(this, "Kanban.Grid:onColumnDragStart", BX.delegate(this.onColumnDragStart, this));
 	BX.addCustomEvent(this, "Kanban.Grid:onColumnDragStop", BX.delegate(this.onColumnDragStop, this));
+
+	if(this.multiSelect)
+	{
+		BX.addCustomEvent(this, "Kanban.Item:select", this.addSelectedItem.bind(this));
+		BX.addCustomEvent(this, "Kanban.Item:select", this.adjustMultiSelectMode.bind(this));
+		BX.addCustomEvent(this, "Kanban.Item:unSelect", this.removeSelectedItem.bind(this));
+		BX.addCustomEvent(this, "Kanban.Item:unSelect", this.adjustMultiSelectMode.bind(this));
+		window.addEventListener('keydown', function(event) {
+			if(BX.Kanban.Utils.getKeyDownName(event.keyCode) === "Escape" && this.getSelectedItems().length > 0)
+			{
+				this.cleanSelectedItems();
+				this.adjustMultiSelectMode();
+				BX.PreventDefault(event);
+			}
+		}.bind(this));
+		window.addEventListener('click', function(event) {
+			if(
+				BX.findParent(event.target, {attr: {"data-element": "kanban-element"}})
+				|| event.target.getAttribute("data-element") === "kanban-element"
+			)
+			{
+				return;
+			}
+
+			this.cleanSelectedItems();
+			this.adjustMultiSelectMode();
+		}.bind(this));
+	}
 };
 
 /**
@@ -176,6 +216,33 @@ BX.Kanban.Grid.prototype =
 		return column;
 	},
 
+	getAddItemTitleText: function()
+	{
+		return this.addItemTitleText;
+	},
+
+	getAddDraftItemInfo: function() 
+	{
+		return this.addDraftItemInfo;
+	},
+
+	isAhaMode: function()
+	{
+		return this.ahaMode;
+	},
+
+	onAhaMode: function()
+	{
+		this.getGridContainer().classList.add("main-kanban-aha");
+		this.ahaMode = true;
+	},
+
+	offAhaMode: function()
+	{
+		this.getGridContainer().classList.remove("main-kanban-aha");
+		this.ahaMode = false;
+	},
+
 	/**
 	 *
 	 * @param {BX.Kanban.Column|string|number} column
@@ -201,6 +268,8 @@ BX.Kanban.Grid.prototype =
 
 		return true;
 	},
+
+	bindEvents: function() {},
 
 	updateColumn: function(column, options)
 	{
@@ -242,6 +311,50 @@ BX.Kanban.Grid.prototype =
 		return columnIndex > 0 && columns[columnIndex - 1] ? columns[columnIndex - 1] : null;
 	},
 
+	adjustMultiSelectMode: function()
+	{
+		if(this.selectedItems.length > 0) {
+			this.onMultiSelect();
+		}
+		else
+		{
+			this.offMultiSelect();
+		}
+	},
+
+	/**
+	 *
+	 * @param {object} item
+	 */
+	addSelectedItem: function(item)
+	{
+		if (!(item instanceof BX.Kanban.Item))
+		{
+			throw new Error("Item type must be an instance of BX.Kanban.Item");
+		}
+
+		this.selectedItems.push(item);
+
+	},
+
+	/**
+	 *
+	 * @param {object} item
+	 */
+	removeSelectedItem: function(item)
+	{
+		if (!(item instanceof BX.Kanban.Item))
+		{
+			throw new Error("Item type must be an instance of BX.Kanban.Item");
+		}
+
+		if (this.selectedItems.indexOf(item) >= 0)
+		{
+			this.selectedItems.splice(this.selectedItems.indexOf(item), 1);
+		}
+
+	},
+
 	/**
 	 *
 	 * @param {object} options
@@ -277,6 +390,10 @@ BX.Kanban.Grid.prototype =
 
 		var targetItem = this.getItem(options.targetId);
 		column.addItem(item, targetItem);
+
+		options.type === 'BX.Kanban.DraftItem'
+			? BX.onCustomEvent(this, "Kanban.Grid:addDraftItem", [item])
+			: BX.onCustomEvent(this, "Kanban.Grid:addItem", [item]);
 
 		return item;
 	},
@@ -390,6 +507,36 @@ BX.Kanban.Grid.prototype =
 		item.getColumn().render();
 
 		return true;
+	},
+
+	getSelectedItems: function()
+	{
+		return this.selectedItems;
+	},
+
+	cleanSelectedItems: function()
+	{
+		for (var i = 0; i < this.getSelectedItems().length; i++)
+		{
+			this.getSelectedItems()[i].unSelect(true);
+		}
+
+		this.selectedItems = [];
+	},
+
+	isMultiSelect: function()
+	{
+		return this.multiSelect;
+	},
+
+	onMultiSelect: function()
+	{
+		this.getGridContainer().classList.add("main-kanban-multiselect-mode")
+	},
+
+	offMultiSelect: function()
+	{
+		this.getGridContainer().classList.remove("main-kanban-multiselect-mode")
 	},
 
 	/**
@@ -659,6 +806,11 @@ BX.Kanban.Grid.prototype =
 		BX.onCustomEvent(this, "Kanban.Grid:onRender", [this]);
 
 		this.firstRenderComplete = true;
+
+		if(this.isAhaMode())
+		{
+			this.renderTo.classList.add("main-kanban-aha-mode");
+		}
 	},
 
 	renderLayout: function()
@@ -680,7 +832,6 @@ BX.Kanban.Grid.prototype =
 		outerContainer.appendChild(innerContainer);
 
 		this.renderTo.appendChild(this.getOuterContainer());
-
 
 		BX.bind(window, "resize", this.adjustLayout.bind(this));
 		BX.bind(window, "scroll", this.adjustHeight.bind(this));
@@ -794,6 +945,10 @@ BX.Kanban.Grid.prototype =
 			props: {
 				className: "main-kanban-inner"
 			},
+			children: [
+				this.getLeftShadowContainer(),
+				this.getRightShadowContainer()
+			],
 			style: {
 				backgroundColor: this.getBgColorStyle()
 			}
@@ -802,25 +957,52 @@ BX.Kanban.Grid.prototype =
 		return this.layout.innerContainer;
 	},
 
+	getRightShadowContainer: function()
+	{
+		if(!this.layout.rightShadow)
+		{
+			this.layout.rightShadow = BX.create("div", {
+				props: {
+					className: "main-kanban-inner-shadow main-kanban-inner-shadow-right"
+				}
+			});
+		}
+
+		return this.layout.rightShadow;
+	},
+
+	getLeftShadowContainer: function()
+	{
+		if(!this.layout.leftShadow)
+		{
+			this.layout.leftShadow = BX.create("div", {
+				props: {
+					className: "main-kanban-inner-shadow main-kanban-inner-shadow-left"
+				}
+			});
+		}
+
+		return this.layout.leftShadow;
+	},
+
 	/**
 	 *
 	 * @returns {Element}
 	 */
 	getGridContainer: function()
 	{
-		if (this.layout.gridContainer)
+		if (!this.layout.gridContainer)
 		{
-			return this.layout.gridContainer;
+			this.layout.gridContainer = BX.create("div", {
+				props: {
+					className: "main-kanban-grid"
+				},
+				events: {
+					scroll: this.adjustEars.bind(this)
+				}
+			});
 		}
 
-		this.layout.gridContainer = BX.create("div", {
-			props: {
-				className: "main-kanban-grid"
-			},
-			events: {
-				scroll: this.adjustEars.bind(this)
-			}
-		});
 		return this.layout.gridContainer;
 	},
 
@@ -830,11 +1012,44 @@ BX.Kanban.Grid.prototype =
 	 */
 	getEmptyStub: function()
 	{
-		if (this.layout.emptyStub)
+		if(this.layout.emptyStub)
 		{
 			return this.layout.emptyStub;
 		}
 
+		if(this.emptyStubItems && typeof this.emptyStubItems === 'object')
+		{
+			this.layout.emptyStub = BX.create("div", {
+				attrs: {
+					className: "main-kanban-no-data"
+				},
+				children: [
+					BX.create("div", {
+						attrs: {
+							className: "main-kanban-no-data-inner"
+						},
+						children: [
+							BX.create("div", {
+								attrs: {
+									className: "main-kanban-no-data-title"
+								},
+								text: this.emptyStubItems['title']
+							}),
+							BX.create("div", {
+								attrs: {
+									className: "main-kanban-no-data-description"
+								},
+								text: this.emptyStubItems['description']
+							})
+						]
+					})
+				]
+			});
+
+			return this.layout.emptyStub;
+		}
+
+		// default empty layout
 		this.layout.emptyStub = BX.create("div", {
 			attrs: {
 				className: "main-kanban-no-data"
@@ -876,9 +1091,9 @@ BX.Kanban.Grid.prototype =
 				className: "main-kanban-loader-container"
 			},
 			html:
-			'<svg class="main-kanban-loader-circular" viewBox="25 25 50 50">' +
+				'<svg class="main-kanban-loader-circular" viewBox="25 25 50 50">' +
 				'<circle class="main-kanban-loader-path" cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"/>' +
-			'</svg>'
+				'</svg>'
 		});
 
 		return this.layout.loader;
@@ -962,6 +1177,19 @@ BX.Kanban.Grid.prototype =
 		this.getInnerContainer().classList[isVisible ? "add" : "remove"]("main-kanban-no-data-mode");
 	},
 
+	moveSelectedItems: function(targetColumn, beforeItem)
+	{
+		targetColumn = this.getColumn(targetColumn);
+		beforeItem = this.getItem(beforeItem);
+
+		if((this.selectedItems.length > 0) || !targetColumn || !beforeItem)
+		{
+			return false;
+		}
+
+		targetColumn.addSelectedItems(this.selectedItems, beforeItem)
+	},
+
 	moveItem: function(item, targetColumn, beforeItem)
 	{
 		item = this.getItem(item);
@@ -976,6 +1204,39 @@ BX.Kanban.Grid.prototype =
 		var currentColumn = item.getColumn();
 		currentColumn.removeItem(item);
 		targetColumn.addItem(item, beforeItem);
+
+		return true;
+	},
+
+	moveItems: function(items, targetColumn, startBeforeItem)
+	{
+		var currentColumns = [];
+
+		for (var itemId in items)
+		{
+			var column = this.getColumn(items[itemId].columnId);
+
+			if(currentColumns.indexOf(column) === -1)
+			{
+				currentColumns.push(column);
+			}
+		}
+
+		for (var columnId in currentColumns)
+		{
+			var columnItems = [];
+			for(var keyId in items)
+			{
+				if(currentColumns[columnId].getId() === items[keyId].getColumnId())
+				{
+					columnItems.push(items[keyId]);
+				}
+			}
+
+			currentColumns[columnId].removeSelectedItems(columnItems);
+		}
+
+		targetColumn.addItems(items, startBeforeItem);
 
 		return true;
 	},
@@ -1144,6 +1405,14 @@ BX.Kanban.Grid.prototype =
 
 	onItemDragStart: function(item)
 	{
+		if(this.multiSelect && this.selectedItems.length > 0)
+		{
+			for (var item in this.selectedItems)
+			{
+				this.selectedItems[item].disabledItem();
+			}
+		}
+
 		this.setDragMode(BX.Kanban.DragMode.ITEM);
 
 		var items = this.getItems();
@@ -1162,6 +1431,14 @@ BX.Kanban.Grid.prototype =
 
 	onItemDragStop: function(item)
 	{
+		if(this.multiSelect && this.selectedItems.length > 0)
+		{
+			for (var item in this.selectedItems)
+			{
+				this.selectedItems[item].unDisabledItem();
+			}
+		}
+
 		this.resetDragMode();
 		this.getDropZoneArea().hide();
 
@@ -1236,6 +1513,7 @@ BX.Kanban.Grid.prototype =
 BX.Kanban.DragEvent = function(options)
 {
 	this.item = null;
+	this.items = [];
 	this.targetColumn = null;
 	this.targetItem = null;
 	this.action = true;
@@ -1256,6 +1534,15 @@ BX.Kanban.DragEvent.prototype =
 	isActionAllowed: function()
 	{
 		return this.action;
+	},
+
+	/**
+	 *
+	 * @param {object} items
+	 */
+	setItems: function(items)
+	{
+		this.items = items;
 	},
 
 	/**

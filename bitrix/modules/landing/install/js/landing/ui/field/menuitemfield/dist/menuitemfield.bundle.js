@@ -4,9 +4,11 @@ this.BX.Landing.Ui = this.BX.Landing.Ui || {};
 (function (exports,main_core,landing_ui_field_basefield,landing_ui_form_menuform) {
 	'use strict';
 
-	var MenuItemField =
-	/*#__PURE__*/
-	function (_BaseField) {
+	/**
+	 * @memberOf BX.Landing.UI.Field
+	 */
+
+	var MenuItemField = /*#__PURE__*/function (_BaseField) {
 	  babelHelpers.inherits(MenuItemField, _BaseField);
 
 	  function MenuItemField() {

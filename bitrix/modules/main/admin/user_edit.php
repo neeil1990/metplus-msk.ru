@@ -10,6 +10,9 @@
  * @global CDatabase $DB
  * @global CUserTypeManager $USER_FIELD_MANAGER
  */
+
+use \Bitrix\Main\Authentication\Policy;
+
 require_once(dirname(__FILE__)."/../include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "users/user_edit.php");
@@ -81,7 +84,7 @@ $editable = ($USER->IsAdmin() ||
 if($_REQUEST["action"] == "authorize" && check_bitrix_sessid() && $USER->CanDoOperation('edit_php'))
 {
 	$USER->Logout();
-	$USER->Authorize(intval($_REQUEST["ID"]));
+	$USER->Authorize(intval($_REQUEST["ID"]), false, true, null, false);
 	LocalRedirect("user_edit.php?lang=".LANGUAGE_ID."&ID=".intval($_REQUEST["ID"]));
 }
 
@@ -96,7 +99,10 @@ $aTabs = array();
 $aTabs[] = array("DIV" => "edit1", "TAB" => GetMessage("MAIN_USER_TAB1"), "ICON"=>"main_user_edit", "TITLE"=>GetMessage("MAIN_USER_TAB1_TITLE"));
 
 if($showGroupTabs)
+{
 	$aTabs[] = array("DIV" => "edit2", "TAB" => GetMessage("GROUPS"), "ICON"=>"main_user_edit", "TITLE"=>GetMessage("MAIN_USER_TAB2_TITLE"));
+	$aTabs[] = array("DIV" => "edit_policy", "TAB" => GetMessage("main_user_edit_policy"), "ICON"=>"main_user_edit", "TITLE"=>GetMessage("main_user_edit_policy_title"));
+}
 $aTabs[] = array("DIV" => "edit3", "TAB" => GetMessage("USER_PERSONAL_INFO"), "ICON"=>"main_user_edit", "TITLE"=>GetMessage("USER_PERSONAL_INFO"));
 $aTabs[] = array("DIV" => "edit4", "TAB" => GetMessage("MAIN_USER_TAB4"), "ICON"=>"main_user_edit", "TITLE"=>GetMessage("USER_WORK_INFO"));
 $aTabs[] = array("DIV" => "edit_rating", "TAB" => GetMessage("USER_RATING_INFO"), "ICON"=>"main_user_edit", "TITLE"=>GetMessage("USER_RATING_INFO"));
@@ -228,6 +234,7 @@ if(
 			"AUTO_TIME_ZONE" => ($_POST["AUTO_TIME_ZONE"] == "Y" || $_POST["AUTO_TIME_ZONE"] == "N"? $_POST["AUTO_TIME_ZONE"] : ""),
 			"XML_ID" => $_POST["XML_ID"],
 			"PHONE_NUMBER" => $_POST["PHONE_NUMBER"],
+			"PASSWORD_EXPIRED" => $_POST["PASSWORD_EXPIRED"],
 		);
 
 		if(isset($_POST["TIME_ZONE"]))
@@ -245,9 +252,15 @@ if(
 				$arFields['EXTERNAL_AUTH_ID'] = $_POST["EXTERNAL_AUTH_ID"];
 
 			if ($ID == 1 && $COPY_ID <= 0)
+			{
 				$arFields["ACTIVE"] = "Y";
+				$arFields["BLOCKED"] = "N";
+			}
 			else
+			{
 				$arFields["ACTIVE"] = $_POST["ACTIVE"];
+				$arFields["BLOCKED"] = $_POST["BLOCKED"];
+			}
 
 			if($showGroupTabs && isset($_REQUEST["GROUP_ID_NUMBER"]))
 			{
@@ -410,7 +423,7 @@ if(
 						LocalRedirect($strRedirect_admin);
 					elseif($_POST["apply"] <> '')
 						LocalRedirect($strRedirect."&ID=".$ID."&".$tabControl->ActiveTabParam());
-					elseif(strlen($_POST["save_and_add"])>0)
+					elseif($_POST["save_and_add"] <> '')
 						LocalRedirect($strRedirect."&ID=0&".$tabControl->ActiveTabParam());
 				}
 				elseif($new=="Y")
@@ -431,6 +444,7 @@ if(!$user->ExtractFields("str_"))
 {
 	$ID = 0;
 	$str_ACTIVE = "Y";
+	$str_BLOCKED = "N";
 	$str_LID = CSite::GetDefSite();
 }
 else
@@ -612,6 +626,22 @@ else:
 	$tabControl->HideField('ACTIVE');
 endif;
 
+$tabControl->BeginCustomField("BLOCKED", GetMessage("main_user_edit_blocked"));
+?>
+	<tr>
+		<td><?echo $tabControl->GetCustomLabelHTML()?></td>
+		<td>
+		<?if($canSelfEdit):?>
+			<input type="checkbox" name="BLOCKED" value="Y"<?if($str_BLOCKED == "Y") echo " checked"?>>
+		<?else:?>
+			<input type="checkbox" <?if($str_BLOCKED == "Y") echo " checked"?> disabled>
+			<input type="hidden" name="BLOCKED" value="<?=$str_BLOCKED;?>">
+		<?endif;?>
+		</td>
+	</tr>
+<?
+$tabControl->EndCustomField("BLOCKED", '<input type="hidden" name="BLOCKED" value="'.$str_BLOCKED.'">');
+
 $emailRequired = (COption::GetOptionString("main", "new_user_email_required", "Y") <> "N");
 $phoneRequired = (COption::GetOptionString("main", "new_user_phone_required", "N") == "Y");
 
@@ -661,6 +691,8 @@ document.getElementById('bx_auth_secure').style.display = 'inline-block';
 	</tr>
 <?
 $tabControl->EndCustomField("PASSWORD");
+
+$tabControl->AddCheckBoxField("PASSWORD_EXPIRED", GetMessage("main_user_edit_pass_expired"), false, array("Y","N"), ($str_PASSWORD_EXPIRED == "Y"));
 ?>
 <?if($USER->CanDoOperation('view_all_users')):?>
 <?
@@ -751,7 +783,7 @@ if($showGroupTabs):
 			</tr>
 			<?
 			$ind = -1;
-			$dbGroups = CGroup::GetList(($b = "c_sort"), ($o = "asc"), array("ANONYMOUS" => "N"));
+			$dbGroups = CGroup::GetList("c_sort", "asc", array("ANONYMOUS" => "N"));
 			while ($arGroups = $dbGroups->Fetch())
 			{
 				$arGroups["ID"] = intval($arGroups["ID"]);
@@ -783,6 +815,33 @@ if($showGroupTabs):
 	</tr>
 <?
 	$tabControl->EndCustomField("GROUP_ID");
+
+	$tabControl->BeginNextFormTab();
+
+	$tabControl->BeginCustomField("GROUP_POLICY", GetMessage("main_user_edit_policy_field"));
+
+	foreach (CUser::getPolicy($ID) as $rule):
+?>
+	<tr>
+		<td width="50%">
+			<?= htmlspecialcharsbx($rule->getTitle()) ?><?php if ($rule->getGroupId() > 0): ?>
+				[<a href="group_edit.php?ID=<?= (int)$rule->getGroupId() ?>&amp;lang=<?= LANGUAGE_ID ?>" title="<?= GetMessage("MAIN_VIEW_GROUP")?> "><?= (int)$rule->getGroupId()?></a>]<?php endif ?>:</td>
+		<td><b>
+			<?php
+				if ($rule instanceof Policy\BooleanRule)
+				{
+					echo ($rule->getValue() ? GetMessage("main_user_edit_policy_yes") : GetMessage("main_user_edit_policy_no"));
+				}
+				else
+				{
+					echo htmlspecialcharsbx($rule->getValue());
+				}
+			?></b>
+		</td>
+	</tr>
+<?php
+	endforeach;
+	$tabControl->EndCustomField("GROUP_POLICY");
 endif;
 ?>
 <?
@@ -1035,8 +1094,7 @@ $tabControl->ShowWarnings($tabControl->GetName(), $message);
 
 <?if(!defined('BX_PUBLIC_MODE') || BX_PUBLIC_MODE != 1):?>
 <?echo BeginNote();?>
-<span class="required">1</span> <?$GROUP_POLICY = CUser::GetGroupPolicy($ID);echo $GROUP_POLICY["PASSWORD_REQUIREMENTS"];?><br>
-<span class="required">2</span> <?echo GetMessage("RATING_BONUS_NOTICE")?><br>
+<span class="required">1</span> <?echo GetMessage("RATING_BONUS_NOTICE")?><br>
 <?echo EndNote();?>
 <?endif;?>
 

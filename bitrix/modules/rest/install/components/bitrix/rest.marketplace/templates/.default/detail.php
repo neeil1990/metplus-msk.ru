@@ -47,6 +47,7 @@ if($arResult['SLIDER'])
 			'COMPONENT_PARAMS' => array(
 				"APP" => $arResult["VARIABLES"]["app"],
 				"APPLICATION_PAGE" => $arParams["APPLICATION_PAGE"],
+				"IMPORT_PAGE" => $arParams["IMPORT_APP_URL"],
 			),
 		),
 		$component
@@ -57,6 +58,7 @@ else
 	$APPLICATION->IncludeComponent("bitrix:rest.marketplace.detail", "", array(
 		"APP" => $arResult["VARIABLES"]["app"],
 		"APPLICATION_PAGE" => $arParams["APPLICATION_PAGE"],
+		"IMPORT_PAGE" => $arParams["IMPORT_APP_URL"],
 	));
 }
 ?>

@@ -14,6 +14,7 @@ return [
 	'description' => Loc::getMessage('LANDING_DEMO_SEARCH-RESULT2-DESCRIPTION'),
 	'publication' => true,
 	'version' => 3,
+	'active' => false,
 	'fields' => [
 		'RULE' => null,
 		'ADDITIONAL_FIELDS' => [
@@ -22,7 +23,6 @@ return [
 			'METAOG_IMAGE' => 'https://cdn.bitrix24.site/bitrix/images/demo/page/search-result2/preview.jpg',
 			'VIEW_USE' => 'N',
 			'THEME_CODE' => '3corporate',
-			'THEME_CODE_TYPO' => 'app',
 			'PIXELFB_USE' => 'N',
 			'GACOUNTER_USE' => 'N',
 			'GACOUNTER_SEND_CLICK' => 'N',
@@ -51,10 +51,10 @@ return [
 			],
 			'style' => [
 				'.landing-block-node-title' => [
-					0 => 'landing-block-node-title g-font-weight-400 g-my-0 g-font-size-48 text-left g-font-montserrat',
+					0 => 'landing-block-node-title g-font-weight-400 g-my-0 g-font-size-48 text-left g-font-montserrat container g-max-width-100x g-pl-0 g-pr-0',
 				],
 				'#wrapper' => [
-					0 => 'landing-block js-animation fadeInUp g-pl-auto g-pb-auto g-pt-30 container g-max-width-container',
+					0 => 'landing-block js-animation fadeInUp g-pl-auto g-pb-auto g-pt-30 text-center',
 				],
 			],
 		],

@@ -4,12 +4,10 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
-$buttons = \Bitrix\Landing\Hook\Page\B24button::getButtons();
-$buttons = array_keys($buttons);
 
 return array(
 	//	'code' => 'holiday.thanksgiving',
-	'name' => 'Thanksgiving day',
+	'name' => 'Thanksgiving Day',
 	'description' => "It's the day to be thankful. It's the time to add more colors to the palette of your page.
 Send your Thanksgiving wishes with special Bitrix24 Thanksgiving Template. Your clients will enjoy it!",
 	'preview' => '',
@@ -18,19 +16,20 @@ Send your Thanksgiving wishes with special Bitrix24 Thanksgiving Template. Your 
 	'preview_url' => '',
 	'show_in_list' => 'Y',
 	'type' => 'page',
-	'sort' => \LandingSiteDemoComponent::checkActivePeriod(11,01,11,30) ? 41 : -181,
 	'version' => 2,
 	'active' => \LandingSiteDemoComponent::checkActive(array(
 		'ONLY_IN' => array('en'),
 	)),
 	'fields' => array(
 		'ADDITIONAL_FIELDS' => array(
-			'B24BUTTON_CODE' => $buttons[0],
 			'VIEW_USE' => 'N',
 			'VIEW_TYPE' => 'no',
 			'UP_SHOW' => 'Y',
 			'THEME_CODE' => 'real-estate',
-			'THEME_CODE_TYPO' => 'real-estate',
+			'THEMEFONTS_CODE' => 'Montserrat',
+			'THEMEFONTS_CODE_H' => 'Montserrat',
+			'THEMEFONTS_SIZE' => '1',
+			'THEMEFONTS_USE' => 'Y',
 			'SETTINGS_HIDE_NOT_AVAILABLE' => 'L',
 			'SETTINGS_HIDE_NOT_AVAILABLE_OFFERS' => 'N',
 			'SETTINGS_PRODUCT_SUBSCRIPTION' => 'Y',
@@ -57,7 +56,7 @@ Send your Thanksgiving wishes with special Bitrix24 Thanksgiving Template. Your 
 			'YACOUNTER_USE' => 'N',
 			'HEADBLOCK_USE' => 'N',
 		),
-		'TITLE' => 'Thanksgiving day',
+		'TITLE' => 'Thanksgiving Day',
 		'LANDING_ID_INDEX' => 'holiday.thanksgiving',
 		'LANDING_ID_404' => '0',
 	),

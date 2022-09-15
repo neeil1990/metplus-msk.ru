@@ -10,15 +10,21 @@ namespace Bitrix\Sender\Message;
 
 class ConfigurationOption
 {
+	const TYPE_DATE_TIME = 'datetime';
+	const TYPE_TIME = 'time';
+	const TYPE_NUMBER = 'number';
 	const TYPE_CUSTOM = 'custom';
 	const TYPE_PRESET_STRING = 'preset-string';
 	const TYPE_STRING = 'string';
 	const TYPE_CHECKBOX = 'checkbox';
+	const TYPE_CONSENT = 'user-consent';
+	const TYPE_CONSENT_CONTENT = 'user-consent-content';
 	const TYPE_EMAIL = 'email';
 	const TYPE_LIST = 'list';
 	const TYPE_HTML = 'html';
 	const TYPE_TEXT = 'text';
 	const TYPE_FILE = 'file';
+	const TYPE_TITLE= 'title';
 	const TYPE_TEMPLATE_TYPE = 'template-type';
 	const TYPE_TEMPLATE_ID = 'template-id';
 	const TYPE_MAIL_EDITOR = 'mail-editor';
@@ -58,6 +64,30 @@ class ConfigurationOption
 
 	/** @var boolean $templated Templated. */
 	protected $templated = false;
+
+	/** @var callable|null $readonlyView Render readonly value. */
+	protected $readonlyView;
+
+	/** @var boolean $showInList Show option value in items list. */
+	protected $showInList = false;
+
+	/** @var boolean $showInFilter Show option value in filter. */
+	protected $showInFilter = false;
+
+	/** @var boolean $showPreview Show preview button in consent. */
+	protected $showPreview = false;
+
+	/** @var boolean $showHelper Show helper block in consent. */
+	protected $showHelper = false;
+
+	/** @var int $maxLength max length of string field */
+	protected $maxLength;
+
+	/** @var int $maxValue max value of the field */
+	protected $maxValue;
+
+	/** @var int $minValue min value of te string field */
+	protected $minValue;
 
 	/**
 	 * Configuration constructor.
@@ -105,6 +135,38 @@ class ConfigurationOption
 		{
 			$this->setHint($data['hint']);
 		}
+		if (isset($data['readonly_view']))
+		{
+			$this->setReadonlyView($data['readonly_view']);
+		}
+		if (isset($data['show_in_list']))
+		{
+			$this->setShowInList($data['show_in_list']);
+		}
+		if (isset($data['show_in_filter']))
+		{
+			$this->setShowInFilter($data['show_in_filter']);
+		}
+		if (isset($data['show_preview']))
+		{
+			$this->setShowPreview($data['show_preview']);
+		}
+		if (isset($data['show_helper']))
+		{
+			$this->setShowHelper($data['show_helper']);
+		}
+		if (isset($data['max_length']))
+		{
+			$this->setMaxLength($data['max_length']);
+		}
+		if (isset($data['max_value']))
+		{
+			$this->setMaxValue($data['max_value']);
+		}
+		if (isset($data['min_value']))
+		{
+			$this->setMinValue($data['min_value']);
+		}
 	}
 
 	/**
@@ -125,6 +187,12 @@ class ConfigurationOption
 			'required' => $this->isRequired(),
 			'templated' => $this->isTemplated(),
 			'hint' => $this->getHint(),
+			'max_length' => $this->getMaxLength(),
+			'min_value' => $this->getMinValue(),
+			'max_value' => $this->getMaxValue(),
+			'show_in_list' => $this->getShowInList(),
+			'show_preview' => $this->getShowPreview(),
+			'show_helper' => $this->getShowHelper(),
 		);
 	}
 
@@ -358,4 +426,169 @@ class ConfigurationOption
 	{
 		$this->hint = $hint;
 	}
+
+
+	/**
+	 * Get readonly view.
+	 *
+	 * @param mixed $value Option value
+	 * @return mixed
+	 */
+	public function getReadonlyView($value)
+	{
+		if (is_callable($this->readonlyView))
+		{
+			$callback = $this->readonlyView;
+			$value = $callback($value);
+		}
+		return $value;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getMaxLength()
+	{
+		return $this->maxLength;
+	}
+
+
+	/**
+	 * Get show in list or not.
+	 *
+	 * @return bool
+	 */
+	public function getShowInList()
+	{
+		return $this->showInList;
+	}
+
+	/**
+	 * Get show in filter or not.
+	 *
+	 * @return bool
+	 */
+	public function getShowInFilter()
+	{
+		return $this->showInFilter;
+	}
+
+	/**
+	 * Set readonly view callback.
+	 *
+	 * @param callable|null $readonlyView Readonly view callback.
+	 * @return void
+	 */
+	public function setReadonlyView($readonlyView)
+	{
+		$this->readonlyView = $readonlyView;
+	}
+
+	/**
+	 * Set show in list or not.
+	 *
+	 * @param boolean $showInList Show in items list.
+	 * @return void
+	 */
+	public function setShowInList($showInList)
+	{
+		$this->showInList = $showInList;
+	}
+
+	/**
+	 * Set show in list or not.
+	 *
+	 * @param boolean $showInFilter Show in filter.
+	 * @return void
+	 */
+	public function setShowInFilter($showInFilter)
+	{
+		$this->showInFilter = $showInFilter;
+	}
+
+	/**
+	 * @param int $maxLength
+	 */
+	public function setMaxLength(int $maxLength)
+	{
+		$this->maxLength = $maxLength;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getMaxValue()
+	{
+		return $this->maxValue;
+	}
+
+	/**
+	 * @param int $maxValue
+	 *
+	 * @return ConfigurationOption
+	 */
+	public function setMaxValue(int $maxValue)
+	{
+		$this->maxValue = $maxValue;
+
+		return $this;
+	}
+
+	/**
+	 * @return int
+	 */
+	public function getMinValue()
+	{
+		return $this->minValue;
+	}
+
+	/**
+	 * @param int $minValue
+	 *
+	 * @return ConfigurationOption
+	 */
+	public function setMinValue(int $minValue)
+	{
+		$this->minValue = $minValue;
+
+		return $this;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function getShowPreview(): bool
+	{
+		return $this->showPreview;
+	}
+
+	/**
+	 * @param bool $showPreview
+	 * @return ConfigurationOption
+	 */
+	public function setShowPreview(bool $showPreview): ConfigurationOption
+	{
+		$this->showPreview = $showPreview;
+		return $this;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function getShowHelper(): bool
+	{
+		return $this->showHelper;
+	}
+
+	/**
+	 * @param bool $showHelper
+	 * @return ConfigurationOption
+	 */
+	public function setShowHelper(bool $showHelper): ConfigurationOption
+	{
+		$this->showHelper = $showHelper;
+		return $this;
+	}
+
+
 }

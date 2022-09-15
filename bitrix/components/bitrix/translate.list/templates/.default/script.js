@@ -34,6 +34,7 @@
 		gridLink: 'translate-link-grid',
 		editLink: 'translate-link-edit',
 		startIndexLink: 'translate-start-indexing',
+		menuItem: 'translate-menu-item',
 		menuItemChecked: 'menu-popup-item-accept'
 	};
 
@@ -47,9 +48,10 @@
 	 * @param {Object} param
 	 * @param {String} [param.relUrl]
 	 * @param {Object} [param.defaults]
-	 * @param {string} [param.defaults.path]
+	 * @param {string} [param.defaults.startingPath]
 	 * @param {string} [param.defaults.CODE_ENTRY]
 	 * @param {string} [param.defaults.PHRASE_ENTRY]
+	 * @param {Array} [param.defaults.initFolders]
 	 * @param {String} [param.tabId]
 	 * @param {String} [param.gridId]
 	 * @param {String} [param.filterId]
@@ -71,8 +73,8 @@
 		if (!BX.type.isNotEmptyString(param.relUrl))
 			throw "BX.Translate.PathList: 'relUrl' parameter missing.";
 
-		if (!BX.type.isNotEmptyString(param.defaults.path))
-			throw "BX.Translate.PathList: 'defaults.path' parameter missing.";
+		if (!BX.type.isNotEmptyString(param.defaults.startingPath))
+			throw "BX.Translate.PathList: 'defaults.startingPath' parameter missing.";
 
 		if (!BX.type.isNotEmptyString(param.tabId))
 			throw "BX.Translate.PathList: 'tabId' parameter missing.";
@@ -135,7 +137,7 @@
 
 		BX.addCustomEvent('BX.Main.Filter:beforeApply', BX.delegate(this.filterBeforeApply, this));
 
-		BX.addCustomEvent('onAjaxFailure', BX.delegate(function(errType, status){
+		BX.addCustomEvent('onAjaxFailure', BX.delegate(function(errType, status, config){
 			if (errType == 'auth')
 			{
 				if (typeof(this) == "object" && typeof(this.filterId) != "undefined")
@@ -146,11 +148,38 @@
 					top.location = top.location.href;
 				}
 			}
+			else if (errType == 'status')
+			{
+				if (typeof(config) == "object" && typeof(config.xhr) == "object" && config.xhr instanceof XMLHttpRequest)
+				{
+					try
+					{
+						var data = JSON.parse(config.xhr.responseText);
+						if (BX.type.isPlainObject(data))
+						{
+							if (data.status === 'error')
+							{
+								if (data.errors[0])
+								{
+									BX.UI.Notification.Center.notify({
+										content: data.errors[0].message
+									});
+								}
+							}
+						}
+					}
+					catch (err){}
+				}
+			}
 		}, this));
 
-		BX.addCustomEvent('BX.Translate.Process.BeforeRequestStart', BX.delegate(function(process, params){
-			/** @type {BX.Translate.Process} process */
-			if (process instanceof BX.Translate.Process)
+		BX.Event.EventEmitter.subscribe(BX.UI.StepProcessing.ProcessEvent.BeforeRequest, BX.delegate(function(event){
+			/** @type {BX.Main.Event.BaseEvent} event */
+			var process = event.data.process ? event.data.process : {};
+			var params = event.data.actionData ? event.data.actionData : {};
+
+			/** @type {BX.UI.StepProcessing.Process} process */
+			if (process instanceof BX.UI.StepProcessing.Process)
 			{
 				process.setParam('path', this.getCurrentPath());
 				process.method = 'POST';
@@ -183,6 +212,12 @@
 		if(nodeViewMode)
 		{
 			BX.bind(nodeViewMode, 'click', BX.proxy(this.showViewModeMenu, this));
+		}
+
+		var nodeInitFolder = BX('bx-translate-init-folder');
+		if(nodeInitFolder)
+		{
+			BX.bind(nodeInitFolder, 'click', BX.proxy(this.showInitFolderMenu, this));
 		}
 
 		var nodeExtraMenu = BX('bx-translate-extra-menu-anchor');
@@ -264,9 +299,9 @@
 			if (params.action == 'clear')
 			{
 
-				path = this.defaults.path;
+				path = this.defaults.startingPath;
 				var inp = this.getFilter().getSearch().getInput();
-				inp.value = this.defaults.path;
+				inp.value = this.defaults.startingPath;
 			}
 			else if (params.action == 'apply')
 			{
@@ -310,7 +345,7 @@
 		{
 			return '?' + name + '=' + value;
 		}
-		link = BX.util.remove_url_param(link, name);
+		link = BX.Uri.removeParam(link, name);
 		if(link.indexOf('?') != -1)
 		{
 			return link + '&' + name + '=' + value;
@@ -392,22 +427,47 @@
 		return null;
 	};
 
+	/**
+	 * @param {BX.Grid.Data} gridData
+	 * @param {Object} requestParams
+	 * @param {Object} requestParams.data
+	 * @param {String} requestParams.url
+	 */
 	PathList.prototype.onBeforeGridRequest = function(gridData, requestParams)
 	{
-		if (!BX.type.isPlainObject(requestParams.data))
+		if (requestParams.method == 'POST')
 		{
-			requestParams.data = {};
+			if (!BX.type.isPlainObject(requestParams.data))
+			{
+				requestParams.data = {};
+			}
+			requestParams.data.viewMode = this.viewMode.join(',');
+			requestParams.data.tabId = this.tabId;
+			requestParams.data.path = this.getCurrentPath();
+			requestParams.data.AJAX_CALL = 'Y';
+			if (this.mode == 'admin')
+			{
+				requestParams.data.admin_section = 'Y';
+				requestParams.data.lang = BX.message('LANGUAGE_ID');
+			}
 		}
-		requestParams.data.viewMode = this.viewMode.join(',');
-		requestParams.data.tabId = this.tabId;
-		requestParams.data.path = this.getCurrentPath();
-		requestParams.data.AJAX_CALL = 'Y';
-		if(this.mode == 'admin')
+		else
 		{
-			requestParams.data.admin_section = 'Y';
-			requestParams.data.lang = BX.message('LANGUAGE_ID');
+			requestParams.url = BX.Uri.removeParam(requestParams.url, ['viewMode', 'tabId', 'path']);
+
+			requestParams.url = BX.Uri.addParam(requestParams.url, {
+				viewMode: this.viewMode.join(','),
+				tabId: this.tabId,
+				path: this.getCurrentPath()
+			});
+			if (this.mode == 'admin')
+			{
+				requestParams.url = BX.Uri.addParam(requestParams.url, {
+					admin_section: 'Y',
+					lang: BX.message('LANGUAGE_ID')
+				});
+			}
 		}
-		requestParams.method = 'POST';
 	};
 
 	PathList.prototype.reloadGrid = function ()
@@ -505,14 +565,13 @@
 			{
 				BX.bind(gridLinks[i], 'click', BX.proxy(this.linkGridClick, this));
 				BX.bind(gridLinks[i], 'mousedown', BX.proxy(this.linkGridClick, this));
-				//BX.bind(gridLinks[i], 'touchstart', function (e) {BX.PreventDefault(e);});
 			}
 
 			gridLinks = grid.getContainer().querySelectorAll('.' + this.STYLES.startIndexLink);
 			for (i = 0; i < gridLinks.length; i++)
 			{
 				BX.bind(gridLinks[i], 'click', function () {
-					BX.Translate.ProcessManager.getInstance('index').showDialog()
+					BX.UI.StepProcessing.ProcessManager.get('index').showDialog()
 				});
 			}
 		}
@@ -545,14 +604,6 @@
 					}
 					else
 					{
-						/* will
-						url = this.addLinkParam(url, 'tabId', this.tabId);
-						if (url !== location.href)
-						{
-							this.replaceAddressLink(url);
-						}
-						*/
-
 						if (this.getFilter())
 						{
 							row = pathLink.closest('.main-grid-row[data-id]');
@@ -589,14 +640,6 @@
 				url = pathLink.href;
 				if (BX.type.isNotEmptyString(url))
 				{
-					/*
-					url = this.addLinkParam(url, 'tabId', this.tabId);
-					if (url !== location.href)
-					{
-						this.replaceAddressLink(url);
-					}
-					*/
-
 					if (this.getFilter())
 					{
 						data = row.getDataset();
@@ -647,41 +690,6 @@
 	PathList.prototype.sendGridAction = function (action, id)
 	{
 		this.toggleGridLoader(true);
-
-		/*
-		BX.ajax.runComponentAction(
-			'bitrix:main.ui.filter',
-			'setFilter',
-			{
-				mode: 'ajax',
-				data: {'params': filterParams, 'data': filterData}
-			}
-		).then(function (response) {
-			if(isLeftClick)
-			{
-				window.location.href = url;
-			}
-		});
-
-		BX.ajax.runAction
-		(
-			this._controller + '.' + this._action,
-			{
-				data: {
-					'id': id
-				},
-				method: action
-			}
-		)
-		.then(
-			BX.delegate(function () {
-				this.reloadGrid();
-			}, this),
-			BX.delegate(function () {
-				this.toggleGridLoader(false);
-			}, this)
-		);
-		*/
 	};
 
 	PathList.prototype.remove = function (id)
@@ -698,7 +706,7 @@
 	PathList.prototype.getCurrentPath = function ()
 	{
 		var inp = this.getFilter().getSearch().getInput(),
-			path = BX.type.isNotEmptyString(inp.value) ? inp.value : this.defaults.path;
+			path = BX.type.isNotEmptyString(inp.value) ? inp.value : this.defaults.startingPath;
 
 		path = path.replace(/[\\]+/ig, '/');
 		if (inp.value !== path)
@@ -709,10 +717,24 @@
 		return path;
 	};
 
-	//endregion
+	/**
+	 * @param {String} path
+	 */
+	PathList.prototype.setPath = function (path)
+	{
+		if (BX.type.isNotEmptyString(path))
+		{
+			if (this.getFilter())
+			{
+				this.getFilter().getSearch().input.value = path;
+				this.getFilter().getApi().apply();
+			}
+		}
+	};
 
 
-	//region Menu
+
+	//region Mode View Menu
 
 	/** @type {BX.PopupMenuWindow} modeViewPopup */
 	var modeViewPopup;
@@ -729,28 +751,32 @@
 					{
 						'id': this.VIEW_MODE.CountPhrases,
 						'text': this.getMessage('ViewModeMenuCountPhrases'),
-						'className': 'translate-view-mode-counter ' + (this.viewMode.indexOf(this.VIEW_MODE.CountPhrases) >= 0 ? this.STYLES.menuItemChecked : ''),
+						'className': this.STYLES.menuItem + ' translate-view-mode-counter ' +
+							(this.viewMode.indexOf(this.VIEW_MODE.CountPhrases) >= 0 ? this.STYLES.menuItemChecked : ''),
 						'onclick': this.setViewMode.bind(this, this.VIEW_MODE.CountPhrases,
 							{'fellowClass': 'translate-view-mode-counter', 'title': this.getMessage('ViewModeTitleCountPhrases')})
 					},
 					{
 						'id': this.VIEW_MODE.CountFiles,
 						'text': this.getMessage('ViewModeMenuCountFiles'),
-						'className': 'translate-view-mode-counter ' + (this.viewMode.indexOf(this.VIEW_MODE.CountFiles) >= 0 ? this.STYLES.menuItemChecked : ''),
+						'className': this.STYLES.menuItem + ' translate-view-mode-counter ' +
+							(this.viewMode.indexOf(this.VIEW_MODE.CountFiles) >= 0 ? this.STYLES.menuItemChecked : ''),
 						'onclick': this.setViewMode.bind(this, this.VIEW_MODE.CountFiles,
 							{'fellowClass': 'translate-view-mode-counter', 'title': this.getMessage('ViewModeTitleCountFiles')})
 					},
 					{
 						'id': this.VIEW_MODE.UntranslatedPhrases,
 						'text': this.getMessage('ViewModeMenuUntranslatedPhrases'),
-						'className': 'translate-view-mode-counter ' + (this.viewMode.indexOf(this.VIEW_MODE.UntranslatedPhrases) >= 0 ? this.STYLES.menuItemChecked : ''),
+						'className': this.STYLES.menuItem + ' translate-view-mode-counter ' +
+							(this.viewMode.indexOf(this.VIEW_MODE.UntranslatedPhrases) >= 0 ? this.STYLES.menuItemChecked : ''),
 						'onclick': this.setViewMode.bind(this, this.VIEW_MODE.UntranslatedPhrases,
 							{'fellowClass': 'translate-view-mode-counter', 'title': this.getMessage('ViewModeTitleUntranslatedPhrases')})
 					},
 					{
 						'id': this.VIEW_MODE.UntranslatedFiles,
 						'text': this.getMessage('ViewModeMenuUntranslatedFiles'),
-						'className': 'translate-view-mode-counter ' + (this.viewMode.indexOf(this.VIEW_MODE.UntranslatedFiles) >= 0 ? this.STYLES.menuItemChecked : ''),
+						'className': this.STYLES.menuItem + ' translate-view-mode-counter ' +
+							(this.viewMode.indexOf(this.VIEW_MODE.UntranslatedFiles) >= 0 ? this.STYLES.menuItemChecked : ''),
 						'onclick': this.setViewMode.bind(this, this.VIEW_MODE.UntranslatedFiles,
 							{'fellowClass': 'translate-view-mode-counter', 'title': this.getMessage('ViewModeTitleUntranslatedFiles')})
 					},
@@ -758,13 +784,15 @@
 					{
 						'id': this.VIEW_MODE.HideEmptyFolders,
 						'text': this.getMessage('ViewModeMenuHideEmptyFolders'),
-						'className': 'translate-view-mode-emptiness ' + (this.viewMode.indexOf(this.VIEW_MODE.HideEmptyFolders) >= 0 ? this.STYLES.menuItemChecked : ''),
+						'className': this.STYLES.menuItem + ' translate-view-mode-emptiness ' +
+							(this.viewMode.indexOf(this.VIEW_MODE.HideEmptyFolders) >= 0 ? this.STYLES.menuItemChecked : ''),
 						'onclick': this.setViewMode.bind(this, this.VIEW_MODE.HideEmptyFolders)
 					},
 					{
 						'id': this.VIEW_MODE.ShowDiffLinks,
 						'text': this.getMessage('ViewModeMenuShowDiffLinks'),
-						'className': 'translate-view-mode-difflinks ' + (this.viewMode.indexOf(this.VIEW_MODE.ShowDiffLinks) >= 0 ? this.STYLES.menuItemChecked : ''),
+						'className': this.STYLES.menuItem + ' translate-view-mode-difflinks ' +
+							(this.viewMode.indexOf(this.VIEW_MODE.ShowDiffLinks) >= 0 ? this.STYLES.menuItemChecked : ''),
 						'onclick': this.setViewMode.bind(this, this.VIEW_MODE.ShowDiffLinks)
 					}
 				],
@@ -871,7 +899,7 @@
 	//endregion
 
 
-	//region Menu
+	//region Extra Menu
 
 	/** @type {BX.PopupMenuWindow} extraMenuPopup */
 	var extraMenuPopup;
@@ -899,6 +927,71 @@
 		extraMenuPopup.show();
 	};
 
+	//endregion
+
+
+	//region Init Folder Menu
+
+	/** @type {BX.PopupMenuWindow} initFolderMenuPopup */
+	var initFolderMenuPopup;
+
+	PathList.prototype.showInitFolderMenu = function (event)
+	{
+		var node = event.currentTarget;
+		if (!initFolderMenuPopup)
+		{
+			var initFolderMenuItems = [];
+			for (var i = 0; i < this.defaults.initFolders.length; i++)
+			{
+				initFolderMenuItems.push({
+					"id": "translate-init-folder-" + i,
+					"text": this.defaults.initFolders[i],
+					'className': this.STYLES.menuItem + ' ' + (this.defaults.startingPath === this.defaults.initFolders[i] ? this.STYLES.menuItemChecked : ''),
+					'onclick': this.setInitFolder.bind(this, this.defaults.initFolders[i])
+				});
+			}
+
+			initFolderMenuPopup = new BX.PopupMenuWindow(
+				'translate-init-folder-menu',
+				node,
+				initFolderMenuItems,
+				{
+					autoHide: true,
+					autoClose: true,
+					closeByEsc: true
+				}
+			);
+		}
+
+		initFolderMenuPopup.bindElement = node;
+		initFolderMenuPopup.show();
+	};
+
+	PathList.prototype.setInitFolder = function (path)
+	{
+		var inx, item, items = initFolderMenuPopup.getMenuItems();
+		for (inx in items)
+		{
+			if(!items.hasOwnProperty(inx)) continue;
+			item = items[inx];
+
+			if (item.text === path)
+			{
+				BX.addClass(item.layout.item, this.STYLES.menuItemChecked);
+				//initFolderMenuPopup.bindElement.innerHTML = item.text;
+			}
+			else
+			{
+				BX.removeClass(item.layout.item, this.STYLES.menuItemChecked);
+			}
+		}
+		if (initFolderMenuPopup)
+		{
+			initFolderMenuPopup.close();
+		}
+
+		this.setPath(path);
+	};
 	//endregion
 
 

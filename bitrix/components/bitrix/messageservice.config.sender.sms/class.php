@@ -12,7 +12,6 @@ class MessageServiceConfigSenderSmsComponent extends CBitrixComponent
 {
 	public function executeComponent()
 	{
-
 		if (!Main\Loader::includeModule('messageservice'))
 		{
 			ShowError(Loc::getMessage('MESSAGESERVICE_MODULE_NOT_INSTALLED'));
@@ -47,7 +46,7 @@ class MessageServiceConfigSenderSmsComponent extends CBitrixComponent
 		$sender->sync();
 
 		$this->arResult['sender'] = $sender;
-		$this->IncludeComponentTemplate($sender->getId());
+		$this->IncludeComponentTemplate($sender->getConfigComponentTemplatePageName());
 	}
 
 	protected function getSenderId()

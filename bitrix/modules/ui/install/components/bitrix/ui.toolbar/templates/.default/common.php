@@ -9,6 +9,8 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 $this->setFrameMode(true);
 
+\Bitrix\Main\UI\Extension::load('ui.design-tokens');
+
 $toolbarManager = Toolbar\Manager::getInstance();
 if($arResult["TOOLBAR_ID"] != "")
 {
@@ -20,33 +22,44 @@ else
 }
 
 $filter = $toolbar->getFilter();
-$titleRightButtons = $toolbar->renderTitleRightButtons();
+$afterTitleButtons = $toolbar->renderAfterTitleButtons();
 $rightButtons = $toolbar->renderRightButtons();
 $filterButtons = $toolbar->renderAfterFilterButtons();
 ?>
 
 <div id="<?=$arResult["CONTAINER_ID"]?>" class="ui-toolbar">
-	<? if (strlen($titleRightButtons)):?>
-		<div class="ui-toolbar-btn-box"><?=$titleRightButtons?></div>
-	<?endif;?>
+	<? if($afterTitleButtons <> ''): ?><?
+		?>
+		<div class="ui-toolbar-after-title-buttons"><?= $afterTitleButtons ?></div><?
+	endif;
 
-	<? if (strlen($filter)): ?>
-		<div class="ui-toolbar-filter-box"><?=$filter?><?=$filterButtons?></div>
-	<? endif; ?>
+	if($filter <> ''):
+		?>
+		<div class="ui-toolbar-filter-box"><?= $filter ?><?
+		if($filterButtons <> ''): ?><?
+			?>
+			<div class="ui-toolbar-filter-buttons"><?= $filterButtons ?></div><?
+		endif
+		?></div><?
+	endif;
 
-	<? if (strlen($rightButtons)):?>
-		<div class="ui-toolbar-btn-box"><?=$rightButtons?></div>
-	<?endif;?>
+	if($rightButtons <> ''):?><?
+		?>
+		<div class="ui-toolbar-right-buttons"><?= $rightButtons ?></div><?
+	endif ?>
 </div>
 
 <script>
-    new BX.UI.Toolbar(<?=\Bitrix\Main\Web\Json::encode([
-        "titleMinWidth" => $toolbar->getTitleMinWidth(),
+	BX.UI.ToolbarManager.create(Object.assign(<?=\Bitrix\Main\Web\Json::encode([
+		"id" => $toolbar->getId(),
+		"titleMinWidth" => $toolbar->getTitleMinWidth(),
 		"titleMaxWidth" => $toolbar->getTitleMaxWidth(),
 		"buttonIds" => array_map(function(\Bitrix\UI\Buttons\BaseButton $button){
 			return $button->getUniqId();
 		}, $toolbar->getButtons()),
     ])?>,
-		targetContainer = document.getElementById('<?=$arResult["CONTAINER_ID"]?>')
-	);
+		{
+			target: document.getElementById('<?=$arResult["CONTAINER_ID"]?>')
+		}
+	));
 </script>

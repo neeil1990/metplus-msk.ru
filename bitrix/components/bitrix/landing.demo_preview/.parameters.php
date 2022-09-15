@@ -38,7 +38,11 @@ $arComponentParameters = Array(
 		),
 		'BINDING_TYPE' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_BINDING_TYPE'),
-			'TYPE' => 'STRING'
+			'TYPE' => 'LIST',
+			'VALUES' => [
+				'GROUP' => getMessage('LANDING_CMP_PAR_BINDING_TYPE_GROUP'),
+				'MENU' => getMessage('LANDING_CMP_PAR_BINDING_TYPE_MENU')
+			]
 		),
 		'BINDING_ID' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_BINDING_ID'),

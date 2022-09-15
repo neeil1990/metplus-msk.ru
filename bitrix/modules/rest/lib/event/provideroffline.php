@@ -4,6 +4,8 @@ namespace Bitrix\Rest\Event;
 use Bitrix\Main\Loader;
 use Bitrix\Pull;
 use Bitrix\Rest\EventOfflineTable;
+use Bitrix\Main\EventManager;
+use Bitrix\Rest\Tools\Diagnostics\LoggerManager;
 
 class ProviderOffline implements ProviderOfflineInterface
 {
@@ -27,6 +29,7 @@ class ProviderOffline implements ProviderOfflineInterface
 		$serverAuthData = $this->getServerAuthData();
 
 		$offlineEventsCount = array();
+		$offlineEventsApp = array();
 
 		foreach($eventList as $item)
 		{
@@ -57,12 +60,36 @@ class ProviderOffline implements ProviderOfflineInterface
 				));
 
 				$offlineEventsCount[$application['CLIENT_ID']][$handler['CONNECTOR_ID']]++;
+				$offlineEventsApp[$application['ID']] = true;
+			}
+			else
+			{
+				$logger = LoggerManager::getInstance()->getLogger();
+				if ($logger)
+				{
+					$logger->debug(
+						"\n{delimiter}\n"
+						. "{date} - {host}\n{delimiter}\n"
+						. "Event skipped because initializer is current application. \n"
+						. "auth: {serverAuthData}"
+						. "app: {application}\n",
+						[
+							'serverAuthData' => $serverAuthData,
+							'application' => $application,
+						]
+					);
+				}
 			}
 		}
 
 		if(count($offlineEventsCount) > 0)
 		{
 			$this->notifyApplications($offlineEventsCount);
+		}
+
+		if(count($offlineEventsApp) > 0)
+		{
+			$this->sendOfflineEvent(array_keys($offlineEventsApp));
 		}
 	}
 
@@ -82,6 +109,19 @@ class ProviderOffline implements ProviderOfflineInterface
 		}
 
 		return $serverAuthData;
+	}
+
+
+
+	protected function sendOfflineEvent(array $appList)
+	{
+		foreach (EventManager::getInstance()->findEventHandlers(
+			"rest",
+			"onAfterOfflineEventCall"
+		) as $event)
+		{
+			ExecuteModuleEventEx($event, [['APP_LIST' => $appList]]);
+		}
 	}
 
 	protected function notifyApplications(array $counters)

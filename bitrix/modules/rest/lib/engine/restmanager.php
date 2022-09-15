@@ -5,35 +5,40 @@ namespace Bitrix\Rest\Engine;
 use Bitrix\Main\Config\Configuration;
 use Bitrix\Main\Context;
 use Bitrix\Main\Engine;
+use Bitrix\Main\Engine\AutoWire;
 use Bitrix\Main\Engine\Controller;
-use Bitrix\Main\Engine\Crawler;
 use Bitrix\Main\Engine\Resolver;
 use Bitrix\Main\Errorable;
 use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Event;
 use Bitrix\Main\HttpResponse;
 use Bitrix\Main\Type\Contract;
 use Bitrix\Main\Type\Date;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\UI\PageNavigation;
 use Bitrix\Main\Web\Uri;
+use Bitrix\Rest\Engine\ScopeManager;
 use Bitrix\Rest\RestException;
 
 class RestManager extends \IRestService
 {
+	public const DONT_CALCULATE_COUNT = -1;
+
 	/** @var \CRestServer */
 	protected $restServer;
 	/** @var PageNavigation */
 	private $pageNavigation;
+	/** @var bool */
+	private $calculateTotalCount = true;
 
 	public static function onFindMethodDescription($potentialAction)
 	{
 		$restManager = new static();
+		$potentialActionData = ScopeManager::getInstance()->getMethodInfo($potentialAction);
 
 		$request = new \Bitrix\Main\HttpRequest(
 			Context::getCurrent()->getServer(),
-			['action' => $potentialAction],
+			['action' => $potentialActionData['method']],
 			[], [], []
 		);
 
@@ -52,7 +57,7 @@ class RestManager extends \IRestService
 		}
 
 		return [
-			'scope' => static::getModuleScopeAlias($router->getModule()),
+			'scope' => static::getModuleScopeAlias($potentialActionData['scope']),
 			'callback' => [
 				$restManager, 'processMethodRequest'
 			]
@@ -68,7 +73,38 @@ class RestManager extends \IRestService
 
 		return $moduleId;
 	}
-	
+
+	private static function getAlternativeScope($scope): ?array
+	{
+		if ($scope === \Bitrix\Rest\Api\User::SCOPE_USER)
+		{
+			return [
+				\Bitrix\Rest\Api\User::SCOPE_USER_BRIEF,
+				\Bitrix\Rest\Api\User::SCOPE_USER_BASIC,
+			];
+		}
+
+		return null;
+	}
+
+	public static function fillAlternativeScope($scope, $scopeList)
+	{
+		if (!in_array($scope, $scopeList, true))
+		{
+			$altScopeList = static::getAlternativeScope($scope);
+			if (is_array($altScopeList))
+			{
+				$hasScope = array_intersect($scopeList, $altScopeList);
+				if (count($hasScope) > 0)
+				{
+					$scopeList[] = $scope;
+				}
+			}
+		}
+
+		return $scopeList;
+	}
+
 	/**
 	 * Processes method to services.
 	 *
@@ -82,19 +118,21 @@ class RestManager extends \IRestService
 	 */
 	public function processMethodRequest(array $params, $start, \CRestServer $restServer)
 	{
-		$this->restServer = $restServer;
+		$this->initialize($restServer, $start);
 
 		$errorCollection = new ErrorCollection();
 		$method = $restServer->getMethod();
+		$methodData = ScopeManager::getInstance()->getMethodInfo($method);
 
 		$request = new \Bitrix\Main\HttpRequest(
 			Context::getCurrent()->getServer(),
-			['action' => $method],
+			['action' => $methodData['method']],
 			[], [], []
 		);
 		$router = new Engine\Router($request);
 
-		list ($controller, $action) = Resolver::getControllerAndAction(
+		/** @var Controller $controller */
+		[$controller, $action] = Resolver::getControllerAndAction(
 			$router->getVendor(),
 			$router->getModule(),
 			$router->getAction(),
@@ -105,13 +143,14 @@ class RestManager extends \IRestService
 			throw new RestException("Unknown {$method}. There is not controller in module {$router->getModule()}");
 		}
 
-		$this->registerAutoWirings($restServer, $start);
+		$autoWirings = $this->getAutoWirings();
 
-		/** @var Controller $controller */
-		$result = $controller->run($action, array($params));
+		$this->registerAutoWirings($autoWirings);
+		$result = $controller->run($action, [$params, ['__restServer' => $restServer]]);
+		$this->unRegisterAutoWirings($autoWirings);
+
 		if ($result instanceof Engine\Response\File)
 		{
-			/** @noinspection PhpVoidFunctionResultUsedInspection */
 			return $result->send();
 		}
 
@@ -125,6 +164,11 @@ class RestManager extends \IRestService
 			$result = $result->getContent();
 		}
 
+		if ($result instanceof RestException)
+		{
+			throw $result;
+		}
+
 		if ($result === null)
 		{
 			$errorCollection->add($controller->getErrors());
@@ -134,7 +178,30 @@ class RestManager extends \IRestService
 			}
 		}
 
+		$this->calculateTotalCount = true;
+		if ((int)$start === self::DONT_CALCULATE_COUNT)
+		{
+			$this->calculateTotalCount = false;
+		}
+
 		return $this->processData($result);
+	}
+
+	/**
+	 * @param \CRestServer $restServer
+	 * @param $start
+	 */
+	private function initialize(\CRestServer $restServer, $start): void
+	{
+		$pageNavigation = new PageNavigation('nav');
+		$pageNavigation->setPageSize(static::LIST_LIMIT);
+		if ($start > 0)
+		{
+			$pageNavigation->setCurrentPage((int)($start / static::LIST_LIMIT) + 1);
+		}
+
+		$this->pageNavigation = $pageNavigation;
+		$this->restServer = $restServer;
 	}
 
 	/**
@@ -143,8 +210,13 @@ class RestManager extends \IRestService
 	 *
 	 * @return array
 	 */
-	private function getNavigationData(Engine\Response\DataType\Page $page)
+	private function getNavigationData(Engine\Response\DataType\Page $page): array
 	{
+		if (!$this->calculateTotalCount)
+		{
+			return [];
+		}
+
 		$result = [];
 		$offset = $this->pageNavigation->getOffset();
 		$total = $page->getTotalCount();
@@ -276,31 +348,54 @@ class RestManager extends \IRestService
 		return new RestException($firstError->getMessage(), $firstError->getCode());
 	}
 
-	private function registerAutoWirings(\CRestServer $restServer, $start)
+	/**
+	 * @param array $autoWirings
+	 */
+	private function registerAutoWirings(array $autoWirings): void
 	{
-		Engine\Binder::registerParameter(
-			get_class($restServer),
-			function() use ($restServer) {
-				return $restServer;
-			}
-		);
-
-		$pageNavigation = new PageNavigation('nav');
-		$pageNavigation->setPageSize(RestManager::LIST_LIMIT);
-		if($start)
+		foreach ($autoWirings as $parameter)
 		{
-			$pageNavigation->setCurrentPage(intval($start / RestManager::LIST_LIMIT) + 1);
+			AutoWire\Binder::registerGlobalAutoWiredParameter($parameter);
+		}
+	}
+
+	/**
+	 * @param array $autoWirings
+	 */
+	private function unRegisterAutoWirings(array $autoWirings): void
+	{
+		foreach ($autoWirings as $parameter)
+		{
+			AutoWire\Binder::unRegisterGlobalAutoWiredParameter($parameter);
+		}
+	}
+
+	/**
+	 * @return array
+	 */
+	private function getAutoWirings(): array
+	{
+		$buildRules = [
+			'restServer' => [
+				'class' => get_class($this->restServer),
+				'constructor' => function() {
+					return $this->restServer;
+				},
+			],
+			'pageNavigation' => [
+				'class' => PageNavigation::class,
+				'constructor' => function() {
+					return $this->pageNavigation;
+				},
+			],
+		];
+
+		$autoWirings = [];
+		foreach ($buildRules as $rule)
+		{
+			$autoWirings[] = new AutoWire\Parameter($rule['class'], $rule['constructor']);
 		}
 
-		//php 5.3 we can't use this in \Closure.
-		$this->pageNavigation = $pageNavigation;
-
-		/** @see \Bitrix\Main\UI\PageNavigation */
-		Engine\Binder::registerParameter(
-			'\\Bitrix\\Main\\UI\\PageNavigation',
-			function() use ($pageNavigation) {
-				return $pageNavigation;
-			}
-		);
+		return $autoWirings;
 	}
 }

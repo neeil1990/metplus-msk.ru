@@ -39,6 +39,10 @@
 		}
 
 		this.ajaxAction = new BX.AjaxAction(this.actionUri);
+		this.userErrorHandler = new BX.Sender.ErrorHandler();
+		BX.UI.Hint.init(BX(this.gridId));
+
+		BX.addCustomEvent('Grid::updated', this.onGridUpdated.bind(this));
 	};
 	LetterList.prototype.remove = function (letterId)
 	{
@@ -74,6 +78,7 @@
 	{
 		this.sendChangeStateAction('resume', letterId);
 	};
+
 	LetterList.prototype.sendChangeStateAction = function (actionName, letterId, callback)
 	{
 		var gridId = this.gridId;
@@ -99,6 +104,17 @@
 					callback.apply(self, [data]);
 				}
 			},
+			onusererror: this.userErrorHandler.getHandlers(
+				(function() {
+					this.sendChangeStateAction(actionName, letterId, callback);
+				}).bind(this),
+				(function() {
+					Page.changeGridLoaderShowing(gridId, false);
+				}).bind(this),
+				{
+					editUrl: this.pathToEdit.replace('#id#', letterId)
+				}
+			),
 			onfailure: function () {
 				Page.changeGridLoaderShowing(gridId, false);
 			},
@@ -141,6 +157,11 @@
 		);
 
 		BX.bind(this.buttonAdd, 'click', this.popupMenu.show.bind(this.popupMenu));
+	};
+
+	LetterList.prototype.onGridUpdated = function (grid)
+	{
+		BX.UI.Hint.init(grid.getTable());
 	};
 
 	BX.Sender.LetterList = new LetterList();

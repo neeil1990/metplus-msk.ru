@@ -50,16 +50,25 @@
 			{
 				this.inited = true;
 				this.onscrollDebounceHandler = BX.debounce(this._onWindowScroll, 300, this);
-				BX.addCustomEvent('Grid::thereEditedRows', BX.proxy(this.disable, this));
-				BX.addCustomEvent('Grid::noEditedRows', BX.proxy(this.enable, this));
+
+				if (!this.parent.getParam('ALLOW_ROWS_SORT_IN_EDIT_MODE', false))
+				{
+					BX.addCustomEvent('Grid::thereEditedRows', BX.proxy(this.disable, this));
+					BX.addCustomEvent('Grid::noEditedRows', BX.proxy(this.enable, this));
+				}
+
 				document.addEventListener('scroll', this.onscrollDebounceHandler, BX.Grid.Utils.listenerParams({passive: true}));
 			}
 		},
 
 		destroy: function()
 		{
-			BX.removeCustomEvent('Grid::thereEditedRows', BX.proxy(this.disable, this));
-			BX.removeCustomEvent('Grid::noEditedRows', BX.proxy(this.enable, this));
+			if (!this.parent.getParam('ALLOW_ROWS_SORT_IN_EDIT_MODE', false))
+			{
+				BX.removeCustomEvent('Grid::thereEditedRows', BX.proxy(this.disable, this));
+				BX.removeCustomEvent('Grid::noEditedRows', BX.proxy(this.enable, this));
+			}
+
 			document.removeEventListener('scroll', this.onscrollDebounceHandler, BX.Grid.Utils.listenerParams({passive: true}));
 			this.unregisterObjects();
 		},
@@ -215,6 +224,7 @@
 
 		_onDragStart: function()
 		{
+			this.moved = false;
 			this.dragItem = jsDD.current_node;
 			this.targetItem = this.dragItem;
 			this.additionalDragItems = this.getAdditionalDragItems(this.dragItem);
@@ -366,6 +376,7 @@
 						this.checkError(this.dragEvent);
 						this.updateProperties(this.dragItem, this.targetItem);
 						this.isDragetToTop = true;
+						this.moved = true;
 					}
 
 					if (this.isDragToBottom(current, index) && !this.isMovedToBottom(current))
@@ -378,6 +389,11 @@
 						this.checkError(this.dragEvent);
 						this.updateProperties(this.dragItem, this.targetItem);
 						this.isDragetToTop = false;
+
+						if (this.targetItem)
+						{
+							this.moved = true;
+						}
 					}
 
 					if (this.isDragToBack(current, index) && this.isMoved(current))
@@ -389,6 +405,8 @@
 						{
 							this.targetItem = this.findNextVisible(this.list, index);
 						}
+
+						this.moved = true;
 
 						this.dragEvent.setEventName('BX.Main.grid:rowDragMove');
 						this.dragEvent.setTargetItem(this.targetItem);
@@ -440,7 +458,7 @@
 				if (!result && currentIndex > index)
 				{
 					var row = Rows.get(item);
-					if (row.isShown())
+					if (row && row.isShown())
 					{
 						result = item;
 					}
@@ -513,7 +531,11 @@
 					return row.getId();
 				});
 
-				this.saveRowsSort(ids);
+				if (this.parent.getParam('ALLOW_ROWS_SORT_INSTANT_SAVE', true))
+				{
+					this.saveRowsSort(ids);
+				}
+
 				BX.onCustomEvent(window, 'Grid::rowMoved', [ids, dragItem, this.parent]);
 			}
 			else
@@ -540,7 +562,7 @@
 			{
 				target.parentNode.insertBefore(current, target);
 			}
-			else
+			else if (this.moved)
 			{
 				current.parentNode.appendChild(current);
 			}
@@ -558,6 +580,7 @@
 
 		setDefaultProps: function()
 		{
+			this.moved = false;
 			this.dragItem = null;
 			this.targetItem = null;
 			this.dragRect = null;

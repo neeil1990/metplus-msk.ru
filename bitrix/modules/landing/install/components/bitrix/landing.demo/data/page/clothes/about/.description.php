@@ -19,7 +19,6 @@ return array(
 			'VIEW_USE' => 'N',
 			'VIEW_TYPE' => 'no',
 			'THEME_CODE' => 'travel',
-			'THEME_CODE_TYPO' => 'travel',
 		),
 	),
 	'layout' => array(
@@ -46,7 +45,7 @@ return array(
 			),
 			'style' => array(
 				'.landing-block-node-title' => array(
-					0 => 'landing-block-node-title u-heading-v2__title g-line-height-1_1 g-font-weight-700 g-font-size-40 g-color-black g-mb-minus-10 g-font-montserrat g-text-transform-none',
+					0 => 'landing-block-node-title u-heading-v2__title g-line-height-1_1 g-font-weight-700 g-font-size-40 g-color-black g-mb-minus-10 g-text-transform-none',
 				),
 				'.landing-block-node-subtitle' => array(
 					0 => 'landing-block-node-subtitle g-font-weight-700 g-font-size-12 g-color-primary g-mb-15',
@@ -88,7 +87,7 @@ return array(
 					0 => 'landing-block-node-title text-uppercase g-font-weight-700 g-font-size-26 mb-0 g-mb-15',
 				),
 				'.landing-block-node-text' => array(
-					0 => 'landing-block-node-text g-color-black-opacity-0_9 g-font-open-sans g-font-size-14',
+					0 => 'landing-block-node-text g-color-black-opacity-0_9 g-font-size-14',
 				),
 				'.landing-block-node-img' => array(
 					0 => 'landing-block-node-img js-animation slideInLeft img-fluid animated',
@@ -120,7 +119,7 @@ return array(
 					0 => 'landing-block-node-subtitle g-font-weight-700 g-font-size-12 g-color-white g-mb-20',
 				),
 				'.landing-block-node-title' => array(
-					0 => 'landing-block-node-title u-heading-v2__title g-line-height-1_1 g-font-weight-700 g-color-white g-mb-minus-10 g-font-montserrat g-text-transform-none g-font-size-40',
+					0 => 'landing-block-node-title u-heading-v2__title g-line-height-1_1 g-font-weight-700 g-color-white g-mb-minus-10 g-text-transform-none g-font-size-40',
 				),
 				'.landing-block-node-inner' => array(
 					0 => 'landing-block-node-inner text-uppercase text-center u-heading-v2-4--bottom g-brd-white',
@@ -175,16 +174,16 @@ return array(
 					0 => 'landing-block-node-card js-animation fadeInUp col-md-6 text-center g-mb-40 g-mb-0--lg animated col-lg-2',
 				),
 				'.landing-block-node-card-number' => array(
-					0 => 'landing-block-node-card-number g-color-white mb-0 g-font-montserrat g-font-size-20',
+					0 => 'landing-block-node-card-number g-color-white mb-0 g-font-size-20',
 				),
 				'.landing-block-node-card-number-title' => array(
 					0 => 'landing-block-node-card-number-title text-uppercase g-font-weight-700 g-font-size-11 g-color-white g-mb-20',
 				),
 				'.landing-block-node-card-text' => array(
-					0 => 'landing-block-node-card-text g-font-size-default g-color-white-opacity-0_6 mb-0',
+					0 => 'landing-block-node-card-text g-color-white-opacity-0_6 mb-0',
 				),
 				'.landing-block-node-card-icon-container' => array(
-					0 => 'landing-block-node-card-icon-container u-icon-v1 u-icon-size--lg g-color-white-opacity-0_7 g-mb-15',
+					0 => 'landing-block-node-card-icon-container m-auto u-icon-v1 u-icon-size--lg g-color-white-opacity-0_7 g-mb-15',
 				),
 				'#wrapper' => array(
 					0 => 'landing-block g-pb-70 g-bg-primary g-pt-35',
@@ -208,13 +207,13 @@ return array(
 			),
 			'style' => array(
 				'.landing-block-node-title' => array(
-					0 => 'landing-block-node-title u-heading-v2__title g-line-height-1_1 g-font-weight-700 g-font-size-40 g-color-black g-mb-minus-10 g-font-montserrat g-text-transform-none',
+					0 => 'landing-block-node-title u-heading-v2__title g-line-height-1_1 g-font-weight-700 g-font-size-40 g-color-black g-mb-minus-10 g-text-transform-none',
 				),
 				'.landing-block-node-subtitle' => array(
-					0 => 'landing-block-node-subtitle g-font-weight-700 g-font-size-12 g-color-primary g-mb-15 g-font-open-sans g-text-transform-none',
+					0 => 'landing-block-node-subtitle g-font-weight-700 g-font-size-12 g-color-primary g-mb-15 g-text-transform-none',
 				),
 				'.landing-block-node-text' => array(
-					0 => 'landing-block-node-text g-pb-1 g-font-size-16 g-color-black-opacity-0_9 g-font-open-sans',
+					0 => 'landing-block-node-text g-pb-1 g-color-black-opacity-0_9',
 				),
 				'.landing-block-node-inner' => array(
 					0 => 'landing-block-node-inner text-uppercase u-heading-v2-4--bottom g-brd-primary',
@@ -226,33 +225,9 @@ return array(
 			'attrs' => array(),
 		),
 		5 => array(
-			'.landing-block-node-card' => array(
-				'source' => array(
-					0 => array(
-						'value' => 0,
-						'type' => 'card',
-					),
-					1 => array(
-						'value' => 0,
-						'type' => 'card',
-					),
-					2 => array(
-						'value' => 0,
-						'type' => 'card',
-					),
-					3 => array(
-						'value' => 0,
-						'type' => 'card',
-					),
-					4 => array(
-						'value' => 0,
-						'type' => 'card',
-					),
-					5 => array(
-						'value' => 0,
-						'type' => 'card',
-					),
-				),
+			'code' => '24.3.image_gallery_6_cols_fix_3',
+			'cards' => array(
+				'.landing-block-node-card' => 6,
 			),
 			'nodes' => array(
 				'.landing-block-node-img' => array(
@@ -287,7 +262,7 @@ return array(
 					<img class="landing-block-node-img g-width-120" src="https://cdn.bitrix24.site/bitrix/images/landing/business/x74/img1.png" alt="" data-fileid="-1" />
 				',
 						'href' => 'https://bitrix24.ru',
-						'target' => '_blank',
+						'target' => '_self',
 						'attrs' => array(
 							'data-embed' => NULL,
 							'data-url' => NULL,
@@ -298,7 +273,7 @@ return array(
 					<img class="landing-block-node-img g-width-120" src="https://cdn.bitrix24.site/bitrix/images/landing/business/x74/img2.png" alt="" data-fileid="-1" />
 				',
 						'href' => 'https://bitrix24.ru',
-						'target' => '_blank',
+						'target' => '_self',
 						'attrs' => array(
 							'data-embed' => NULL,
 							'data-url' => NULL,
@@ -309,7 +284,7 @@ return array(
 					<img class="landing-block-node-img g-width-120" src="https://cdn.bitrix24.site/bitrix/images/landing/business/x74/img3.png" alt="" data-fileid="-1" />
 				',
 						'href' => 'https://bitrix24.ru',
-						'target' => '_blank',
+						'target' => '_self',
 						'attrs' => array(
 							'data-embed' => NULL,
 							'data-url' => NULL,
@@ -320,7 +295,7 @@ return array(
 					<img class="landing-block-node-img g-width-120" src="https://cdn.bitrix24.site/bitrix/images/landing/business/x74/img4.png" alt="" data-fileid="-1" />
 				',
 						'href' => 'https://bitrix24.ru',
-						'target' => '_blank',
+						'target' => '_self',
 						'attrs' => array(
 							'data-embed' => NULL,
 							'data-url' => NULL,
@@ -331,7 +306,7 @@ return array(
 					<img class="landing-block-node-img g-width-120" src="https://cdn.bitrix24.site/bitrix/images/landing/business/x74/img4.png" alt="" data-fileid="-1" />
 				',
 						'href' => 'https://bitrix24.ru',
-						'target' => '_blank',
+						'target' => '_self',
 						'attrs' => array(
 							'data-embed' => NULL,
 							'data-url' => NULL,
@@ -342,7 +317,7 @@ return array(
 					<img class="landing-block-node-img g-width-120" src="https://cdn.bitrix24.site/bitrix/images/landing/business/x74/img6.png" alt="" data-fileid="-1" />
 				',
 						'href' => 'https://bitrix24.ru',
-						'target' => '_blank',
+						'target' => '_self',
 						'attrs' => array(
 							'data-embed' => NULL,
 							'data-url' => NULL,
@@ -352,12 +327,7 @@ return array(
 			),
 			'style' => array(
 				'.landing-block-node-card' => array(
-					0 => 'landing-block-node-card col-md-4 col-lg-2 g-flex-centered g-brd-bottom g-brd-right g-brd-gray-light-v4 g-py-50',
-					1 => 'landing-block-node-card col-md-4 col-lg-2 g-flex-centered g-brd-bottom g-brd-right g-brd-gray-light-v4 g-py-50',
-					2 => 'landing-block-node-card col-md-4 col-lg-2 g-flex-centered g-brd-bottom g-brd-right g-brd-gray-light-v4 g-py-50',
-					3 => 'landing-block-node-card col-md-4 col-lg-2 g-flex-centered g-brd-bottom g-brd-right g-brd-gray-light-v4 g-py-50',
-					4 => 'landing-block-node-card col-md-4 col-lg-2 g-flex-centered g-brd-bottom g-brd-right g-brd-gray-light-v4 g-py-50',
-					5 => 'landing-block-node-card col-md-4 col-lg-2 g-flex-centered g-brd-bottom g-brd-right g-brd-gray-light-v4 g-py-50',
+					0 => 'landing-block-node-card col-md-4 col-lg-2 d-flex flex-column align-items-center justify-content-center g-brd-bottom g-brd-right g-brd-color-inherit g-py-50',
 				),
 				'#wrapper' => array(
 					0 => 'landing-block js-animation text-center animated g-pt-0 g-pb-20 fadeInLeft',

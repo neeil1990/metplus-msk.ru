@@ -3,7 +3,7 @@ import {Factory} from './factory';
 import {Field} from './field';
 import {Configurator} from './configurator';
 
-export const UserFieldFactory = {
+export {
 	Factory,
 	FieldTypes,
 	Field,

@@ -41,7 +41,6 @@ if(typeof(BX.UI.BaseDragController) === "undefined")
 
 		this._enableDrag = true;
 		this._isInDragMode = false;
-		this._emitter = null;
 		this._preserveDocument = false;
 		this._bodyOverflow = "";
 	};
@@ -65,8 +64,6 @@ if(typeof(BX.UI.BaseDragController) === "undefined")
 
 			this._enableDrag = this.getSetting("enableDrag", true);
 			this._ghostOffset = this.getSetting("ghostOffset", { x: 0, y: 0 });
-
-			this._emitter = new BX.Event.EventEmitter();
 
 			this.doInitialize();
 			this.bindEvents();
@@ -147,11 +144,11 @@ if(typeof(BX.UI.BaseDragController) === "undefined")
 		},
 		addDragListener: function(listener)
 		{
-			this._emitter.subscribe("BX.UI.BaseDragController:drag", listener);
+			BX.Event.EventEmitter.subscribe("BX.UI.BaseDragController:drag", listener);
 		},
 		removeDragListener: function(listener)
 		{
-			this._emitter.unsubscribe("BX.UI.BaseDragController:drag", listener);
+			BX.Event.EventEmitter.unsubscribe("BX.UI.BaseDragController:drag", listener);
 		},
 		getContextId: function()
 		{
@@ -229,7 +226,7 @@ if(typeof(BX.UI.BaseDragController) === "undefined")
 			this._scrollIfNeed();
 
 			this.processDrag(pos.x, pos.y);
-			this._emitter.emit("BX.UI.BaseDragController:drag", { item: this, x: pos.x, y: pos.y });
+			BX.Event.EventEmitter.emit("BX.UI.BaseDragController:drag", { item: this, x: pos.x, y: pos.y });
 
 			this._previousPos = this._currentPos;
 		},
@@ -351,7 +348,6 @@ if(typeof(BX.UI.BaseDropController) === "undefined")
 		this._node = null;
 		this._itemDragHandler = BX.delegate(this._onItemDrag, this);
 		this._draggedItem = null;
-		this._emitter = null;
 		this._enabled = true;
 	};
 	BX.UI.BaseDropController.prototype =
@@ -372,7 +368,6 @@ if(typeof(BX.UI.BaseDropController) === "undefined")
 				throw "BX.UI.BaseDropController: The 'node' parameter is not defined in settings or empty.";
 			}
 
-			this._emitter = new BX.Event.EventEmitter();
 			this.doInitialize();
 			this.bindEvents();
 		},
@@ -452,11 +447,12 @@ if(typeof(BX.UI.BaseDropController) === "undefined")
 		},
 		addDragFinishListener: function(listener)
 		{
-			this._emitter.subscribe("BX.UI.BaseDropController:dragFinish", listener);
+			this.removeDragFinishListener(listener);
+			BX.Event.EventEmitter.subscribe("BX.UI.BaseDropController:dragFinish", listener);
 		},
 		removeDragFinishListener: function(listener)
 		{
-			this._emitter.unsubscribe("BX.UI.BaseDropController:dragFinish", listener);
+			BX.Event.EventEmitter.unsubscribe("BX.UI.BaseDropController:dragFinish", listener);
 		},
 		getDraggedItem: function()
 		{
@@ -564,7 +560,7 @@ if(typeof(BX.UI.BaseDropController) === "undefined")
 				return;
 			}
 
-			this._emitter.emit(
+			BX.Event.EventEmitter.emit(
 				"BX.UI.BaseDropController:dragFinish",
 				{ dropContainer: this, draggedItem: this._draggedItem, x: x, y: y }
 			);
@@ -840,14 +836,6 @@ if(typeof(BX.UI.EditorSectionDragItem) === "undefined")
 		var wrapperContent = control.getWrapper().querySelector(".ui-entity-editor-section-content");
 		BX.removeClass(control.getWrapper(), "ui-entity-item-ghost");
 		wrapperContent.style = "";
-
-		window.setTimeout(
-			function()
-			{
-				control.getWrapper().scrollIntoView();
-			},
-			150
-		);
 	};
 	BX.UI.EditorSectionDragItem.contextId = "editor_section";
 	BX.UI.EditorSectionDragItem.create = function(settings)
@@ -864,7 +852,6 @@ if(typeof(BX.UI.EditorDragItemController) === "undefined")
 	{
 		BX.UI.EditorDragItemController.superclass.constructor.apply(this);
 		this._charge = null;
-		this._emitter = null;
 		this._preserveDocument = true;
 	};
 
@@ -876,25 +863,24 @@ if(typeof(BX.UI.EditorDragItemController) === "undefined")
 		{
 			throw "UI.EditorDragItemController: The 'charge' parameter is not defined in settings or empty.";
 		}
-		
-		this._emitter = new BX.Event.EventEmitter();
+
 		this._ghostOffset = { x: 0, y: 0 };
 	};
 	BX.UI.EditorDragItemController.prototype.addStartListener = function(listener)
 	{
-		this._emitter.subscribe("BX.UI.EditorDragItemController:dragStart", listener);
+		BX.Event.EventEmitter.subscribe("BX.UI.EditorDragItemController:dragStart", listener);
 	};
 	BX.UI.EditorDragItemController.prototype.removeStartListener = function(listener)
 	{
-		this._emitter.unsubscribe("BX.UI.EditorDragItemController:dragStart", listener);
+		BX.Event.EventEmitter.unsubscribe("BX.UI.EditorDragItemController:dragStart", listener);
 	};
 	BX.UI.EditorDragItemController.prototype.addStopListener = function(listener)
 	{
-		this._emitter.subscribe("BX.UI.EditorDragItemController:dragStop", listener);
+		BX.Event.EventEmitter.subscribe("BX.UI.EditorDragItemController:dragStop", listener);
 	};
 	BX.UI.EditorDragItemController.prototype.removeStopListener = function(listener)
 	{
-		this._emitter.unsubscribe("BX.UI.EditorDragItemController:dragStop", listener);
+		BX.Event.EventEmitter.unsubscribe("BX.UI.EditorDragItemController:dragStop", listener);
 	};
 	BX.UI.EditorDragItemController.prototype.getCharge = function()
 	{
@@ -937,7 +923,7 @@ if(typeof(BX.UI.EditorDragItemController) === "undefined")
 		BX.UI.EditorDragContainerController.refresh(this._charge.getContextId());
 
 		//var event = new BX.Event.BaseEvent({ data: { } });
-		this._emitter.emit("BX.UI.EditorDragItemController:dragStart", {});
+		BX.Event.EventEmitter.emit("BX.UI.EditorDragItemController:dragStart", {});
 	};
 	BX.UI.EditorDragItemController.prototype.processDrag = function(x, y)
 	{
@@ -953,7 +939,7 @@ if(typeof(BX.UI.EditorDragItemController) === "undefined")
 		BX.UI.EditorDragContainerController.refreshAfter(this._charge.getContextId(), 300);
 
 		//var event = new BX.Event.BaseEvent({ data: { } });
-		this._emitter.emit("BX.UI.EditorDragItemController:dragStop", {});
+		BX.Event.EventEmitter.emit("BX.UI.EditorDragItemController:dragStop", {});
 	};
 	BX.UI.EditorDragItemController.current = null;
 	BX.UI.EditorDragItemController.create = function(id, settings)
@@ -1079,20 +1065,24 @@ if(typeof(BX.UI.EditorSectionDragContainer) === "undefined")
 	BX.UI.EditorSectionDragContainer = function()
 	{
 		BX.UI.EditorSectionDragContainer.superclass.constructor.apply(this);
-		this._editor = null;
+		this._column = null;
 	};
 	BX.extend(BX.UI.EditorSectionDragContainer, BX.UI.EditorDragContainer);
 	BX.UI.EditorSectionDragContainer.prototype.initialize = function(settings)
 	{
-		this._editor = BX.prop.get(settings, "editor");
-		if(!this._editor)
+		this._column = BX.prop.get(settings, "column");
+		if(!this._column)
 		{
-			throw "UI.EditorSectionDragContainer: The 'editor' parameter is not defined in settings or empty.";
+			throw "UI.EditorSectionDragContainer: The 'column' parameter is not defined in settings or empty.";
 		}
+	};
+	BX.UI.EditorSectionDragContainer.prototype.getColumn = function()
+	{
+		return this._column;
 	};
 	BX.UI.EditorSectionDragContainer.prototype.getEditor = function()
 	{
-		return this._editor;
+		return this.getColumn().getParent();
 	};
 	BX.UI.EditorSectionDragContainer.prototype.getContextId = function()
 	{
@@ -1104,24 +1094,24 @@ if(typeof(BX.UI.EditorSectionDragContainer) === "undefined")
 	};
 	BX.UI.EditorSectionDragContainer.prototype.hasPlaceHolder = function()
 	{
-		return this._editor.hasPlaceHolder();
+		return this._column.hasPlaceHolder();
 	};
 	BX.UI.EditorSectionDragContainer.prototype.createPlaceHolder = function(index)
 	{
-		return this._editor.createPlaceHolder(index);
+		return this._column.createPlaceHolder(index);
 	};
 	BX.UI.EditorSectionDragContainer.prototype.getPlaceHolder = function()
 	{
-		return this._editor.getPlaceHolder();
+		return this._column.getPlaceHolder();
 	};
 	BX.UI.EditorSectionDragContainer.prototype.removePlaceHolder = function()
 	{
-		this._editor.removePlaceHolder();
+		this._column.removePlaceHolder();
 	};
 	BX.UI.EditorSectionDragContainer.prototype.getChildNodes = function()
 	{
 		var nodes = [];
-		var items = this._editor.getControls();
+		var items = this._column.getChildren();
 		for(var i = 0, length = items.length; i < length; i++)
 		{
 			nodes.push(items[i].getWrapper());
@@ -1130,7 +1120,7 @@ if(typeof(BX.UI.EditorSectionDragContainer) === "undefined")
 	};
 	BX.UI.EditorSectionDragContainer.prototype.getChildNodeCount = function()
 	{
-		return this._editor.getControlCount();
+		return this._column.getControlCount();
 	};
 	BX.UI.EditorSectionDragContainer.create = function(settings)
 	{

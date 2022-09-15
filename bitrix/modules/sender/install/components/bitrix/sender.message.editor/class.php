@@ -1,11 +1,12 @@
-<?
+<?php
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Error;
 use Bitrix\Main\Context;
-use Bitrix\Main\Loader;
-
+use Bitrix\Main\Error;
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Sender\Access\ActionDictionary;
+use Bitrix\Sender\Access\Map\MailingAction;
+use Bitrix\Sender\Internals\CommonSenderComponent;
 use Bitrix\Sender\Message;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
@@ -15,7 +16,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 
 Loc::loadMessages(__FILE__);
 
-class SenderMessageEditorComponent extends CBitrixComponent
+class SenderMessageEditorComponent extends CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
@@ -39,6 +40,23 @@ class SenderMessageEditorComponent extends CBitrixComponent
 
 		$this->arParams['TEMPLATE_TYPE'] = isset($this->arParams['TEMPLATE_TYPE']) ? $this->arParams['TEMPLATE_TYPE'] : null;
 		$this->arParams['TEMPLATE_ID'] = isset($this->arParams['TEMPLATE_ID']) ? $this->arParams['TEMPLATE_ID'] : null;
+		$this->arParams['IS_TRIGGER'] = isset($this->arParams['IS_TRIGGER']) ? (bool) $this->arParams['IS_TRIGGER'] :
+			false;
+		$this->arParams['CAN_EDIT'] = $this->arParams['CAN_EDIT']??
+									$this->getAccessController()->check(
+										MailingAction::getMap()[$this->arParams['MESSAGE_CODE']]
+										);
+
+		$isBus = !Bitrix\Main\Loader::includeModule('intranet');
+
+		$baseUri = $isBus ? '/bitrix/admin/agreement_edit.php' : '/settings/configs/userconsent/';
+
+		$this->arParams['CONSENT_PARAMS'] = [
+			'PATH_TO_ADD' => $baseUri . ($isBus ? '?ID=0' : 'edit/0/'),
+			'PATH_TO_EDIT' =>  $baseUri . ($isBus ? '?ID=#id#' : 'edit/#id#/') ,
+			'PATH_TO_CONSENT_LIST' => $isBus ? '/bitrix/admin/agreement_consents.php?AGREEMENT_ID=#id#&apply_filter=Y' :
+				$baseUri . 'consents/#id#/?AGREEMENT_ID=#id#&apply_filter=Y'
+		];
 	}
 
 	protected function prepareResult()
@@ -108,27 +126,17 @@ class SenderMessageEditorComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
+	}
 
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+	public function getEditAction()
+	{
+		return $this->getViewAction();
+	}
 
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->includeComponentTemplate();
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_MAILING_VIEW;
 	}
 }

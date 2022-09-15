@@ -1,5 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\BsmSiteMaster\Steps;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main,
 	Bitrix\Main\Application,
@@ -61,12 +67,12 @@ class SiteInstructionStep extends \CWizardStep
 		if (isset($steps["NEXT_STEP"]))
 		{
 			$this->SetNextStep($steps["NEXT_STEP"]);
-			$this->SetNextCaption(Loc::getMessage("SALE_BSM_WIZARD_".strtoupper($shortClassName)."_NEXT"));
+			$this->SetNextCaption(Loc::getMessage("SALE_BSM_WIZARD_".mb_strtoupper($shortClassName)."_NEXT"));
 		}
 		if (isset($steps["PREV_STEP"]))
 		{
 			$this->SetPrevStep($steps["PREV_STEP"]);
-			$this->SetPrevCaption(Loc::getMessage("SALE_BSM_WIZARD_".strtoupper($shortClassName)."_PREV"));
+			$this->SetPrevCaption(Loc::getMessage("SALE_BSM_WIZARD_".mb_strtoupper($shortClassName)."_PREV"));
 		}
 	}
 
@@ -102,18 +108,9 @@ class SiteInstructionStep extends \CWizardStep
 
 		$this->setFormFields();
 
-		try
-		{
-			$languageId = $this->getLanguageId();
-		}
-		catch (\Exception $ex)
-		{
-			$languageId = "ru";
-		}
-
 		$instructionLink = "https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=103&LESSON_ID=287";
 		$instructionVmLink = "https://dev.1c-bitrix.ru/learning/course/?COURSE_ID=37&LESSON_ID=8849";
-		if ($languageId && $languageId !== "ru")
+		if (!in_array($this->component->getLanguageId(), ["ru", "ua"]))
 		{
 			$instructionLink = "https://training.bitrix24.com/support/training/course/?COURSE_ID=68&LESSON_ID=6217";
 			$instructionVmLink = "https://training.bitrix24.com/support/training/course/?COURSE_ID=113&LESSON_ID=9579";
@@ -131,7 +128,7 @@ class SiteInstructionStep extends \CWizardStep
 			])?></p>
 			<p><?=Loc::getMessage("SALE_BSM_WIZARD_SITEINSTRUCTIONSTEP_DESCR_NEXT")?></p>
 		</div>
-		<?
+		<?php
 		$content = ob_get_contents();
 		ob_end_clean();
 
@@ -159,7 +156,7 @@ class SiteInstructionStep extends \CWizardStep
 			<button type="submit" class="ui-btn ui-btn-primary ui-btn-disabled" name="<?=$this->GetWizard()->nextButtonID?>" disabled>
 				<?=$this->GetNextCaption()?>
 			</button>
-			<?
+			<?php
 		}
 		$content = ob_get_contents();
 		ob_end_clean();
@@ -169,30 +166,6 @@ class SiteInstructionStep extends \CWizardStep
 			"NEED_WRAPPER" => true,
 			"CENTER" => false,
 		];
-	}
-
-	/**
-	 * @return string
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	private function getLanguageId()
-	{
-		$languageId = '';
-
-		$siteIterator = Main\SiteTable::getList(array(
-			'select' => array('LID', 'LANGUAGE_ID'),
-			'filter' => array('=DEF' => 'Y', '=ACTIVE' => 'Y')
-		));
-		if ($site = $siteIterator->fetch())
-		{
-			$languageId = (string)$site['LANGUAGE_ID'];
-		}
-
-		unset($site, $siteIterator);
-
-		return $languageId;
 	}
 
 	/**

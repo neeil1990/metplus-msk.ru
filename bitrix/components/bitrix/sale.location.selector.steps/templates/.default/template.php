@@ -4,6 +4,8 @@ use Bitrix\Main\Localization\Loc;
 use Bitrix\Sale\Location;
 
 Loc::loadMessages(__FILE__);
+
+\Bitrix\Main\UI\Extension::load(['ui.design-tokens', 'fx']);
 ?>
 
 <?if(!empty($arResult['ERRORS']['FATAL'])):?>
@@ -14,7 +16,6 @@ Loc::loadMessages(__FILE__);
 
 <?else:?>
 
-	<?CJSCore::Init(array("fx"));?>
 	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_widget.js')?>
 	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_etc.js')?>
 	<?$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/sale/core_ui_pager.js')?>
@@ -34,7 +35,7 @@ Loc::loadMessages(__FILE__);
 			</div>
 
 		<?endif?>
-		
+
 		<?if(is_array($arResult['TRUNK_NAMES']) && !empty($arResult['TRUNK_NAMES'])):?>
 			<div class="bx-ui-sls-tree-trunk">
 				<?=htmlspecialcharsbx(implode(', ', $arResult['TRUNK_NAMES']))?>
@@ -77,7 +78,7 @@ Loc::loadMessages(__FILE__);
 				<div class="bx-ui-combobox-toggle" title="<?=Loc::getMessage('SALE_SLS_OPEN_CLOSE_POPUP')?>" data-bx-ui-id="combobox-toggle"></div>
 
 				<div class="bx-ui-combobox-dropdown" data-bx-ui-id="combobox-dropdown">
-					
+
 					<div data-bx-ui-id="pager-pane">
 					</div>
 				</div>
@@ -93,14 +94,14 @@ Loc::loadMessages(__FILE__);
 		if (!window.BX && top.BX)
 			window.BX = top.BX;
 
-		<?if(strlen($arParams['JS_CONTROL_DEFERRED_INIT'])):?>
-			if(typeof window.BX.locationsDeferred == 'undefined') window.BX.locationsDeferred = {};
-			window.BX.locationsDeferred['<?=$arParams['JS_CONTROL_DEFERRED_INIT']?>'] = function(){
-		<?endif?>
+		<?if($arParams['JS_CONTROL_DEFERRED_INIT'] <> ''):?>
+		if (typeof window.BX.locationsDeferred == 'undefined') window.BX.locationsDeferred = {};
+		window.BX.locationsDeferred['<?=$arParams['JS_CONTROL_DEFERRED_INIT']?>'] = function () {
+			<?endif?>
 
-			<?if(strlen($arParams['JS_CONTROL_GLOBAL_ID'])):?>
-				if(typeof window.BX.locationSelectors == 'undefined') window.BX.locationSelectors = {};
-				window.BX.locationSelectors['<?=$arParams['JS_CONTROL_GLOBAL_ID']?>'] = 
+			<?if($arParams['JS_CONTROL_GLOBAL_ID'] <> ''):?>
+			if (typeof window.BX.locationSelectors == 'undefined') window.BX.locationSelectors = {};
+			window.BX.locationSelectors['<?=$arParams['JS_CONTROL_GLOBAL_ID']?>'] =
 			<?endif?>
 
 			new BX.Sale.component.location.selector.steps(<?=CUtil::PhpToJSObject(array(
@@ -151,8 +152,8 @@ Loc::loadMessages(__FILE__);
 
 			), false, false, true)?>);
 
-		<?if(strlen($arParams['JS_CONTROL_DEFERRED_INIT'])):?>
-			};
+		<?if($arParams['JS_CONTROL_DEFERRED_INIT'] <> ''):?>
+		};
 		<?endif?>
 
 	</script>

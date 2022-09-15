@@ -4,10 +4,13 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 	die();
 }
 
+use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Web\Json;
-use Bitrix\Sender\Internals\PrettyDate;
 use Bitrix\Main\UI\Extension;
+use Bitrix\Main\Web\Json;
+use Bitrix\Sender\Integration\VoxImplant\MessageAudioCall;
+use Bitrix\Sender\Integration\VoxImplant\MessageCall;
+use Bitrix\Sender\Internals\PrettyDate;
 
 Loc::loadMessages(__FILE__);
 
@@ -17,9 +20,23 @@ Loc::loadMessages(__FILE__);
 /** @var array $arResult */
 $containerId = 'bx-sender-letter-edit';
 
-Extension::load("ui.buttons");
-Extension::load("ui.buttons.icons");
-Extension::load("ui.notification");
+Extension::load([
+	'ui.buttons',
+	'ui.buttons.icons',
+	'ui.notification',
+	'ui.sidepanel-content',
+	'ui.sidepanel.layout',
+	'ui.info-helper',
+	'sender.consent.preview',
+]);
+
+CJSCore::Init(array('admin_interface'));
+
+if($arParams['IFRAME'] === 'Y')
+{
+	\Bitrix\UI\Toolbar\Facade\Toolbar::deleteFavoriteStar();
+}
+
 ?>
 <script type="text/javascript">
 	BX.ready(function () {
@@ -27,7 +44,7 @@ Extension::load("ui.notification");
 		BX.Sender.Letter.init(<?=Json::encode(array(
 			'containerId' => $containerId,
 			'actionUrl' => $arResult['ACTION_URL'],
-			'isFrame' => $arParams['IFRAME'] == 'Y',
+			'isFrame' => $arParams['IFRAME'] === 'Y',
 			'isSaved' => $arResult['IS_SAVED'],
 			'isOutside' => $arParams['IS_OUTSIDE'],
 			'isTemplateShowed' => $arResult['SHOW_TEMPLATE_SELECTOR'],
@@ -36,6 +53,10 @@ Extension::load("ui.notification");
 			'mess' => array(
 				'patternTitle' => Loc::getMessage('SENDER_COMP_TMPL_LETTER_PATTERN_TITLE'),
 				'name' => $arResult['MESSAGE_NAME'],
+				'applyClose' => $component->getLocMessage('SENDER_LETTER_APPLY_CLOSE'),
+				'applyCloseTitle' => $component->getLocMessage('SENDER_LETTER_APPLY_CLOSE_TITLE'),
+				'applyYes' => $component->getLocMessage('SENDER_LETTER_APPLY_YES'),
+				'applyCancel' => $component->getLocMessage('SENDER_LETTER_APPLY_CANCEL'),
 				'outsideSaveSuccess' => $component->getLocMessage(
 					'SENDER_LETTER_EDIT_OUTSIDE_ADD_SUCCESS',
 					['%path%' => $arParams['PATH_TO_LIST']]
@@ -116,7 +137,7 @@ Extension::load("ui.notification");
 			<div class="bx-sender-letter-field sender-letter-edit-row" style="<?=($arParams['IFRAME'] == 'Y' ? 'display: none;' : '')?>">
 				<div class="bx-sender-caption sender-letter-edit-title"><?=Loc::getMessage('SENDER_LETTER_EDIT_FIELD_NAME')?>:</div>
 				<div class="bx-sender-value">
-					<input data-role="letter-title" type="text" name="TITLE" value="<?=htmlspecialcharsbx($arResult['ROW']['TITLE'])?>" class="bx-sender-letter-form-control bx-sender-letter-field-input">
+					<input data-role="letter-title" type="text" name="TITLE" value="<?=htmlspecialcharsbx($arResult['ROW']['TITLE'])?>" class="bx-sender-letter-form-control bx-sender-letter-field-input" <?if(!$arParams['CAN_EDIT']):?>disabled="disabled"<?endif;?>>
 				</div>
 			</div>
 
@@ -155,6 +176,7 @@ Extension::load("ui.notification");
 							'IS_RECIPIENT_COUNT_EXACT' => $arResult['SEGMENTS']['IS_RECIPIENT_COUNT_EXACT'],
 							'DURATION_FORMATTED' => $arResult['SEGMENTS']['DURATION_FORMATTED'],
 							'SHOW_COUNTERS' => $arParams['SHOW_SEGMENT_COUNTERS'],
+							'CHECK_ON_STATIC' => $arParams['CHECK_ON_STATIC'],
 							'MESS' => $arParams['MESS'],
 						),
 						false
@@ -163,6 +185,17 @@ Extension::load("ui.notification");
 				</div>
 			<?endif;?>
 
+			<?php if (
+				Loader::includeModule('voximplant')
+					&& class_exists("\Bitrix\Voximplant\Tts\Disclaimer")
+					&& in_array($arResult['MESSAGE_CODE'], [
+						MessageCall::CODE,
+					])
+			):?>
+				<div class="ui-alert ui-alert-warning bx-sender-letter-field">
+					<span class="ui-alert-message"><?php echo \Bitrix\Voximplant\Tts\Disclaimer::getHtml(); ?></span>
+				</div>
+			<?php endif; ?>
 			<?
 			$APPLICATION->IncludeComponent(
 				"bitrix:sender.message.editor",
@@ -173,13 +206,16 @@ Extension::load("ui.notification");
 					"MESSAGE" => $arResult['MESSAGE'],
 					"TEMPLATE_TYPE" => $arResult['ROW']['TEMPLATE_TYPE'],
 					"TEMPLATE_ID" => $arResult['ROW']['TEMPLATE_ID'],
+					"CAN_EDIT" => $arParams['CAN_EDIT'],
+					"IS_TRIGGER" => $arParams['IS_TRIGGER'],
 				),
 				false
 			);
 			?>
 		</div>
 
-		<div data-role="letter-buttons" style="<?=($arResult['SHOW_TEMPLATE_SELECTOR'] ? 'display: none;' : '')?>">
+		<div data-role="letter-buttons"
+			style="<?=($arResult['SHOW_TEMPLATE_SELECTOR'] || !$arResult['SHOW_BUTTONS'] ? 'display: none;' : '')?>">
 			<?
 			$buttons = [];
 			if ($arParams['CAN_EDIT'])
@@ -192,8 +228,8 @@ Extension::load("ui.notification");
 						'NAME' => 'save_as_template'
 					];
 				}
-				$buttons[] = ['TYPE' => 'save'];
-				$buttons[] = ['TYPE' => 'apply', 'ONCLICK' => 'BX.Sender.Letter.applyChanges()'];
+				$buttons[] = ['TYPE' => 'save', 'ONCLICK' => !$arResult['IS_AVAILABLE']? "BX.UI.InfoHelper.show('limit_crm_marketing_adv'); return false;": ""];
+				$buttons[] = ['TYPE' => 'apply', 'ONCLICK' => !$arResult['IS_AVAILABLE']? "BX.UI.InfoHelper.show('limit_crm_marketing_adv'); return false;": "BX.Sender.Letter.applyChanges()"];
 			}
 			$buttons[] = ['TYPE' => 'cancel', 'LINK' => $arParams['PATH_TO_LIST']];
 			$APPLICATION->IncludeComponent(
@@ -209,6 +245,19 @@ Extension::load("ui.notification");
 
 	</form>
 </div>
+<?php
+if(!$arResult['IS_AVAILABLE'] )
+{
+	$APPLICATION->IncludeComponent("bitrix:ui.info.helper", "", array());
+	?>
+	<script>
+		BX.ready(function () {
+			BX.UI.InfoHelper.show('limit_crm_marketing_email');
+		});
+	</script>
+	<?
+}
+
 
 
 

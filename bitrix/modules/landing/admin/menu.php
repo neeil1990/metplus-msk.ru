@@ -38,11 +38,12 @@ $res = \Bitrix\Main\SiteTable::getList(array(
 		'LID', 'NAME'
 	),
 	'filter' => array(
-		'ACTIVE' => 'Y'
+		'=ACTIVE' => 'Y'
 	),
 	'order' => array(
 		'SORT' => 'ASC'
-	)
+	),
+	'cache' => ['ttl' => 86400],
 ));
 while ($row = $res->fetch())
 {
@@ -62,23 +63,7 @@ if (!empty($sites))
 	));
 	while ($row = $res->fetch())
 	{
-		// not hide PREVIEW on a repo
-		if ($row['TYPE'] != 'PREVIEW')
-		{
-			$sites[$row['SMN_SITE_ID']]['NAME'] = $row['TITLE'];
-		}
-		// show preview on REPO
-		elseif (defined('LANDING_IS_REPO') && LANDING_IS_REPO === true)
-		{
-			$menu['items'][] = array(
-				'text' => '!!! ' . strtoupper($row['TITLE']) . ' !!!',
-				'url' => 'landing_site.php' .
-					'?lang=' . LANGUAGE_ID .
-					'&site=' . $row['SMN_SITE_ID'] .
-					'&siteId=' . $row['ID'] .
-					'&type=' . $row['TYPE'],
-			);
-		}
+		$sites[$row['SMN_SITE_ID']]['NAME'] = $row['TITLE'];
 	}
 }
 

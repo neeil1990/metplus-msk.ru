@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Main\UI\Selector;
 
@@ -169,7 +169,19 @@ class Entities
 						? 'Y'
 						: 'N'
 				),
-				"DATA_ADDITIONAL" => $dataAdditional
+				"DATA_ADDITIONAL" => $dataAdditional,
+				"MULTI" => (
+					(
+						isset($options["returnMultiEmail"])
+						&& $options["returnMultiEmail"] == 'Y'
+					)
+					|| (
+						isset($options["returnMultiPhone"])
+						&& $options["returnMultiPhone"] == 'Y'
+					)
+						? 'Y'
+						: 'N'
+				)
 			)
 		);
 
@@ -204,7 +216,7 @@ class Entities
 		{
 			foreach($selectedItems as $key => $entityType)
 			{
-				$entityType = strtoupper($entityType);
+				$entityType = mb_strtoupper($entityType);
 				if (!isset($selectedItemsByEntityType[$entityType]))
 				{
 					$selectedItemsByEntityType[$entityType] = array();
@@ -242,7 +254,11 @@ class Entities
 
 	public static function getProviderByEntityType($entityType)
 	{
-		$result = false;
+		$result = Handler::getProviderByEntityType($entityType);
+		if ($result)
+		{
+			return $result;
+		}
 
 		$event = new Event("main", "OnUISelectorGetProviderByEntityType", array(
 			'entityType' => $entityType
@@ -315,7 +331,9 @@ class Entities
 
 		$cacheTtl = defined("BX_COMP_MANAGED_CACHE") ? 3153600 : 3600*4;
 		$cacheId = 'dest_sort_2'.$userId.serialize($params);
-		$cacheDir = '/ui_selector/dest_sort/'.intval($userId / 100);
+		$cacheDir = self::getCacheDir([
+			'userId' => $userId,
+		]);
 
 		$cache = new \CPHPCache;
 		if($cache->initCache($cacheTtl, $cacheId, $cacheDir))
@@ -330,7 +348,7 @@ class Entities
 
 			$cache->startDataCache();
 			$filter = array(
-				"USER_ID" => $USER->getId()
+				"USER_ID" => $userId
 			);
 
 			if (
@@ -347,7 +365,7 @@ class Entities
 
 			if (!empty($params["CODE_TYPE"]))
 			{
-				$filter["=CODE_TYPE"] = strtoupper($params["CODE_TYPE"]);
+				$filter["=CODE_TYPE"] = mb_strtoupper($params["CODE_TYPE"]);
 			}
 			elseif (
 				empty($params["CRM"])
@@ -382,7 +400,7 @@ class Entities
 				$helper = $conn->getSqlHelper();
 
 				$runtime = array(
-					new \Bitrix\Main\Entity\ExpressionField('CONTEXT_SORT', "CASE WHEN CONTEXT = '".$helper->forSql($params["DEST_CONTEXT"])."' THEN 1 ELSE 0 END")
+					new \Bitrix\Main\Entity\ExpressionField('CONTEXT_SORT', "CASE WHEN CONTEXT = '".$helper->forSql(mb_strtoupper($params["DEST_CONTEXT"]))."' THEN 1 ELSE 0 END")
 				);
 
 				$order = array(
@@ -478,7 +496,7 @@ class Entities
 
 			$contextType = (
 				isset($params["DEST_CONTEXT"])
-				&& strtoupper($params["DEST_CONTEXT"]) == strtoupper($dest["CONTEXT"])
+				&& mb_strtoupper($params["DEST_CONTEXT"]) == mb_strtoupper($dest["CONTEXT"])
 					? "Y"
 					: "N"
 			);
@@ -736,7 +754,9 @@ class Entities
 				{
 					$cacheTtl = defined("BX_COMP_MANAGED_CACHE") ? 3153600 : 3600*4;
 					$cacheId = 'dest_sort_users'.$userId.serialize($params).intval($bAllowCrmEmail);
-					$cacheDir = '/ui_selector/dest_sort/'.intval($userId / 100);
+					$cacheDir = self::getCacheDir([
+						'userId' => $userId,
+					]);;
 					$cache = new \CPHPCache;
 
 					if($cache->initCache($cacheTtl, $cacheId, $cacheDir))
@@ -819,6 +839,7 @@ class Entities
 						));
 					}
 				}
+				$destUList = array_slice($destUList, 0, self::LIST_USER_LIMIT, true);
 
 				$lastDestinationList['USERS'] = array_merge($destUList, $destUEList, $destUCRMList);
 				$tmp = array('USERS' => $lastDestinationList['USERS']);
@@ -839,7 +860,9 @@ class Entities
 
 				$cacheTtl = defined("BX_COMP_MANAGED_CACHE") ? 3153600 : 3600*4;
 				$cacheId = 'dest_sort_sonetgroups'.$userId.serialize($params);
-				$cacheDir = '/ui_selector/dest_sort/'.intval($userId / 100);
+				$cacheDir = self::getCacheDir([
+					'userId' => $userId,
+				]);
 				$cache = new \CPHPCache;
 
 				if($cache->initCache($cacheTtl, $cacheId, $cacheDir))
@@ -1105,6 +1128,23 @@ class Entities
 			"CONTEXT" => $context,
 			"CODE" => $code
 		));
+	}
+
+	public static function getCacheDir(array $params = [])
+	{
+		global $USER;
+
+		$userId = (int)($params['userId'] ?? 0);
+
+		if (
+			$userId <= 0
+			&& $USER->isAuthorized()
+		)
+		{
+			$userId = $USER->getId();
+		}
+
+		return '/ui_selector/dest_sort/' . substr(md5($userId), 2, 2) . '/' . $userId;
 	}
 
 }

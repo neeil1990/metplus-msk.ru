@@ -265,6 +265,7 @@ class Dispatcher
 			'LIST_FILTER_LABEL' => $this->checkLabel($fieldInfo['LIST_FILTER_LABEL']),
 			'ERROR_MESSAGE' => $this->checkLabel($fieldInfo['ERROR_MESSAGE']),
 			'HELP_MESSAGE' => $this->checkLabel($fieldInfo['HELP_MESSAGE']),
+			'CONTEXT_PARAMS' => $fieldInfo['CONTEXT_PARAMS'],
 		));
 
 		if(!$fieldId)
@@ -426,7 +427,7 @@ class Dispatcher
 						'SORT' => $enumItem['SORT'],
 					);
 
-					if(strlen($enumItem['XML_ID']) > 0)
+					if($enumItem['XML_ID'] <> '')
 					{
 						$itemDescription['XML_ID'] = $enumItem['XML_ID'];
 					}
@@ -836,6 +837,7 @@ class Dispatcher
 	protected function getResultFieldInfo(array $userField)
 	{
 		$fieldInfo = array(
+			'ID' => $userField['ID'],
 			'USER_TYPE_ID' => $userField['USER_TYPE_ID'],
 			'ENTITY_ID' => $userField['ENTITY_ID'],
 			'ENTITY_VALUE_ID' => $userField['ENTITY_VALUE_ID'],
@@ -850,6 +852,7 @@ class Dispatcher
 			'SHOW_FILTER' => $userField['SHOW_FILTER'],
 			'SHOW_IN_LIST' => $userField['SHOW_IN_LIST'],
 			'SORT' => $userField['SORT'],
+			'CONTEXT_PARAMS' => $fieldInfo['CONTEXT_PARAMS'],
 		);
 
 		if($userField['USER_TYPE_ID'] === \CUserTypeEnum::USER_TYPE_ID && is_array($userField['ENUM']))

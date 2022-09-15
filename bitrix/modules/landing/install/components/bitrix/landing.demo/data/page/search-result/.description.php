@@ -14,6 +14,7 @@ return [
 	'description' => Loc::getMessage('LANDING_DEMO_SEARCH-RESULT-DESCRIPTION'),
 	'publication' => true,
 	'version' => 3,
+	'active' => false,
 	'fields' => [
 		'RULE' => null,
 		'ADDITIONAL_FIELDS' => [
@@ -22,7 +23,6 @@ return [
 			'METAOG_IMAGE' => 'https://cdn.bitrix24.site/bitrix/images/demo/page/search-result/preview.jpg',
 			'VIEW_USE' => 'N',
 			'THEME_CODE' => '3corporate',
-			'THEME_CODE_TYPO' => 'app',
 			'PIXELFB_USE' => 'N',
 			'GACOUNTER_USE' => 'N',
 			'GACOUNTER_SEND_CLICK' => 'N',
@@ -51,15 +51,15 @@ return [
 					0 => '<span bxstyle="font-weight: 700;">How can we help you?</span>',
 				],
 				'.landing-block-node-text' => [
-					0 => '<p>Ask a question of search any keyword</p>',
+					0 => '<p>Ask a question or search any keyword</p>',
 				],
 			],
 			'style' => [
 				'.landing-block-node-title' => [
-					0 => 'landing-block-node-title text-uppercase g-font-weight-300 g-mb-30 g-color-white font-weight-bold g-font-size-46 g-font-montserrat',
+					0 => 'landing-block-node-title text-uppercase g-font-weight-300 g-mb-30 g-color-white g-font-weight-700 g-font-size-46',
 				],
 				'.landing-block-node-text' => [
-					0 => 'landing-block-node-text form-text g-opacity-0_8 g-font-size-14 g-color-white g-font-open-sans',
+					0 => 'landing-block-node-text form-text g-opacity-0_8 g-color-white',
 				],
 				'#wrapper' => [
 					0 => 'landing-block landing-block-node-bgimage g-flex-centered u-bg-overlay g-bg-img-hero g-bg-darkblue-opacity-0_7--after g-mt-auto g-pb-25 g-pl-auto g-pr-auto g-pt-6 g-min-height-50vh',
@@ -77,10 +77,10 @@ return [
 			],
 			'style' => [
 				'.landing-block-node-title' => [
-					0 => 'landing-block-node-title g-font-weight-400 g-my-0 g-font-size-48 text-left g-font-montserrat',
+					0 => 'landing-block-node-title g-font-weight-400 g-my-0 g-font-size-48 text-left container g-max-width-100x g-pl-0 g-pr-0',
 				],
 				'#wrapper' => [
-					0 => 'landing-block js-animation fadeInUp g-pl-auto g-pb-auto g-pt-30 container g-max-width-container',
+					0 => 'landing-block js-animation fadeInUp g-pl-auto g-pb-auto g-pt-30 text-center g-pl-7 g-pr-15',
 				],
 			],
 		],

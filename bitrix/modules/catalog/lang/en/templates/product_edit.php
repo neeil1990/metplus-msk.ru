@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["BASE_CURRENCY"] = "Base price currency";
 $MESS["BASE_PRICE"] = "Base price";
 $MESS["BASE_QUANTITY_RESERVED"] = "Items reserved";
@@ -72,9 +72,11 @@ $MESS["C2IT_PRICES"] = "Prices";
 $MESS["C2IT_PRICES_D"] = "Price Management";
 $MESS["C2IT_PRICES_EXT"] = "Prices (ext.)";
 $MESS["C2IT_PRICES_EXT_D"] = "Extended Prices";
+$MESS["C2IT_PRICES_EXT_TARIFF_ENABLE"] = "Enable";
 $MESS["C2IT_PRICES_USEEXT"] = "Use extended price editing mode";
 $MESS["C2IT_PRICE_TYPE"] = "Price type";
 $MESS["C2IT_PROD_AMOUNT"] = "Quantity";
+$MESS["C2IT_PROD_QUANTITY_RESERVED"] = "Reserved";
 $MESS["C2IT_REGULAR"] = "Recurrent";
 $MESS["C2IT_SINGLE"] = "One-time";
 $MESS["C2IT_SITE"] = "Site";
@@ -93,6 +95,7 @@ $MESS["C2IT_TO"] = "To";
 $MESS["C2IT_TRIAL"] = "Trial";
 $MESS["C2IT_TRIAL_FOR"] = "Trial for (only for trials):";
 $MESS["C2IT_UF_FIELDS"] = "Additional parameters";
+$MESS["C2IT_UF_SYSTEM_FIELDS"] = "System preferences";
 $MESS["C2IT_USERS_GROUP"] = "User group";
 $MESS["C2IT_VKL"] = "Incl.";
 $MESS["C2IT_WITHOUT_ORDER"] = "Renewal without ordering:";
@@ -105,6 +108,8 @@ $MESS["CAT_E_PRICE_EXT"] = "You are about to save the product item in simplified
 All prices that have been previously specified in extended mode will be irreparably LOST.
 Are sure you want to continue?";
 $MESS["CAT_VAT"] = "Tax rate";
+$MESS["CAT_VAT_ID_CATALOG_HINT"] = "If a product doesn't specify a tax rate, the catalog tax rate (#VAT_NAME#) will be used for calculations. You can change it on the catalog settings page.";
+$MESS["CAT_VAT_ID_EMPTY"] = "not selected";
 $MESS["CAT_VAT_INCLUDED"] = "Tax included in price";
 $MESS["CAT_YES"] = "yes";
 $MESS["ENABLE_STORE_TRACE"] = "Enable stock control";
@@ -122,4 +127,3 @@ $MESS["SET_NOTICE_QUANTITY"] = "Available quantity of a bundle is derived from t
 $MESS["SET_NOTICE_WEIGHT"] = "The bundle weight is auto calculated using the weight of all the products in a bundle.";
 $MESS["VAL_BASE"] = "< base >";
 $MESS["VAL_NOT_SET"] = "< not set >";
-?>

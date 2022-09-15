@@ -59,7 +59,7 @@ class LandingBaseFormComponent extends LandingBaseComponent
 	 * @param bool $strict Strict check of var.
 	 * @return mixed
 	 */
-	protected function request($var, $strict = false)
+	public function request($var, $strict = false)
 	{
 		if ($this->postFields === null)
 		{
@@ -172,13 +172,13 @@ class LandingBaseFormComponent extends LandingBaseComponent
 			}
 		}
 
-		// detect groups wich different
+		// detect groups which different
 		$diffGroups = array();
 		if (is_array($additionalFields))
 		{
 			foreach ($additionalFields as $key => $value)
 			{
-				$group = substr($key, 0, strpos($key, '_'));
+				$group = mb_substr($key, 0, mb_strpos($key, '_'));
 				if (
 					!in_array($group, $diffGroups) &&
 					isset($additionalFieldsParent[$key]) &&
@@ -195,7 +195,7 @@ class LandingBaseFormComponent extends LandingBaseComponent
 		{
 			foreach ($additionalFieldsParent as $key => $value)
 			{
-				$group = substr($key, 0, strpos($key, '_'));
+				$group = mb_substr($key, 0, mb_strpos($key, '_'));
 				if (
 					!in_array($group, $diffGroups) &&
 					isset($additionalFields[$key]) &&
@@ -343,6 +343,7 @@ class LandingBaseFormComponent extends LandingBaseComponent
 				$item[$code] = array(
 					'TITLE' => $field->getTitle(),
 					'READONLY' => !in_array($code, $localMap),
+					'STORED' => $row[$code] ?? $defaultValue,
 					'~CURRENT' => $fillFromRequest
 								? ($code == 'ID') ? $this->id : $this->request($code)
 								: (isset($row[$code]) ? $row[$code] : $defaultValue)

@@ -130,11 +130,11 @@ if($bVarsFromForm)
 {
 	$arRes = array(
 		"ACTIVE" => (string)$_REQUEST["ACTIVE"],
-		"SORT" => "500",
+		"SORT" => (int)$_POST["SORT"],
 		"READ_ONLY" => (string)$_REQUEST["READ_ONLY"],
 		"SERVICE_ID" => (string)$_REQUEST["SERVICE_ID"],
 		"BUCKET" => (string)$_REQUEST["BUCKET"],
-		"LOCATION" => (string)$_REQUEST["LOCATION"],
+		"LOCATION" => (string)$_POST["LOCATION"][$_POST["SERVICE_ID"]],
 		"CNAME" => (string)$_REQUEST["CNAME"],
 		"SETTINGS" => "",
 		"FAILOVER_ACTIVE" => (string)$_REQUEST["FAILOVER_ACTIVE"],
@@ -300,10 +300,14 @@ $tabControl->BeginNextTab();
 			<td><?echo GetMessage("CLO_STORAGE_EDIT_LOCATION")?>:</td>
 			<td>
 			<?
-			foreach(CCloudStorage::GetServiceLocationList($arRes["SERVICE_ID"]) as $LOCATION_ID => $LOCATION_NAME)
+			$locationList = CCloudStorage::GetServiceLocationList($arRes["SERVICE_ID"]);
+			if (is_array($locationList))
 			{
-				if($arRes["LOCATION"] == $LOCATION_ID)
-					echo htmlspecialcharsex($LOCATION_NAME);
+				foreach($locationList as $LOCATION_ID => $LOCATION_NAME)
+				{
+					if($arRes["LOCATION"] == $LOCATION_ID)
+						echo htmlspecialcharsex($LOCATION_NAME);
+				}
 			}
 			?>
 			<input type="hidden" name="LOCATION[<?echo htmlspecialcharsbx($arRes["SERVICE_ID"]);?>]" value="<?echo htmlspecialcharsbx($arRes["LOCATION"]);?>">
@@ -334,14 +338,20 @@ $tabControl->BeginNextTab();
 		<tr id="LOCATION_<?echo htmlspecialcharsbx($SERVICE_ID)?>" style="display:<?echo $arRes["SERVICE_ID"] === $SERVICE_ID || !$bServiceSet? "": "none"?>" class="location-tr">
 			<td><?echo GetMessage("CLO_STORAGE_EDIT_LOCATION")?>:</td>
 			<td>
+			<?
+			$locationList = CCloudStorage::GetServiceLocationList($SERVICE_ID);
+			if (is_array($locationList)):?>
 			<select name="LOCATION[<?echo htmlspecialcharsbx($SERVICE_ID)?>]">
 			<?
 			foreach(CCloudStorage::GetServiceLocationList($SERVICE_ID) as $LOCATION_ID => $LOCATION_NAME)
 			{
-				?><option value="<?echo htmlspecialcharsbx($LOCATION_ID)?>"<?if($arRes["SERVICE_ID"] === $LOCATION_ID) echo " selected"?>><?echo htmlspecialcharsex($LOCATION_NAME)?></option><?
+				?><option value="<?echo htmlspecialcharsbx($LOCATION_ID)?>"<?if($arRes["LOCATION"] === $LOCATION_ID) echo " selected"?>><?echo htmlspecialcharsex($LOCATION_NAME)?></option><?
 			}
 			?>
 			</select>
+			<?else:?>
+			<input type="text" name="LOCATION[<?echo htmlspecialcharsbx($SERVICE_ID)?>]" value="<?echo htmlspecialcharsbx($arRes["LOCATION"])?>">
+			<?endif;?>
 			</td>
 		</tr>
 		<?echo $obService->GetSettingsHTML($arRes, $bServiceSet, $arRes["SERVICE_ID"], $bVarsFromForm)?>
@@ -379,7 +389,7 @@ $tabControl->BeginNextTab();
 if($bVarsFromForm)
 	$arRules = CCloudStorageBucket::ConvertPOST($_POST);
 elseif(isset($arRes["FILE_RULES"]))
-	$arRules = unserialize($arRes["FILE_RULES"]);
+	$arRules = unserialize($arRes["FILE_RULES"], ['allowed_classes' => false]);
 else
 	$arRules = array();
 

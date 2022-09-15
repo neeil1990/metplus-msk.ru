@@ -23,6 +23,8 @@
  * @property {number} [customRightBoundary]
  * @property {number} [customTopBoundary]
  * @property {object} [label]
+ * @property {boolean} [newWindowLabel]
+ * @property {boolean} [copyLinkLabel]
  * @property {?object.<string, function>} [events]
  */
 
@@ -63,9 +65,10 @@ Object.defineProperty(BX.SidePanel, "Instance", {
 	enumerable: false,
 	get: function() {
 
-		if (window.top !== window)
+		var topWindow = BX.PageObject.getRootWindow();
+		if (topWindow !== window)
 		{
-			return window.top.BX.SidePanel.Instance;
+			return topWindow.BX.SidePanel.Instance;
 		}
 
 		if (instance === null)
@@ -98,19 +101,22 @@ BX.SidePanel.Manager = function(options)
 	this.pageTitle = this.getCurrentTitle();
 	this.titleChanged = false;
 
+	this.fullScreenSlider = null;
+
 	this.handleAnchorClick = this.handleAnchorClick.bind(this);
 	this.handleDocumentKeyDown = this.handleDocumentKeyDown.bind(this);
 	this.handleWindowResize = BX.throttle(this.handleWindowResize, 300, this);
 	this.handleWindowScroll = this.handleWindowScroll.bind(this);
 	this.handleTouchMove = this.handleTouchMove.bind(this);
 
-	this.handleSliderOpen = this.handleSliderOpen.bind(this);
+	this.handleSliderOpenStart = this.handleSliderOpenStart.bind(this);
 	this.handleSliderOpenComplete = this.handleSliderOpenComplete.bind(this);
-	this.handleSliderClose = this.handleSliderClose.bind(this);
+	this.handleSliderCloseStart = this.handleSliderCloseStart.bind(this);
 	this.handleSliderCloseComplete = this.handleSliderCloseComplete.bind(this);
 	this.handleSliderLoad = this.handleSliderLoad.bind(this);
 	this.handleSliderDestroy = this.handleSliderDestroy.bind(this);
 	this.handleEscapePress = this.handleEscapePress.bind(this);
+	this.handleFullScreenChange = this.handleFullScreenChange.bind(this);
 
 	BX.addCustomEvent("SidePanel:open", this.open.bind(this));
 	BX.addCustomEvent("SidePanel:close", this.close.bind(this));
@@ -197,7 +203,6 @@ BX.SidePanel.Manager.prototype =
 			var sliderClass = BX.SidePanel.Manager.getSliderClass();
 			slider = new sliderClass(url, options);
 
-			var zIndex = topSlider ? topSlider.getZindex() + 1 : slider.getZindex();
 			var offset = null;
 			if (slider.getWidth() === null && slider.getCustomLeftBoundary() === null)
 			{
@@ -209,12 +214,11 @@ BX.SidePanel.Manager.prototype =
 				}
 			}
 
-			slider.setZindex(zIndex);
 			slider.setOffset(offset);
 
-			BX.addCustomEvent(slider, "SidePanel.Slider:onOpen", this.handleSliderOpen);
+			BX.addCustomEvent(slider, "SidePanel.Slider:onOpenStart", this.handleSliderOpenStart);
 			BX.addCustomEvent(slider, "SidePanel.Slider:onBeforeOpenComplete", this.handleSliderOpenComplete);
-			BX.addCustomEvent(slider, "SidePanel.Slider:onClose", this.handleSliderClose);
+			BX.addCustomEvent(slider, "SidePanel.Slider:onCloseStart", this.handleSliderCloseStart);
 			BX.addCustomEvent(slider, "SidePanel.Slider:onBeforeCloseComplete", this.handleSliderCloseComplete);
 			BX.addCustomEvent(slider, "SidePanel.Slider:onLoad", this.handleSliderLoad);
 			BX.addCustomEvent(slider, "SidePanel.Slider:onDestroy", this.handleSliderDestroy);
@@ -628,6 +632,111 @@ BX.SidePanel.Manager.prototype =
 		return title;
 	},
 
+	enterFullScreen: function()
+	{
+		if (!this.getTopSlider() || this.getFullScreenSlider())
+		{
+			return;
+		}
+
+		var container = document.body;
+		if (container.requestFullscreen)
+		{
+			BX.bind(document, "fullscreenchange", this.handleFullScreenChange);
+			container.requestFullscreen();
+		}
+		else if (container.webkitRequestFullScreen)
+		{
+			BX.bind(document, "webkitfullscreenchange", this.handleFullScreenChange);
+			container.webkitRequestFullScreen();
+		}
+		else if (container.msRequestFullscreen)
+		{
+			BX.bind(document, "MSFullscreenChange", this.handleFullScreenChange);
+			container.msRequestFullscreen();
+		}
+		else if (container.mozRequestFullScreen)
+		{
+			BX.bind(document, "mozfullscreenchange", this.handleFullScreenChange);
+			container.mozRequestFullScreen();
+		}
+		else
+		{
+			console.log("Slider: Full Screen mode is not supported.");
+		}
+	},
+
+	exitFullScreen: function()
+	{
+		if (!this.getFullScreenSlider())
+		{
+			return;
+		}
+
+		if (document.exitFullscreen)
+		{
+			document.exitFullscreen();
+		}
+		else if (document.webkitExitFullscreen)
+		{
+			document.webkitExitFullscreen();
+		}
+		else if (document.msExitFullscreen)
+		{
+			document.msExitFullscreen();
+		}
+		else if (document.mozCancelFullScreen)
+		{
+			document.mozCancelFullScreen();
+		}
+	},
+
+	getFullScreenElement: function()
+	{
+		return (
+			document.fullscreenElement ||
+			document.webkitFullscreenElement ||
+			document.mozFullScreenElement ||
+			document.msFullscreenElement ||
+			null
+		);
+	},
+
+	getFullScreenSlider: function()
+	{
+		return this.fullScreenSlider;
+	},
+
+	handleFullScreenChange: function(event)
+	{
+		if (this.getFullScreenElement())
+		{
+			this.fullScreenSlider = this.getTopSlider();
+			BX.addClass(this.fullScreenSlider.getOverlay(), "side-panel-fullscreen");
+
+			this.fullScreenSlider.fireEvent("onFullScreenEnter");
+		}
+		else
+		{
+			if (this.getFullScreenSlider())
+			{
+				BX.removeClass(this.getFullScreenSlider().getOverlay(), "side-panel-fullscreen");
+				this.fullScreenSlider.fireEvent("onFullScreenExit");
+				this.fullScreenSlider = null;
+			}
+
+			BX.unbind(document, event.type, this.handleFullScreenChange);
+			window.scrollTo(0, this.pageScrollTop);
+
+			setTimeout(function() {
+				this.adjustLayout();
+				var event = document.createEvent("Event");
+				event.initEvent("resize", true, true);
+				window.dispatchEvent(event);
+			}.bind(this), 1000);
+		}
+	},
+
 	/**
 	 * @public
 	 * @param {string|Window|BX.SidePanel.Slider} source
@@ -839,7 +948,7 @@ BX.SidePanel.Manager.prototype =
 	 * @private
 	 * @param {BX.SidePanel.Event} event
 	 */
-	handleSliderOpen: function(event)
+	handleSliderOpenStart: function(event)
 	{
 		if (!event.isActionAllowed())
 		{
@@ -854,14 +963,24 @@ BX.SidePanel.Manager.prototype =
 
 		if (this.getTopSlider())
 		{
+			this.exitFullScreen();
+
 			this.getTopSlider().hideOverlay();
-			if (this.getTopSlider().getOffset() !== slider.getOffset())
+
+			var sameWidth = (
+				this.getTopSlider().getOffset() === slider.getOffset() &&
+				this.getTopSlider().getWidth() === slider.getWidth() &&
+				this.getTopSlider().getCustomLeftBoundary() === slider.getCustomLeftBoundary()
+			);
+
+			if (!sameWidth)
 			{
 				this.getTopSlider().showShadow();
 			}
 
-			this.getTopSlider().hideCloseBtn();
+			this.getTopSlider().hideOrDarkenCloseBtn();
 			this.getTopSlider().hidePrintBtn();
+			this.getTopSlider().hideExtraLabels();
 		}
 		else
 		{
@@ -901,8 +1020,13 @@ BX.SidePanel.Manager.prototype =
 	 * @private
 	 * @param {BX.SidePanel.Event} event
 	 */
-	handleSliderClose: function(event)
+	handleSliderCloseStart: function(event)
 	{
+		if (!event.isActionAllowed())
+		{
+			return;
+		}
+
 		if (event.getSlider() && event.getSlider().isDestroyed())
 		{
 			return;
@@ -910,6 +1034,8 @@ BX.SidePanel.Manager.prototype =
 
 		var previousSlider = this.getPreviousSlider();
 		var topSlider = this.getTopSlider();
+
+		this.exitFullScreen();
 
 		this.getOpenSliders().forEach(function(slider, index, openSliders) {
 			slider.getLabel().moveAt(openSliders.length - index - 2); //move up
@@ -919,7 +1045,7 @@ BX.SidePanel.Manager.prototype =
 		{
 			previousSlider.unhideOverlay();
 			previousSlider.hideShadow();
-			previousSlider.showCloseBtn();
+			previousSlider.showOrLightenCloseBtn();
 
 			if (topSlider)
 			{
@@ -952,8 +1078,9 @@ BX.SidePanel.Manager.prototype =
 	{
 		var slider = event.getSlider();
 
-		BX.removeCustomEvent(slider, "SidePanel.Slider:onOpen", this.handleSliderOpen);
+		BX.removeCustomEvent(slider, "SidePanel.Slider:onOpenStart", this.handleSliderOpenStart);
 		BX.removeCustomEvent(slider, "SidePanel.Slider:onBeforeOpenComplete", this.handleSliderOpenComplete);
+		BX.removeCustomEvent(slider, "SidePanel.Slider:onCloseStart", this.handleSliderCloseStart);
 		BX.removeCustomEvent(slider, "SidePanel.Slider:onBeforeCloseComplete", this.handleSliderCloseComplete);
 		BX.removeCustomEvent(slider, "SidePanel.Slider:onLoad", this.handleSliderLoad);
 		BX.removeCustomEvent(slider, "SidePanel.Slider:onDestroy", this.handleSliderDestroy);
@@ -1001,9 +1128,10 @@ BX.SidePanel.Manager.prototype =
 
 		if (this.getTopSlider())
 		{
-			this.getTopSlider().showCloseBtn();
+			this.getTopSlider().showOrLightenCloseBtn();
 			this.getTopSlider().unhideOverlay();
 			this.getTopSlider().hideShadow();
+			this.getTopSlider().showExtraLabels();
 
 			if (this.getTopSlider().isPrintable())
 			{
@@ -1299,6 +1427,11 @@ BX.SidePanel.Manager.prototype =
 		var link = this.extractLinkFromEvent(event);
 
 		if (!link || BX.data(link.anchor, "slider-ignore-autobinding"))
+		{
+			return;
+		}
+
+		if (BX.data(event.target, "slider-ignore-autobinding"))
 		{
 			return;
 		}

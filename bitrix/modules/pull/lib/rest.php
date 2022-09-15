@@ -48,7 +48,7 @@ class Rest extends \IRestService
 		$params = array_change_key_case($params, CASE_UPPER);
 
 		$type = \CPullChannel::TYPE_PRIVATE;
-		if ($params['APPLICATION'] == 'Y')
+		if ($params['APPLICATION'] === 'Y')
 		{
 			$clientId = $server->getClientId();
 			if (!$clientId)
@@ -58,7 +58,7 @@ class Rest extends \IRestService
 			$type = $clientId;
 		}
 
-		$userId = intval($params['USER_ID']);
+		$userId = (int)$params['USER_ID'];
 
 		$configParams = Array();
 		$configParams['TYPE'] = $type;
@@ -79,7 +79,7 @@ class Rest extends \IRestService
 		$params = array_change_key_case($params, CASE_UPPER);
 
 		$type = \CPullChannel::TYPE_PRIVATE;
-		if ($params['APPLICATION'] == 'Y')
+		if ($params['APPLICATION'] === 'Y')
 		{
 			$clientId = $server->getClientId();
 			if (!$clientId)
@@ -98,7 +98,7 @@ class Rest extends \IRestService
 		{
 			foreach ($params['USERS'] as $userId)
 			{
-				$userId = intval($userId);
+				$userId = (int)$userId;
 				if ($userId > 0)
 				{
 					$users[$userId] = $userId;
@@ -136,8 +136,8 @@ class Rest extends \IRestService
 		}
 
 		$configParams = Array();
-		$configParams['CACHE'] = $params['CACHE'] != 'N';
-		$configParams['REOPEN'] = $params['REOPEN'] != 'N';
+		$configParams['CACHE'] = $params['CACHE'] !== 'N';
+		$configParams['REOPEN'] = $params['REOPEN'] !== 'N';
 		$configParams['CUSTOM_TYPE'] = $clientId;
 		$configParams['JSON'] = true;
 
@@ -170,7 +170,11 @@ class Rest extends \IRestService
 				$params['USER_ID'] = \CUtil::JsObjectToPhp($params['USER_ID']);
 			}
 
-			if (is_array($params['USER_ID']))
+			if (!isset($params['USER_ID']))
+			{
+				$users = [Event::SHARED_CHANNEL];
+			}
+			else if (is_array($params['USER_ID']))
 			{
 				foreach ($params['USER_ID'] as $userId)
 				{
@@ -202,7 +206,7 @@ class Rest extends \IRestService
 			}
 			else
 			{
-				$users = Event::SHARED_CHANNEL;
+				$users = [Event::SHARED_CHANNEL];
 			}
 		}
 
@@ -290,7 +294,7 @@ class Rest extends \IRestService
 			$users = (int)$params['USER_ID'];
 		}
 
-		if (!$params['TEXT'] || strlen($params['TEXT']) <= 0)
+		if (!$params['TEXT'] || $params['TEXT'] == '')
 		{
 			throw new \Bitrix\Rest\RestException("Text can't be empty", "TEXT_ERROR", \CRestServer::STATUS_WRONG_REQUEST);
 		}
@@ -372,8 +376,8 @@ class Rest extends \IRestService
 
 		$configParams = Array();
 		$configParams['USER_ID'] = $userId;
-		$configParams['CACHE'] = $params['CACHE'] != 'N';
-		$configParams['REOPEN'] = $params['REOPEN'] != 'N';
+		$configParams['CACHE'] = $params['CACHE'] !== 'N';
+		$configParams['REOPEN'] = $params['REOPEN'] !== 'N';
 		$configParams['JSON'] = true;
 
 		$config = \Bitrix\Pull\Config::get($configParams);
@@ -381,6 +385,8 @@ class Rest extends \IRestService
 		{
 			throw new \Bitrix\Rest\RestException("Push & Pull server is not configured", "SERVER_ERROR", \CRestServer::STATUS_INTERNAL);
 		}
+
+		$config['serverTime'] = date('c', time());
 
 		return $config;
 	}
@@ -404,7 +410,7 @@ class Rest extends \IRestService
 	{
 		$types = \Bitrix\Pull\MobileCounter::getTypes();
 
-		if (isset($params['USER_VALUES']) && $params['USER_VALUES'] == 'Y')
+		if (isset($params['USER_VALUES']) && $params['USER_VALUES'] === 'Y')
 		{
 			$config = \Bitrix\Pull\MobileCounter::getConfig();
 			foreach ($types as $type => $value)
@@ -470,7 +476,7 @@ class Rest extends \IRestService
 		$config = \Bitrix\Pull\Push::getTypes();
 
 		$withUserValues = false;
-		if (isset($params['USER_VALUES']) && $params['USER_VALUES'] == 'Y')
+		if (isset($params['USER_VALUES']) && $params['USER_VALUES'] === 'Y')
 		{
 			$withUserValues = true;
 			$userConfig = \Bitrix\Pull\Push::getConfig();

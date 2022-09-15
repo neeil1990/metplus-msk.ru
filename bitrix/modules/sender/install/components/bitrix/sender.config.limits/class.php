@@ -1,31 +1,26 @@
-<?
+<?php
 
+use Bitrix\Main\Config\Option;
 use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Error;
-use Bitrix\Main\Loader;
-
-use Bitrix\Sender\Transport;
+use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\Security;
-use Bitrix\Sender\Integration;
+use Bitrix\Sender\Transport;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderConfigLimitsComponent extends CBitrixComponent
+class SenderConfigLimitsComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
-	/** @var ErrorCollection $errors Errors. */
-	protected $errors;
-
-	protected function checkRequiredParams()
-	{
-		return true;
-	}
-
 	protected function initParams()
 	{
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
@@ -33,17 +28,11 @@ class SenderConfigLimitsComponent extends CBitrixComponent
 			?
 			$this->arParams['CAN_EDIT']
 			:
-			Security\Access::current()->canModifySettings();
+			Security\Access::getInstance()->canModifySettings();
 	}
 
 	protected function prepareResult()
 	{
-		/* Set title */
-		if ($this->arParams['SET_TITLE'])
-		{
-			/**@var CAllMain*/
-			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_CONFIG_LIMITS_TITLE'));
-		}
 
 		if (!$this->arParams['CAN_EDIT'])
 		{
@@ -51,6 +40,11 @@ class SenderConfigLimitsComponent extends CBitrixComponent
 			return false;
 		}
 
+		$this->arResult['CAN_TRACK_MAIL'] = Option::get('sender', 'track_mails') === 'Y';
+		$this->arResult['USE_MAIL_CONSENT'] = Option::get('sender', 'mail_consent') === 'Y';
+		$this->arResult['SENDING_TIME'] = Option::get('sender', 'sending_time') === 'Y';
+		$this->arResult['SENDING_START'] = Option::get('sender', 'sending_start', '09:00');
+		$this->arResult['SENDING_END'] = Option::get('sender', 'sending_end', '18:00');
 		$this->arResult['ACTION_URI'] = $this->getPath() . '/ajax.php';
 
 		$list = array();
@@ -67,6 +61,11 @@ class SenderConfigLimitsComponent extends CBitrixComponent
 			$limits = array();
 			foreach ($transport->getLimiters() as $limiter)
 			{
+				if ($limiter->isHidden())
+				{
+					continue;
+				}
+
 				/** @var Transport\CountLimiter $limiter */
 				$isCountLimiter = $limiter instanceof Transport\CountLimiter;
 
@@ -80,7 +79,7 @@ class SenderConfigLimitsComponent extends CBitrixComponent
 				$initialLimit = $initialLimit ?: 1;
 
 				$percentage = $isCountLimiter ? ceil(($current / $initialLimit) * 100) : 0;
-				$percentage = $percentage > 100 ? 100 : 0;
+				$percentage = $percentage > 100 ? 100 : $percentage;
 
 				$limits[] = array(
 					'NAME' => $isCountLimiter ? $limiter->getName() : null,
@@ -102,6 +101,11 @@ class SenderConfigLimitsComponent extends CBitrixComponent
 				}
 			}
 
+			if (empty($limits))
+			{
+				continue;
+			}
+
 			$list[] = array(
 				'CODE' => $transport->getCode(),
 				'NAME' => $transport->getName(),
@@ -112,41 +116,24 @@ class SenderConfigLimitsComponent extends CBitrixComponent
 		}
 
 		$this->arResult['LIST'] = $list;
+		Bitrix\Sender\Integration\Bitrix24\Service::initLicensePopup();
 
 		return true;
 	}
 
-	protected function printErrors()
-	{
-		foreach ($this->errors as $error)
-		{
-			ShowError($error);
-		}
-	}
-
 	public function executeComponent()
 	{
-		$this->errors = new ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
+	}
 
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+	public function getEditAction()
+	{
+		return ActionDictionary::ACTION_SETTINGS_EDIT;
+	}
 
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->includeComponentTemplate();
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_SETTINGS_EDIT;
 	}
 }

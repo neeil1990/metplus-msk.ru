@@ -289,7 +289,7 @@ class Widget extends \Bitrix\Report\VisualConstructor\Controller\Base
 		{
 			$configuration = $configurationFromForm['configurations'];
 
-			if (in_array($reportId, $params['deletedReports']))
+			if (is_array($params['deletedReports']) && in_array($reportId, $params['deletedReports']))
 			{
 				continue;
 			}
@@ -483,7 +483,7 @@ class Widget extends \Bitrix\Report\VisualConstructor\Controller\Base
 	 */
 	private function isReportPseudo($reportId)
 	{
-		return (strpos($reportId, '_pseudo') === 0);
+		return (mb_strpos($reportId, '_pseudo') === 0);
 	}
 
 

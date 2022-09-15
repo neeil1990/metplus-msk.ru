@@ -45,6 +45,8 @@ class CountLimiter implements iLimiter
 	/** @var string $unit Unit. */
 	private $unitName;
 
+	private $hidden = false;
+
 	/**
 	 * Create instance.
 	 *
@@ -270,9 +272,9 @@ class CountLimiter implements iLimiter
 
 
 		$formatted = \FormatDate($format, $this->getCurrentTimestamp() - $this->interval);
-		if (substr($formatted, 0, 2) == '1 ')
+		if (mb_substr($formatted, 0, 2) == '1 ')
 		{
-			$formatted = substr($formatted, 2);
+			$formatted = mb_substr($formatted, 2);
 		}
 
 		return Loc::getMessage('SENDER_TRANSPORT_COUNT_LIMIT_UNIT_DATE_AT') . ' ' . $formatted;
@@ -456,5 +458,23 @@ class CountLimiter implements iLimiter
 	private function getDateOptionName()
 	{
 		return "~sender_limit_date_" . $this->name;
+	}
+
+	/**
+	 * Set limiter hidden.
+	 * @param bool $hidden
+	 * @return $this
+	 */
+	public function setHidden(bool $hidden): CountLimiter
+	{
+		$this->hidden = $hidden;
+		return $this;
+	}
+	/**
+	 * @inheritDoc
+	 */
+	public function isHidden()
+	{
+		return $this->hidden;
 	}
 }

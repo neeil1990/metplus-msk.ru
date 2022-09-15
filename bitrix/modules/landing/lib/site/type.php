@@ -1,14 +1,29 @@
 <?php
 namespace Bitrix\Landing\Site;
 
+use \Bitrix\Landing\Role;
 use \Bitrix\Landing\Site;
-use \Bitrix\Landing\Manager;
 
 class Type
 {
 	/**
+	 * Scope group.
+	 */
+	const SCOPE_CODE_GROUP = 'GROUP';
+
+	/**
+	 * Scope knowledge.
+	 */
+	const SCOPE_CODE_KNOWLEDGE = 'KNOWLEDGE';
+
+	/**
+	 * Pseudo scope for crm forms.
+	 */
+	const PSEUDO_SCOPE_CODE_FORMS = 'crm_forms';
+
+	/**
 	 * Current scope class name.
-	 * @var string
+	 * @var Scope
 	 */
 	protected static $currentScopeClass = null;
 
@@ -36,6 +51,20 @@ class Type
 	}
 
 	/**
+	 * Detects site type forms and returns it.
+	 * @param $siteCode
+	 * @return string|null
+	 */
+	public static function getSiteTypeForms($siteCode)
+	{
+		if (preg_match('#^/' . self::PSEUDO_SCOPE_CODE_FORMS . '[\d]*/$#', $siteCode))
+		{
+			return self::PSEUDO_SCOPE_CODE_FORMS;
+		}
+		return null;
+	}
+
+	/**
 	 * Set global scope.
 	 * @param string $scope Scope code.
 	 * @param array $params Additional params.
@@ -43,16 +72,20 @@ class Type
 	 */
 	public static function setScope($scope, array $params = [])
 	{
-		if (self::$scopeInit || !is_string($scope))
+		//self::$scopeInit ||
+		if (!is_string($scope) || !$scope)
 		{
 			return;
 		}
-		if (self::$currentScopeClass === null)
+		//if (self::$currentScopeClass === null)
+		// always clear previous scope
+		if (true)
 		{
+			Role::setExpectedType(null);
 			self::$currentScopeClass = self::getScopeClass($scope);
-			self::$scopeInit = true;
 			if (self::$currentScopeClass)
 			{
+				self::$scopeInit = true;
 				self::$currentScopeClass::init($params);
 			}
 		}
@@ -60,11 +93,23 @@ class Type
 
 	/**
 	 * Clear selected scope.
+	 * @return void
 	 */
 	public static function clearScope()
 	{
 		self::$scopeInit = false;
 		self::$currentScopeClass = null;
+	}
+
+	/**
+	 * Returns true if scope is public.
+	 * @param string|null $scope Scope code.
+	 * @return bool
+	 */
+	public static function isPublicScope(?string $scope = null): bool
+	{
+		$scope = $scope ? mb_strtoupper($scope) : self::getCurrentScopeId();
+		return !($scope === 'KNOWLEDGE' || $scope === 'GROUP');
 	}
 
 	/**
@@ -134,7 +179,21 @@ class Type
 		}
 
 		// compatibility, huh
-		return $strict ? null : ['PAGE', 'STORE', 'SMN', 'PREVIEW'];
+		return $strict ? null : ['PAGE', 'STORE', 'SMN'];
+	}
+
+	/**
+	 * Returns array of hook's codes, which excluded by scope.
+	 * @return array
+	 */
+	public static function getExcludedHooks(): array
+	{
+		if (self::$currentScopeClass !== null)
+		{
+			return self::$currentScopeClass::getExcludedHooks();
+		}
+
+		return [];
 	}
 
 	/**
@@ -146,7 +205,7 @@ class Type
 	{
 		if (is_string($code))
 		{
-			$code = strtoupper(trim($code));
+			$code = mb_strtoupper(trim($code));
 			$types = Site::getTypes();
 			if (array_key_exists($code, $types))
 			{

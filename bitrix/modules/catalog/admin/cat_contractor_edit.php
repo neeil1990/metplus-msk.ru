@@ -5,6 +5,8 @@ global $APPLICATION;
 global $DB;
 global $USER;
 
+use Bitrix\Catalog;
+
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 $listUrl = $selfFolderUrl."cat_contractor_list.php?lang=".LANGUAGE_ID;
 $listUrl = $adminSidePanelHelper->editUrlToPublicPage($listUrl);
@@ -34,11 +36,13 @@ $ID = (isset($_REQUEST["ID"]) ? (int)$_REQUEST["ID"] : 0);
 $typeReadOnly = false;
 $userId = (int)$USER->GetID();
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && strlen($_REQUEST["Update"]) > 0 && !$bReadOnly)
+$typeList = Catalog\ContractorTable::getTypeDescriptions();
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && $_REQUEST["Update"] <> '' && !$bReadOnly)
 {
 	$adminSidePanelHelper->decodeUriComponent();
 
-	if($PERSON_TYPE == CONTRACTOR_INDIVIDUAL)
+	if ($PERSON_TYPE == Catalog\ContractorTable::TYPE_INDIVIDUAL)
 		$INN = $KPP = $COMPANY = '';
 	$PERSON_NAME = ($_REQUEST["PERSON_NAME"] == GetMessage("CONTRACTOR_NAME")) ? '' : $_REQUEST["PERSON_NAME"];
 	$PERSON_LASTNAME = ($_REQUEST["PERSON_LASTNAME"] == GetMessage("CONTRACTOR_LAST_NAME")) ? '' : $_REQUEST["PERSON_LASTNAME"];
@@ -62,14 +66,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && strlen($_RE
 		"MODIFIED_BY" => $userId,
 	);
 	$DB->StartTransaction();
-	if (strlen($errorMessage) == 0 && $ID > 0 && $res = CCatalogContractor::update($ID, $arFields))
+	if ($errorMessage == '' && $ID > 0 && $res = CCatalogContractor::update($ID, $arFields))
 	{
 		$ID = $res;
 		$DB->Commit();
 
 		$adminSidePanelHelper->sendSuccessResponse("base", array("ID" => $ID));
 
-		if (strlen($_REQUEST["apply"]) <= 0)
+		if ($_REQUEST["apply"] == '')
 		{
 			$adminSidePanelHelper->localRedirect($listUrl);
 			LocalRedirect($listUrl);
@@ -81,14 +85,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && strlen($_RE
 			LocalRedirect($applyUrl);
 		}
 	}
-	elseif (strlen($errorMessage) == 0 && $ID == 0 && $res = CCatalogContractor::Add($arFields))
+	elseif ($errorMessage == '' && $ID == 0 && $res = CCatalogContractor::Add($arFields))
 	{
 		$ID = $res;
 		$DB->Commit();
 
 		$adminSidePanelHelper->sendSuccessResponse("base", array("ID" => $ID));
 
-		if (strlen($_REQUEST["apply"]) <= 0)
+		if ($_REQUEST["apply"] == '')
 		{
 			$adminSidePanelHelper->localRedirect($listUrl);
 			LocalRedirect($listUrl);
@@ -147,7 +151,7 @@ if ($bVarsFromForm)
 if(isset($str_ADDRESS))
 	$str_ADDRESS = (trim($str_ADDRESS) != '') ? $str_ADDRESS : '';
 
-$str_PERSON_TYPE = (isset($str_PERSON_TYPE)) ? $str_PERSON_TYPE : CONTRACTOR_INDIVIDUAL;
+$str_PERSON_TYPE = (int)($str_PERSON_TYPE ?? CONTRACTOR_INDIVIDUAL);
 
 $aMenu = array(
 	array(
@@ -217,6 +221,11 @@ $context->Show();
 	<?
 	$actionUrl = $APPLICATION->GetCurPage();
 	$actionUrl = $adminSidePanelHelper->setDefaultQueryParams($actionUrl);
+
+	$juridicalHideCss = $str_PERSON_TYPE === CONTRACTOR_INDIVIDUAL
+		? 'style="display: none;"'
+		: ''
+	;
 	?>
 	<form enctype="multipart/form-data" method="POST" action="<?=$actionUrl?>" name="contractor_edit">
 		<?echo GetFilterHiddens("filter_");?>
@@ -255,29 +264,31 @@ $context->Show();
 		<tr class="adm-detail-required-field">
 			<td width="40%"><?= GetMessage("CONTRACTOR_TYPE") ?>:</td>
 			<td width="60%">
-				<input type="hidden" name="PERSON_TYPE" value="<?=$str_PERSON_TYPE?>">
-				<select <?if($typeReadOnly) echo " disabled";?> name="PERSON_TYPE" onchange="fContractorChangeType(this);">
-					<option <? if(intval($str_PERSON_TYPE) == CONTRACTOR_INDIVIDUAL) echo" selected";?> value="1"><?= GetMessage("CONTRACTOR_INDIVIDUAL") ?></option>
-					<option <? if(intval($str_PERSON_TYPE) == CONTRACTOR_JURIDICAL) echo" selected";?> value="2"><?= GetMessage("CONTRACTOR_JURIDICAL") ?></option>
-				</select>
+				<input type="hidden" name="PERSON_TYPE" value="<?=htmlspecialcharsbx($str_PERSON_TYPE); ?>">
+				<select <?if($typeReadOnly) echo " disabled";?> name="PERSON_TYPE" onchange="fContractorChangeType(this);"><?
+					foreach ($typeList as $typeId => $item)
+					{
+						?><option value="<?=htmlspecialcharsbx($typeId); ?>"<?=($str_PERSON_TYPE === $typeId ? ' selected' : ''); ?>><?=htmlspecialcharsbx($item); ?></option><?
+					}
+				?></select>
 			</td>
 		</tr>
 
-		<tr class="adm-detail-required-field" id="company-name-tr" <? if($str_PERSON_TYPE == 1) echo "style=\"display: none\"";?>>
+		<tr class="adm-detail-required-field" id="company-name-tr" <?=$juridicalHideCss; ?>>
 			<td width="40%"><?= GetMessage("CONTRACTOR_COMPANY") ?>:</td>
 			<td width="60%">
 				<input type="text" name="COMPANY" value="<?=$str_COMPANY?>" size="30" />
 			</td>
 
 		</tr>
-		<tr id="company-inn-tr"<? if($str_PERSON_TYPE == CONTRACTOR_INDIVIDUAL) echo "style=\"display: none\"";?>>
+		<tr id="company-inn-tr"<?=$juridicalHideCss; ?>>
 			<td><?= GetMessage("CONTRACTOR_INN") ?>:</td>
 			<td>
 				<input type="text" name="INN" value="<?=$str_INN?>" size="30" />
 			</td>
 		</tr>
 		<?if(trim(GetMessage("CONTRACTOR_KPP")) != ''):?>
-			<tr id="company-kpp-tr" <? if($str_PERSON_TYPE == CONTRACTOR_INDIVIDUAL) echo "style=\"display: none\"";?>>
+			<tr id="company-kpp-tr" <?=$juridicalHideCss; ?>>
 				<td><?= GetMessage("CONTRACTOR_KPP") ?>:</td>
 				<td>
 					<input type="text" name="KPP" value="<?=$str_KPP?>" size="30" />
@@ -316,7 +327,7 @@ $context->Show();
 		<tr>
 			<td  class="adm-detail-valign-top"><span id="address_span"><? 	if($str_PERSON_TYPE == CONTRACTOR_JURIDICAL) echo GetMessage("CONTRACTOR_ADDRESS_JURIDICAL"); else echo GetMessage("CONTRACTOR_ADDRESS"); ?>:</span></td>
 			<td>
-				<textarea cols="35" rows="3" class="typearea" name="ADDRESS" wrap="virtual"><?= $str_ADDRESS ?></textarea>
+				<textarea cols="35" rows="3" class="typearea" name="ADDRESS"><?= $str_ADDRESS ?></textarea>
 			</td>
 		</tr>
 
@@ -330,4 +341,4 @@ $context->Show();
 		?>
 	</form>
 
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");?>
+<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

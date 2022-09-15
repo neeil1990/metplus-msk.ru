@@ -4,11 +4,16 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+/** @var array $arParams */
+/** @var array $arResult */
+
 use \Bitrix\Landing\Manager;
 use \Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 Manager::setPageTitle(Loc::getMessage('LANDING_TPL_TITLE_EDIT'));
+
+\Bitrix\Main\UI\Extension::load('ui.design-tokens');
 $this->addExternalCss('/bitrix/css/main/table/style.css');
 
 if ($arResult['EXTENDED'])
@@ -31,6 +36,8 @@ if ($arResult['EXTENDED'])
 $context = \Bitrix\Main\Application::getInstance()->getContext();
 $request = $context->getRequest();
 $row = $arResult['ROLE'];
+$reverseDefaultCodes = ['admin'];
+$reverseActionsCodes = ['unexportable', 'knowledge_unexportable'];
 
 // show errors
 if ($arResult['ERRORS'])
@@ -48,7 +55,7 @@ if ($arResult['FATAL'])
 }
 
 // function for draw one tr (one site)
-$drawTr = function($siteId, array $selectedId = [], $title = '') use($arResult)
+$drawTr = function($siteId, array $selectedId = [], $title = '') use($arResult, $arParams)
 {
 	static $count = 0;
 
@@ -62,6 +69,10 @@ $drawTr = function($siteId, array $selectedId = [], $title = '') use($arResult)
 	{
 		$code = $right['NAME'];
 		if ($code == $arResult['TASK_DENIED_CODE'])
+		{
+			continue;
+		}
+		if ($code == 'public' && $arParams['TYPE'] == 'KNOWLEDGE')
 		{
 			continue;
 		}
@@ -87,7 +98,7 @@ $drawTr = function($siteId, array $selectedId = [], $title = '') use($arResult)
 				<td class="table-blue-td-select-remove">
 					' . (
 						($i == $count-1 && $siteId > 0)
-						? '<a href="javascript:void(0);" class="landing-rightsblock-remove" data-id="' . $siteId . '">
+						? '<a href="javascript:void(0);" class="landing-rightsblock-remove bitrix24-metrika" data-metrika24="role_site_delete" data-id="' . $siteId . '">
 								' . Loc::getMessage('LANDING_TPL_BUTTON_DEL_RIGHT') . '
 							</a>'
 						: ''
@@ -127,7 +138,7 @@ foreach ($arResult['SITES'] as &$site)
 unset($site);
 ?>
 
-<form action="<?= POST_FORM_ACTION_URI;?>" method="post" class="ui-form ui-form-gray-padding" id="landing-role-edit">
+<form action="<?= POST_FORM_ACTION_URI;?>" method="post" class="ui-form landing-form-gray-padding" id="landing-role-edit">
 	<input type="hidden" name="fields[SAVE_FORM]" value="Y" />
 	<input type="hidden" name="data[id]" value="<?= $arParams['ROLE_ID'];?>" />
 	<?= bitrix_sessid_post();?>
@@ -153,23 +164,35 @@ unset($site);
 		</tr>
 		<?foreach ($arResult['ADDITIONAL'] as $code => $title):
 			$notChecked = ! (
-								!is_array($row['ADDITIONAL_RIGHTS']['CURRENT']) ||
-					   			in_array($code, $row['ADDITIONAL_RIGHTS']['CURRENT'])
-							);
+				!is_array($row['ADDITIONAL_RIGHTS']['CURRENT']) ||
+				in_array($code, $row['ADDITIONAL_RIGHTS']['CURRENT'])
+			);
+			if (!is_array($row['ADDITIONAL_RIGHTS']['CURRENT']) && in_array($code, $reverseDefaultCodes, true))
+			{
+				$notChecked = true;
+			}
 			?>
 			<tr class="tr-first">
 				<td class="table-blue-td-name">
-					<?= Loc::getMessage('LANDING_TPL_ADDITIONAL_ENTITY_' . strtoupper($code));?>
+					<?= Loc::getMessage('LANDING_TPL_ADDITIONAL_ENTITY_'.mb_strtoupper($code));?>
 				</td>
 				<td class="table-blue-td-param">
 					<label for="landing-operation-additional-<?= $code;?>">
-						<?= Loc::getMessage('LANDING_TPL_ADDITIONAL_ACTION_' . strtoupper($code));?>
+						<?= Loc::getMessage('LANDING_TPL_ADDITIONAL_ACTION_'.mb_strtoupper($code));?>
+						<?php if (Loc::getMessage('LANDING_TPL_ADDITIONAL_ACTION_HINT_' . mb_strtoupper($code))): ?>
+							<span data-hint="<?= Loc::getMessage('LANDING_TPL_ADDITIONAL_ACTION_HINT_'.mb_strtoupper($code))?>" class="ui-hint"></span>
+						<?php endif;?>
 					</label>
 				</td>
 				<td class="table-blue-td-select">
-					<select class="table-blue-select" name="fields[ADDITIONAL][]" id="landing-operation-additional-<?= $code;?>">
-						<option value="<?= $code;?>"><?= Loc::getMessage('LANDING_TPL_RIGHT_ALLOW');?></option>
-						<option value=""<?= $notChecked ? ' selected="selected"' : '';?>><?= Loc::getMessage('LANDING_TPL_RIGHT_DISALLOW');?></option>
+					<select class="table-blue-select" name="fields[ADDITIONAL][]" id="landing-operation-additional-<?= $code?>">
+						<?php if (!in_array($code, $reverseActionsCodes, true)) : ?>
+							<option value="<?= $code?>"><?= Loc::getMessage('LANDING_TPL_RIGHT_ALLOW')?></option>
+							<option value=""<?= $notChecked ? ' selected="selected"' : ''?>><?= Loc::getMessage('LANDING_TPL_RIGHT_DISALLOW')?></option>
+						<?php else:?>
+							<option value=""<?= $notChecked ? ' selected="selected"' : ''?>><?= Loc::getMessage('LANDING_TPL_RIGHT_ALLOW')?></option>
+							<option value="<?= $code?>"<?= !$notChecked ? ' selected="selected"' : ''?>><?= Loc::getMessage('LANDING_TPL_RIGHT_DISALLOW')?></option>
+						<?php endif;?>
 					</select>
 				</td>
 			</tr>
@@ -197,7 +220,8 @@ unset($site);
 
 	<?if ($arResult['SITES']):?>
 	<div style="padding: 20px 0 20px 0;">
-		<span class="landing-role-add" <?
+		<span class="landing-role-add bitrix24-metrika" <?
+			?>data-metrika24="role_site_add" <?
 			?>id="landing-role-add" <?
 			?>onclick="showSiteMenu(
 				this,
@@ -215,10 +239,10 @@ unset($site);
 
 	<div class="pinable-block">
 		<div class="landing-form-footer-container">
-			<button id="landing-rights-save" type="submit" class="ui-btn ui-btn-success" name="submit" value="<?= Loc::getMessage('LANDING_TPL_BUTTON_SAVE');?>">
+			<button id="landing-rights-save" type="submit" class="ui-btn ui-btn-success bitrix24-metrika" data-metrika24="role_save" name="submit" value="<?= Loc::getMessage('LANDING_TPL_BUTTON_SAVE');?>">
 				<?= Loc::getMessage('LANDING_TPL_BUTTON_SAVE');?>
 			</button>
-			<a class="ui-btn ui-btn-md ui-btn-link" href="<?= $arParams['PAGE_URL_ROLES'];?>">
+			<a id="landing-rights-cancel" class="ui-btn ui-btn-md ui-btn-link landing-rights-cancel" href="<?= $arParams['PAGE_URL_ROLES'];?>">
 				<?= Loc::getMessage('LANDING_TPL_BUTTON_CANCEL');?>
 			</a>
 		</div>

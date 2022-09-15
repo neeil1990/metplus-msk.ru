@@ -11,6 +11,18 @@ use Bitrix\Translate;
 
 class StringHelper
 {
+	// utf8 https://www.w3.org/International/questions/qa-forms-utf-8.en
+	public const UTF8_REGEXP = '/(?:
+		      [\x09\x0A\x0D\x20-\x7E]            # ASCII
+		    | [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+		    | \xE0[\xA0-\xBF][\x80-\xBF]         # excluding overlongs
+		    | [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
+		    | \xED[\x80-\x9F][\x80-\xBF]         # excluding surrogates
+		    | \xF0[\x90-\xBF][\x80-\xBF]{2}      # planes 1-3
+		    | [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
+		    | \xF4[\x80-\x8F][\x80-\xBF]{2}      # plane 16
+		)+/xs';
+
 	/**
 	 * Special version of strlen.
 	 * @param string $str String to measure.
@@ -28,7 +40,7 @@ class StringHelper
 			return mb_strlen($str, $encoding);
 		}
 
-		return Main\Text\BinaryString::getLength($str);
+		return strlen($str);
 	}
 
 	/**
@@ -50,7 +62,7 @@ class StringHelper
 			return mb_substr($str, $start, $length, $encoding);
 		}
 
-		return Main\Text\BinaryString::getSubstring($str, $start, $length);
+		return substr($str, $start, $length);
 	}
 
 	/**
@@ -72,7 +84,7 @@ class StringHelper
 			return mb_strpos($haystack, $needle, $offset, $encoding);
 		}
 
-		return Main\Text\BinaryString::getPosition($haystack, $needle, $offset);
+		return strpos($haystack, $needle, $offset);
 	}
 
 	/**
@@ -92,7 +104,7 @@ class StringHelper
 			return mb_strtolower($str, $encoding);
 		}
 
-		return strtolower($str);
+		return mb_strtolower($str);
 	}
 
 	/**
@@ -112,7 +124,7 @@ class StringHelper
 			return mb_strtoupper($str, $encoding);
 		}
 
-		return strtoupper($str);
+		return mb_strtoupper($str);
 	}
 
 	/**
@@ -129,5 +141,83 @@ class StringHelper
 			$encoding = Main\Localization\Translation::getCurrentEncoding();
 		}
 		return htmlspecialchars($string, $flags, $encoding, true);
+	}
+
+	/**
+	 * Validates UTF-8 octet sequences:
+	 * 0xxxxxxx
+	 * 110xxxxx 10xxxxxx
+	 * 1110xxxx 10xxxxxx 10xxxxxx
+	 * 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+	 *
+	 * @param string $string
+	 * @return bool
+	 */
+	public static function validateUtf8OctetSequences($string)
+	{
+		return Main\Text\Encoding::detectUtf8($string, false);
+	}
+
+	/**
+	 * Escapes symbols of "'$ in given string.
+	 *
+	 * @param string $str String to escape.
+	 * @param string $enclosure Enclosure symbol " or ' and <<< for heredoc syntax.
+	 * @param string $additional Additional symbols to escape.
+	 *
+	 * @return string
+	 */
+	public static function escapePhp($str, $enclosure = '"', $additional = '')
+	{
+		//Lookaround negative lookbehind (?<!ASD)
+		if ($enclosure === "'")
+		{
+			$str = preg_replace("/((?<![\\\\])['{$additional}]{1})/", "\\\\$1", $str);
+			// \${end of str} -> \\
+			$str = preg_replace("/((?<![\\\\])\\\\)$/", "\\\\$1", $str);
+		}
+		elseif ($enclosure === '"')
+		{
+			// " -> \"
+			$str = preg_replace("/((?<![\\\\])[\"{$additional}]{1})/", "\\\\$1", $str);
+			// $x -> \$x
+			$str = preg_replace("/((?<![\\\\])[\$]{1}\w)/", "\\\\$1", $str);
+			// \${end of str} -> \\
+			$str = preg_replace("/((?<![\\\\])\\\\)$/", "\\\\$1", $str);
+		}
+		elseif ($enclosure === '<<<')
+		{
+			// $x -> \$x
+			$str = preg_replace("/((?<![\\\\])[\$]{1}\w)/", "\\\\$1", $str);
+		}
+
+		return $str;
+	}
+
+	/**
+	 * Removes escape symbols in given string.
+	 *
+	 * @param string $str String to unescape.
+	 * @param string $enclosure Enclosure symbol " or '.
+	 *
+	 * @return string
+	 */
+	public static function unescapePhp($str, $enclosure = '"')
+	{
+		//Lookaround positive lookbehind (?<=ASD)
+		// (?<=[\\]+)['\"\\\$]{1}
+
+		if ($enclosure == "'")
+		{
+			$from = ["\\'"];
+			$to = ["'"];
+		}
+		else
+		{
+			$from = ["\\\$", "\\\""];
+			$to = ["\$", "\""];
+		}
+
+		return str_replace($from, $to, $str);
 	}
 }

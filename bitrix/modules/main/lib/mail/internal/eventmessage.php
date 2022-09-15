@@ -12,6 +12,22 @@ use Bitrix\Main\Orm;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Type as Type;
 
+/**
+ * Class EventMessageTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_EventMessage_Query query()
+ * @method static EO_EventMessage_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_EventMessage_Result getById($id)
+ * @method static EO_EventMessage_Result getList(array $parameters = [])
+ * @method static EO_EventMessage_Entity getEntity()
+ * @method static \Bitrix\Main\Mail\Internal\EO_EventMessage createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\Mail\Internal\EO_EventMessage_Collection createCollection()
+ * @method static \Bitrix\Main\Mail\Internal\EO_EventMessage wakeUpObject($row)
+ * @method static \Bitrix\Main\Mail\Internal\EO_EventMessage_Collection wakeUpCollection($rows)
+ */
 class EventMessageTable extends Entity\DataManager
 {
 	/**
@@ -120,7 +136,7 @@ class EventMessageTable extends Entity\DataManager
 		preg_match_all("/#([0-9a-zA-Z_.]+?)#/", $str, $matchesFindPlaceHolders);
 		$matchesFindPlaceHoldersCount = count($matchesFindPlaceHolders[1]);
 		for($i=0; $i<$matchesFindPlaceHoldersCount; $i++)
-			if(strlen($matchesFindPlaceHolders[1][$i]) > 200)
+			if(mb_strlen($matchesFindPlaceHolders[1][$i]) > 200)
 				unset($matchesFindPlaceHolders[1][$i]);
 
 		if(empty($matchesFindPlaceHolders[1]))
@@ -157,8 +173,8 @@ class EventMessageTable extends Entity\DataManager
 			{
 				$placeHolder = $tag[0];
 				$placeHolderPosition = $tag[1];
-				$ch1 = substr($placeHolder, 0, 1);
-				$ch2 = substr($placeHolder, 0, 2);
+				$ch1 = mb_substr($placeHolder, 0, 1);
+				$ch2 = mb_substr($placeHolder, 0, 2);
 
 				if($ch2 == "<?")
 					$bOpenPhpTag = true;
@@ -166,10 +182,10 @@ class EventMessageTable extends Entity\DataManager
 					$bOpenPhpTag = false;
 				elseif($ch1 == "#")
 				{
-					$placeHolderClear = substr($placeHolder, 1, strlen($placeHolder)-2);
+					$placeHolderClear = mb_substr($placeHolder, 1, mb_strlen($placeHolder) - 2);
 
-					$bOpenQuote = (substr($str, $placeHolderPosition-2, 2) == '"{');
-					$bCloseQuote = (substr($str, $placeHolderPosition+strlen($placeHolder), 2) == '}"');
+					$bOpenQuote = (mb_substr($str, $placeHolderPosition - 2, 2) == '"{');
+					$bCloseQuote = (mb_substr($str, $placeHolderPosition + mb_strlen($placeHolder), 2) == '}"');
 					if($bOpenPhpTag && $bOpenQuote && $bCloseQuote)
 						$replaceTo = '$arParams[\''.$placeHolderClear.'\']';
 					else

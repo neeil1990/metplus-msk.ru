@@ -1,14 +1,21 @@
 .landing-menu-add {
 	position: absolute;
+	left: 0;
+	right: 0;
 	bottom: 0;
 	padding-top: 10px;
-	padding-bottom: 20px;
-	padding-left: 20px;
-	padding-right: 20px;
+	padding-bottom: 10px;
+	padding-left: 30px;
+	padding-right: 30px;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	flex-direction: column;
+}
+
+.landing-menu-add-with-background {
+	background: rgba(255, 255, 255, .2);
+	padding-right: 60px;
 }
 
 .landing-menu-add-field {
@@ -34,15 +41,36 @@
 	width: 100%;
 }
 
-.landing-menu-add-field-clear {
+.landing-menu-add-field-close {
 	background: url('../images/remove-icon.svg') center center no-repeat;
-	width: 26px;
+	width: 22px;
 	height: 26px;
 	position: absolute;
 	top: 50%;
-	right: 10px;
+	right: -49px;
 	margin-top: -14px;
 	cursor: pointer;
+	transition: all 200ms ease;
+}
+
+.landing-menu-add-field-close:hover {
+	background-image: url("../images/remove-icon-hover.svg");
+}
+
+.landing-menu-add-field-apply {
+	background: url('../images/apply-icon.svg') center center no-repeat;
+	width: 22px;
+	height: 26px;
+	position: absolute;
+	top: 50%;
+	right: -27px;
+	margin-top: -14px;
+	cursor: pointer;
+	transition: all 200ms ease;
+}
+
+.landing-menu-add-field-apply:hover {
+	background-image: url("../images/apply-icon-hover.svg");
 }
 
 .landing-ui-menu-add-button {
@@ -60,6 +88,6 @@
 	}
 
 	body .landing-menu-root-list-with-field {
-		margin-bottom: 128px!important;
+		margin-bottom: 90px!important;
 	}
 }

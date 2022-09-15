@@ -42,7 +42,7 @@ class CSaleGiftProductComponent extends CCatalogViewedProductsComponent
 	protected function initGiftManager()
 	{
 		global $USER;
-		$userId = $USER instanceof CAllUser? $USER->getId() : null;
+		$userId = $USER instanceof CUser? $USER->getId() : null;
 		$this->giftManager = \Bitrix\Sale\Discount\Gift\Manager::getInstance()->setUserId($userId);
 	}
 
@@ -125,7 +125,7 @@ class CSaleGiftProductComponent extends CCatalogViewedProductsComponent
 			$urlTemplate,
 			array($this->arParams['PRODUCT_ID_VARIABLE'], $this->arParams['ACTION_VARIABLE'], '')
 		);
-		$this->arParams[$keyTemplate] .= (stripos($this->arParams[$keyTemplate], '?') === false ? '?' : '&');
+		$this->arParams[$keyTemplate] .= (mb_stripos($this->arParams[$keyTemplate], '?') === false ? '?' : '&');
 
 		$this->urlTemplates['~' . $keyTemplate] = $this->arParams[$keyTemplate].$this->arParams['ACTION_VARIABLE'].'='.self::ACTION_BUY.'&'.$this->arParams['PRODUCT_ID_VARIABLE'].'=';
 		$this->urlTemplates[$keyTemplate] = htmlspecialcharsbx($this->urlTemplates['~' . $keyTemplate]);

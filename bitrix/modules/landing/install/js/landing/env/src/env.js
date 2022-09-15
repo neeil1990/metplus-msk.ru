@@ -4,6 +4,9 @@ import type {EnvOptions} from './types/env.options.types';
 
 const optionsKey = Symbol('options');
 
+/**
+ * @memberOf BX.Landing
+ */
 export class Env
 {
 	static instance = null;
@@ -36,6 +39,11 @@ export class Env
 	getOptions(): EnvOptions
 	{
 		return {...this[optionsKey]};
+	}
+
+	setOptions(options: {[key: string]: any})
+	{
+		this[optionsKey] = Runtime.merge(this[optionsKey], options);
 	}
 
 	getType(): string

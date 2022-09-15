@@ -41,8 +41,8 @@ $filterFields = array(
 	array(
 		"id" => "NAME",
 		"name" => GetMessage("IBP_ADM_NAME"),
-		"filterable" => "?",
-		"quickSearch" => "",
+		"filterable" => "",
+		"quickSearch" => "?",
 		"default" => true
 	),
 	array(
@@ -119,7 +119,7 @@ $arFilter = array("=IBLOCK_ID" => $arIBlock["ID"]);
 $lAdmin->AddFilter($filterFields, $arFilter);
 
 foreach($arFilter as $key => $value)
-	if(!strlen(trim($value)))
+	if(trim($value) == '')
 		unset($arFilter[$key]);
 if (isset($arFilter['=PROPERTY_TYPE']))
 {
@@ -131,7 +131,7 @@ if (isset($arFilter['=PROPERTY_TYPE']))
 
 if($lAdmin->EditAction())
 {
-	foreach($FIELDS as $ID => $arFields)
+	foreach($_REQUEST['FIELDS'] as $ID => $arFields)
 	{
 		$DB->StartTransaction();
 		$ID = (int)$ID;
@@ -171,14 +171,24 @@ if($arID = $lAdmin->GroupAction())
 
 	foreach($arID as $ID)
 	{
-		if(strlen($ID)<=0)
+		if($ID == '')
 			continue;
 
 		switch($_REQUEST['action'])
 		{
 		case "delete":
 			if(!CIBlockProperty::Delete($ID))
-				$lAdmin->AddGroupError(GetMessage("IBP_ADM_DELETE_ERROR"), $ID);
+			{
+				$exception = $APPLICATION->getException();
+				if ($exception)
+				{
+					$lAdmin->AddGroupError($exception->GetString(), $ID);
+				}
+				else
+				{
+					$lAdmin->AddGroupError(GetMessage("IBP_ADM_DELETE_ERROR"), $ID);
+				}
+			}
 			break;
 		case "activate":
 		case "deactivate":
@@ -303,7 +313,7 @@ $propertyOrder = array();
 if ($by == 'PROPERTY_TYPE')
 	$propertyOrder = array('PROPERTY_TYPE' => $order, 'USER_TYPE' => $order);
 else
-	$propertyOrder = array(strtoupper($by) => strtoupper($order));
+	$propertyOrder = array(mb_strtoupper($by) => mb_strtoupper($order));
 if (!isset($propertyOrder['ID']))
 	$propertyOrder['ID'] = 'ASC';
 

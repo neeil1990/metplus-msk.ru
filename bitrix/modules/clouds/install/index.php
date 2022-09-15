@@ -12,13 +12,11 @@ Class clouds extends CModule
 	var $MODULE_CSS;
 	var $MODULE_GROUP_RIGHTS = "Y";
 
-	function clouds()
+	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		$path = str_replace("\\", "/", __FILE__);
-		$path = substr($path, 0, strlen($path) - strlen("/index.php"));
-		include($path."/version.php");
+		include(__DIR__.'/version.php');
 
 		$this->MODULE_VERSION = $arModuleVersion["VERSION"];
 		$this->MODULE_VERSION_DATE = $arModuleVersion["VERSION_DATE"];
@@ -65,13 +63,13 @@ Class clouds extends CModule
 
 	function InstallDB($arParams = array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		$this->errors = false;
 
 		// Database tables creation
 		if(!$DB->Query("SELECT 'x' FROM b_clouds_file_bucket WHERE 1=0", true))
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/clouds/install/db/".strtolower($DB->type)."/install.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/clouds/install/db/mysql/install.sql");
 		}
 
 
@@ -94,10 +92,11 @@ Class clouds extends CModule
 			RegisterModuleDependences("main", "OnAfterFileSave", "clouds", "CCloudStorage", "OnAfterFileSave");
 			RegisterModuleDependences("main", "OnGetFileSRC", "clouds", "CCloudStorage", "OnGetFileSRC");
 			RegisterModuleDependences("main", "OnFileCopy", "clouds", "CCloudStorage", "OnFileCopy");
-			RegisterModuleDependences("main", "OnFileDelete", "clouds", "CCloudStorage", "OnFileDelete");
+			RegisterModuleDependences("main", "OnPhysicalFileDelete", "clouds", "CCloudStorage", "OnFileDelete");
 			RegisterModuleDependences("main", "OnMakeFileArray", "clouds", "CCloudStorage", "OnMakeFileArray");
 			RegisterModuleDependences("main", "OnBeforeResizeImage", "clouds", "CCloudStorage", "OnBeforeResizeImage");
 			RegisterModuleDependences("main", "OnAfterResizeImage", "clouds", "CCloudStorage", "OnAfterResizeImage");
+			RegisterModuleDependences("main", "OnAfterFileDeleteDuplicate", "clouds", "CCloudStorage", "OnAfterFileDeleteDuplicate");
 			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_AmazonS3", "GetObjectInstance");
 			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_GoogleStorage", "GetObjectInstance");
 			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_OpenStackStorage", "GetObjectInstance");
@@ -106,6 +105,7 @@ Class clouds extends CModule
 			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_Selectel", "GetObjectInstance");
 			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_HotBox", "GetObjectInstance");
 			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_Yandex", "GetObjectInstance");
+			RegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_S3", "GetObjectInstance");
 			RegisterModuleDependences("perfmon", "OnGetTableSchema", "clouds", "clouds", "OnGetTableSchema");
 
 			//agents
@@ -124,12 +124,12 @@ Class clouds extends CModule
 
 	function UnInstallDB($arParams = array())
 	{
-		global $DB, $DBType, $APPLICATION;
+		global $DB, $APPLICATION;
 		$this->errors = false;
 
 		if(!array_key_exists("save_tables", $arParams) || $arParams["save_tables"] != "Y")
 		{
-			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/clouds/install/db/".strtolower($DB->type)."/uninstall.sql");
+			$this->errors = $DB->RunSQLBatch($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/clouds/install/db/mysql/uninstall.sql");
 			$this->UnInstallTasks();
 		}
 
@@ -141,10 +141,11 @@ Class clouds extends CModule
 		UnRegisterModuleDependences("main", "OnAfterFileSave", "clouds", "CCloudStorage", "OnAfterFileSave");
 		UnRegisterModuleDependences("main", "OnGetFileSRC", "clouds", "CCloudStorage", "OnGetFileSRC");
 		UnRegisterModuleDependences("main", "OnFileCopy", "clouds", "CCloudStorage", "OnFileCopy");
-		UnRegisterModuleDependences("main", "OnFileDelete", "clouds", "CCloudStorage", "OnFileDelete");
+		UnRegisterModuleDependences("main", "OnPhysicalFileDelete", "clouds", "CCloudStorage", "OnFileDelete");
 		UnRegisterModuleDependences("main", "OnMakeFileArray", "clouds", "CCloudStorage", "OnMakeFileArray");
 		UnRegisterModuleDependences("main", "OnBeforeResizeImage", "clouds", "CCloudStorage", "OnBeforeResizeImage");
 		UnRegisterModuleDependences("main", "OnAfterResizeImage", "clouds", "CCloudStorage", "OnAfterResizeImage");
+		UnRegisterModuleDependences("main", "OnAfterFileDeleteDuplicate", "clouds", "CCloudStorage", "OnAfterFileDeleteDuplicate");
 		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_AmazonS3", "GetObjectInstance");
 		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_GoogleStorage", "GetObjectInstance");
 		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_OpenStackStorage", "GetObjectInstance");
@@ -153,6 +154,7 @@ Class clouds extends CModule
 		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_Selectel", "GetObjectInstance");
 		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_HotBox", "GetObjectInstance");
 		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_Yandex", "GetObjectInstance");
+		UnRegisterModuleDependences("clouds", "OnGetStorageService", "clouds", "CCloudStorageService_S3", "GetObjectInstance");
 		UnRegisterModuleDependences("perfmon", "OnGetTableSchema", "clouds", "clouds", "OnGetTableSchema");
 
 		//agents
@@ -170,6 +172,33 @@ Class clouds extends CModule
 		}
 
 		return true;
+	}
+
+	function migrateToBox()
+	{
+		global $DB, $CACHE_MANAGER;
+
+		// Delete delayed resize
+		COption::RemoveOption("clouds", "delayed_resize");
+		$DB->Query("DELETE FROM b_clouds_file_resize");
+		// Cancel any backup sync jobs
+		$DB->Query("DELETE FROM b_clouds_copy_queue");
+		$DB->Query("DELETE FROM b_clouds_delete_queue");
+		// Cancel all multipart uploads in progress
+		$DB->Query("DELETE FROM b_clouds_file_upload");
+		// Remove file upload in progress info
+		$DB->Query("DELETE FROM b_clouds_file_save");
+		// Cleanup obsolete hash info
+		$DB->Query("DELETE FROM b_clouds_file_hash");
+
+		// Remove any cloud storage defined
+		$DB->Query("DELETE FROM b_clouds_file_bucket");
+		$CACHE_MANAGER->CleanDir("b_clouds_file_bucket");
+		$DB->Query("UPDATE b_file SET HANDLER_ID=NULL WHERE HANDLER_ID is not null");
+
+		// B24 cloud specific info
+		COption::RemoveOption("clouds", "ISSUE_TIME");
+		COption::RemoveOption("clouds", "master_bucket");
 	}
 
 	function InstallEvents()
@@ -207,7 +236,7 @@ Class clouds extends CModule
 		global $DB, $APPLICATION, $step, $USER;
 		if($USER->IsAdmin())
 		{
-			$step = IntVal($step);
+			$step = intval($step);
 			if($step < 2)
 			{
 				$APPLICATION->IncludeAdminFile(GetMessage("CLO_INSTALL_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/clouds/install/step1.php");
@@ -229,7 +258,7 @@ Class clouds extends CModule
 		global $DB, $APPLICATION, $step, $USER;
 		if($USER->IsAdmin())
 		{
-			$step = IntVal($step);
+			$step = intval($step);
 			if($step < 2)
 			{
 				$APPLICATION->IncludeAdminFile(GetMessage("CLO_UNINSTALL_TITLE"), $_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/clouds/install/unstep1.php");
@@ -246,7 +275,7 @@ Class clouds extends CModule
 		}
 	}
 
-	function OnGetTableSchema()
+	public static function OnGetTableSchema()
 	{
 		return array(
 			"clouds" => array(
@@ -255,9 +284,10 @@ Class clouds extends CModule
 						"b_clouds_file_bucket" => "FAILOVER_BUCKET_ID",
 						"b_clouds_file_upload" => "BUCKET_ID",
 						"b_clouds_copy_queue" => "SOURCE_BUCKET_ID",
-						"b_clouds_copy_queue" => "TARGET_BUCKET_ID",
+						"b_clouds_copy_queue^" => "TARGET_BUCKET_ID",
 						"b_clouds_delete_queue" => "BUCKET_ID",
 						"b_clouds_rename_queue" => "BUCKET_ID",
+						"b_clouds_file_save" => "BUCKET_ID",
 					)
 				),
 			),

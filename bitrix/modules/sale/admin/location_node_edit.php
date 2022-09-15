@@ -60,7 +60,7 @@ try
 
 	$formSubmitted = ($actionSave || $actionApply || $actionSaveAndAdd) && check_bitrix_sessid();
 
-	$returnUrl = strlen($_REQUEST['return_url']) ? $_REQUEST['return_url'] : '0';
+	$returnUrl = $_REQUEST['return_url'] <> ''? $_REQUEST['return_url'] : '0';
 
 	if($userIsAdmin && !empty($_REQUEST['element']) && $formSubmitted) // form submitted, handling it
 	{
@@ -142,7 +142,7 @@ try
 			$code = $e->getCode();
 			$message = $e->getMessage().(!empty($code) ? ' ('.$code.')' : '');
 
-			$actionFailureMessage = Loc::getMessage('SALE_LOCATION_E_CANNOT_'.($saveAsId ? 'UPDATE' : 'SAVE').'_ITEM').(strlen($message) ? ': <br /><br />'.$message : '');
+			$actionFailureMessage = Loc::getMessage('SALE_LOCATION_E_CANNOT_'.($saveAsId ? 'UPDATE' : 'SAVE').'_ITEM').($message <> ''? ': <br /><br />'.$message : '');
 
 			$DB->Rollback();
 
@@ -172,7 +172,7 @@ try
 		{
 			foreach($formData['EXTERNAL'] as $eId => $external)
 			{
-				if(!strlen($external['XML_ID']))
+				if($external['XML_ID'] == '')
 					unset($formData['EXTERNAL'][$eId]);
 			}
 		}
@@ -187,7 +187,7 @@ try
 			if($readAsId)
 			{
 				$langU = ToUpper(LANGUAGE_ID);
-				$nameToDisplay = strlen($formData['NAME_'.$langU]) ? $formData['NAME_'.$langU] : $formData['CODE'];
+				$nameToDisplay = $formData['NAME_'.$langU] <> ''? $formData['NAME_'.$langU] : $formData['CODE'];
 			}
 		}
 		else
@@ -238,15 +238,15 @@ if(!$fatalFailure) // no fatals like "module not installed, etc."
 	$tabControl->BeginEpilogContent();
 
 	?>
-	<?if(strlen($_REQUEST['return_url'])):?>
-		<input type="hidden" name="return_url" value="<?=htmlspecialcharsbx($returnUrl)?>">
-	<?endif?>
+	<? if($_REQUEST['return_url'] <> ''):?>
+	<input type="hidden" name="return_url" value="<?= htmlspecialcharsbx($returnUrl) ?>">
+<?endif?>
 	<?=bitrix_sessid_post()?>
 	<?
 	$tabControl->EndEpilogContent();
 }
 
-$APPLICATION->SetTitle(strlen($nameToDisplay) ? Loc::getMessage('SALE_LOCATION_E_ITEM_EDIT', array('#ITEM_NAME#' => $nameToDisplay)) : Loc::getMessage('SALE_LOCATION_E_ITEM_NEW'));
+$APPLICATION->SetTitle($nameToDisplay <> ''? Loc::getMessage('SALE_LOCATION_E_ITEM_EDIT', array('#ITEM_NAME#' => $nameToDisplay)) : Loc::getMessage('SALE_LOCATION_E_ITEM_NEW'));
 ?>
 
 <?require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");?>
@@ -391,7 +391,11 @@ $APPLICATION->SetTitle(strlen($nameToDisplay) ? Loc::getMessage('SALE_LOCATION_E
 	<?$tabControl->BeginNextFormTab();?>
 	<?$tabControl->BeginCustomField('EXTERNAL', Loc::getMessage('SALE_LOCATION_E_HEADING_EXTERNAL'));?>
 
-		<?$services = Helper::getExternalServicesList();?>
+		<?
+		$services = Helper::getExternalServicesList();
+		$yandexMarketEsId = Helper::getYandexMarketExternalServiceId();
+		$isUaPortal = (Bitrix\Sale\Delivery\Helper::getPortalZone() === 'ua');
+		?>
 		<tr>
 			<td>
 
@@ -416,14 +420,28 @@ $APPLICATION->SetTitle(strlen($nameToDisplay) ? Loc::getMessage('SALE_LOCATION_E
 
 								<?if(is_array($formData['EXTERNAL']) && !empty($formData['EXTERNAL'])):?>
 
-									<?foreach($formData['EXTERNAL'] as $id => $ext):?>
-										<tr>
+									<?foreach($formData['EXTERNAL'] as $id => $ext):
+										$isYandexMarketOnUaPortal = (
+											$isUaPortal
+											&& (int)$ext['SERVICE_ID'] === $yandexMarketEsId
+										);
+									?>
+										<tr style="<?=($isYandexMarketOnUaPortal ? 'visibility:hidden; position:absolute;' : '')?>;">
 											<?foreach($externalMap as $code => $field):?>
 												<?$value = Helper::makeSafeDisplay($ext[$code], $code);?>
 												<td>
 													<?if($code == 'SERVICE_ID'):?>
 														<select name="element[EXTERNAL][<?=$ext['ID']?>][<?=$code?>]">
-															<?foreach($services as $sId => $serv):?>
+															<?foreach($services as $sId => $serv):
+																if (
+																	$isUaPortal
+																	&& !$isYandexMarketOnUaPortal
+																	&& (int)$serv['ID'] === $yandexMarketEsId
+																)
+																{
+																	continue;
+																}
+															?>
 																<option value="<?=intval($serv['ID'])?>"<?=($serv['ID'] == $value ? ' selected' : '')?>><?=htmlspecialcharsbx($serv['CODE'])?></option>
 															<?endforeach?>
 														</select>
@@ -452,7 +470,12 @@ $APPLICATION->SetTitle(strlen($nameToDisplay) ? Loc::getMessage('SALE_LOCATION_E
 										<td></td>
 										<td>
 											<select name="element[EXTERNAL][n{{column_id}}][SERVICE_ID]">
-												<?foreach($services as $sId => $serv):?>
+												<?foreach($services as $sId => $serv):
+													if ($isUaPortal && (int)$serv['ID'] === $yandexMarketEsId)
+													{
+														continue;
+													}
+												?>
 													<option value="<?=intval($serv['ID'])?>"><?=htmlspecialcharsbx($serv['CODE'])?></option>
 												<?endforeach?>
 											</select>

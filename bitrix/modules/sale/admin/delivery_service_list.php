@@ -18,7 +18,7 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/prolog.php");
 
 \Bitrix\Main\Page\Asset::getInstance()->addJs("/bitrix/js/sale/delivery.js");
 $sTableID = "tbl_sale_delivery_list";
-$oSort = new CAdminSorting($sTableID, "ID", "asc");
+$oSort = new CAdminUiSorting($sTableID, "ID", "asc");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
 $adminNotes = array();
 
@@ -146,7 +146,7 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 			'select' => array("ID")
 		);
 
-		if(strlen($by) > 0 && strlen($order) > 0)
+		if($by <> '' && $order <> '')
 			$params['order'] = array($by => $order);
 
 		$dbResultList = \Bitrix\Sale\Delivery\Services\Table::getList($params);
@@ -157,7 +157,7 @@ if (($arID = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 
 	foreach ($arID as $ID)
 	{
-		if (strlen($ID) <= 0)
+		if ($ID == '')
 			continue;
 
 		switch ($_REQUEST['action'])
@@ -228,7 +228,7 @@ if(\Bitrix\Main\Loader::includeModule('catalog'))
 }
 
 $siteId = "";
-if (strlen($filter["LID"]) > 0)
+if ($filter["LID"] <> '')
 {
 	$siteId = $filter["LID"];
 	unset($filter["LID"]);
@@ -278,9 +278,10 @@ if (in_array('SITES', $arVisibleColumns))
 $backUrl = urlencode($APPLICATION->GetCurPageParam("", array("mode", "internal", "grid_id", "grid_action", "bxajaxid", "sessid"))); //todo replace to $lAdmin->getCurPageParam()
 $dbResultList = \Bitrix\Sale\Delivery\Services\Table::getList($glParams);
 
+$result = [];
 while ($service = $dbResultList->fetch())
 {
-	if(strlen($siteId) > 0)
+	if($siteId <> '')
 	{
 		$dbRestriction = \Bitrix\Sale\Internals\ServiceRestrictionTable::getList(array(
 			'filter' => array(
@@ -341,7 +342,11 @@ while ($service = $dbResultList->NavNext(false))
 
 	$logoHtml = intval($service["LOGOTIP"]) > 0 ? CFile::ShowImage(CFile::GetFileArray($service["LOGOTIP"]), 150, 150, "border=0", "", false) : "";
 	$row->AddField("LOGOTIP", $logoHtml);
-	$row->AddField("DESCRIPTION", $service["DESCRIPTION"], false, true);
+
+	$sanitizer = new CBXSanitizer();
+	$sanitizer->SetLevel(\CBXSanitizer::SECURE_LEVEL_LOW);
+	$description = $sanitizer->SanitizeHtml($service["DESCRIPTION"]);
+	$row->AddField("DESCRIPTION", $description, false, true);
 	$row->AddField("SORT", $service["SORT"]);
 	$row->AddField("ACTIVE", (($service["ACTIVE"]=="Y") ? Loc::getMessage("SALE_SDL_YES") : Loc::getMessage("SALE_SDL_NO")));
 	$row->AddField("ALLOW_EDIT_SHIPMENT", (($service["ALLOW_EDIT_SHIPMENT"]=="Y") ? Loc::getMessage("SALE_SDL_YES") : Loc::getMessage("SALE_SDL_NO")));
@@ -353,7 +358,7 @@ while ($service = $dbResultList->NavNext(false))
 		foreach($service["SITES"]['SITE_ID'] as $lid)
 			$sites .= $sitesList[$lid]." (".$lid.")<br>";
 
-	$row->AddField("SITES", strlen($sites) > 0 ? $sites : Loc::getMessage('SALE_SDL_ALL'));
+	$row->AddField("SITES", $sites <> '' ? $sites : Loc::getMessage('SALE_SDL_ALL'));
 	$row->AddField("VAT_ID", isset($vatList[$service["VAT_ID"]]) ? $vatList[$service["VAT_ID"]] : $vatList[0]);
 
 	$groupNameHtml = "";
@@ -464,6 +469,13 @@ if ($saleModulePermissions == "W")
 
 			$supportedServices = $class::getSupportedServicesList();
 
+			$restServices = [];
+			$isRest = ($class === "\\".\Sale\Handlers\Delivery\RestHandler::class);
+			if ($isRest)
+			{
+				$restServices = \Bitrix\Sale\Delivery\Services\Manager::getRestHandlerList();
+			}
+
 			if(is_array($supportedServices) && !empty($supportedServices))
 			{
 				if(!empty($supportedServices['ERRORS']) && is_array($supportedServices['ERRORS']))
@@ -496,8 +508,26 @@ if ($saleModulePermissions == "W")
 					}
 				}
 			}
+			elseif ($restServices)
+			{
+				foreach ($restServices as $restService)
+				{
+					$editUrl = $selfFolderUrl."sale_delivery_service_edit.php?lang=".LANGUAGE_ID."&PARENT_ID=".(intval($filter["=PARENT_ID"]) > 0 ? $filter["=PARENT_ID"] : 0).
+						"&CLASS_NAME=".urlencode($class)."&REST_CODE=".$restService['CODE']."&back_url=".$backUrl;
+					$editUrl = $adminSidePanelHelper->editUrlToPublicPage($editUrl);
+					$menu[] = array(
+							"TEXT" => $restService["NAME"],
+							"LINK" => $editUrl
+					);
+				}
+			}
 			else
 			{
+				if ($isRest)
+				{
+					continue;
+				}
+
 				$editUrl = $selfFolderUrl."sale_delivery_service_edit.php?lang=".LANGUAGE_ID."&PARENT_ID=".(intval($filter["=PARENT_ID"]) > 0 ? $filter["=PARENT_ID"] : 0).
 					"&CLASS_NAME=".urlencode($class)."&back_url=".$backUrl;
 				$menu[] = array(

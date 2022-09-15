@@ -2,14 +2,13 @@
 
 namespace Bitrix\Landing\Assets;
 
+use Bitrix\Landing\Landing;
 use Bitrix\Main;
-use Bitrix\Main\Web\WebPacker;
 
 class WebpackBuilder extends Builder
 {
-	const PACKAGE_NAME_SUFFIX = '_webpack';
-	const PACKAGE_CRITICAL_NAME = 'landing_grid';
-	
+	protected const PACKAGE_CRITICAL_NAME = 'landing_grid';
+
 	/**
 	 * @var ResourceCollection
 	 */
@@ -18,117 +17,137 @@ class WebpackBuilder extends Builder
 	 * @var array
 	 */
 	protected $normalizedCriticalResources = [];
+
 	/**
-	 * @var WebPacker\FileController
+	 * @var WebpackFile
 	 */
-	protected $fileController;
+	protected $webpackFile;
+
 	/**
-	 * @var WebPacker\Package
+	 * WebpackBuilder constructor.
+	 * @param ResourceCollection $resources
+	 * @throws Main\ArgumentTypeException
 	 */
-	protected $package;
-	
-	public function __construct($resources)
+	public function __construct(ResourceCollection $resources)
 	{
 		parent::__construct($resources);
 		$this->criticalResources = new ResourceCollection();
-		$this->package = new WebPacker\Resource\Package();
-		$this->fileController = new WebPacker\FileController();
 	}
-	
+
 	/**
-	 * Add assets output at the page
+	 * Sorting resources by location, find critical resources
 	 */
-	public function setOutput()
-	{
-		if($this->resources->isEmpty())
-		{
-			return;
-		}
-		
-		$this->normalizeResources();
-		$this->setCriticalOutput();
-		
-		$this->fillPackageWithResources();
-		$this->buildFileOfPackage();
-		$this->setBaseOutput();
-		
-		$this->setStrings();
-	}
-	
-	protected function normalizeResources()
+	protected function normalizeResources(): void
 	{
 		$this->normalizeCriticalResources();
 		$this->normalizeBaseResources();
 	}
-	
+
 	// todo: normalize lang in critical (like standartbuilder)
-	protected function normalizeCriticalResources()
+	protected function normalizeCriticalResources(): void
 	{
-		$this->criticalResources = $this->resources->getSliceByFilter(
-			ResourceCollection::KEY_LOCATION, Location::LOCATION_BEFORE_ALL
-		);
+		$this->criticalResources = $this->resources->getSliceByLocation(Location::LOCATION_BEFORE_ALL);
 		$this->normalizedCriticalResources = $this->criticalResources->getNormalized();
 	}
-	
-	protected function normalizeBaseResources()
+
+	protected function normalizeBaseResources(): void
 	{
 		$this->resources->remove($this->criticalResources->getPathes());
 		$this->normalizedResources = $this->resources->getNormalized();
 	}
-	
-	protected function setCriticalOutput()
+
+	/**
+	 * Add assets output at the page
+	 */
+	public function setOutput(): void
 	{
-		$this->initResourcesAsJsExtension($this->normalizedCriticalResources, self::PACKAGE_CRITICAL_NAME);
+		if ($this->resources->isEmpty())
+		{
+			return;
+		}
+
+		$this->normalizeResources();
+
+		$this->buildFile();
+
+		$this->setCriticalOutput();
+		$this->setBaseOutput();
+		$this->setStrings();
 	}
-	
-	protected function fillPackageWithResources()
+
+	/**
+	 * Create and configure webpack file. Get exist or create new.
+	 */
+	protected function buildFile(): void
+	{
+		$this->webpackFile = new WebpackFile();
+		$this->webpackFile->setLandingId($this->landingId);
+		$this->webpackFile->setPackageHash($this->createPackageHash());
+
+		$this->fillPackageWithResources();
+
+		$this->webpackFile->build();
+	}
+
+	/**
+	 * Put added resources to webpack file
+	 */
+	protected function fillPackageWithResources(): void
 	{
 		foreach (Types::getAssetTypes() as $type)
 		{
 			if (array_key_exists($type, $this->normalizedResources))
 			{
+				if($type === Types::TYPE_LANG)
+				{
+					$this->webpackFile->setUseLang();
+				}
 				foreach ($this->normalizedResources[$type] as $resource)
 				{
-					$this->package->addAsset(WebPacker\Resource\Asset::create($resource));
+					$this->webpackFile->addResource($resource);
 				}
 			}
 		}
 	}
-	
-	protected function buildFileOfPackage()
-	{
-//		dbg: speed: cache
-		$this->fileController->addExtension('ui.webpacker');    // need core ext always
-		$this->fileController->addModule(new WebPacker\Module(self::PACKAGE_NAME, $this->package));
-		$this->fileController->configureFile(
-			'',
-			self::MODULE_ID,
-			self::FOLDER_NAME,
-			$this->createUniqueName()
-		)->build();
-	}
-	
+
 	/**
-	 * Create unique name for currently asset set (with hash)
+	 * Init critical resources like JS-extension. Need for primarily added on page
+	 */
+	protected function setCriticalOutput(): void
+	{
+		$this->initResourcesAsJsExtension($this->normalizedCriticalResources, self::PACKAGE_CRITICAL_NAME);
+	}
+
+	/**
+	 * Init base resources like webpack load script
+	 */
+	protected function setBaseOutput(): void
+	{
+		Main\Page\Asset::getInstance()->addString($this->webpackFile->getOutput());
+	}
+
+	/**
+	 * Create unique name for currently landing, assets set, version and view mode.
 	 * @return string
 	 */
-	protected function createUniqueName()
+	protected function createPackageHash(): string
 	{
 		// List can be different with equal assets, because is depends on the order of adding assets. Unique and sort them!
 		$list = [];
-		foreach($this->normalizedResources as $type => $resources)
+		foreach ($this->normalizedResources as $type => $resources)
 		{
-			$list = array_merge($list, $resources);
+			foreach ($resources as $resource)
+			{
+				$list[] = $resource;
+			}
 		}
 		$list = array_unique($list);
 		sort($list);
-		
-		return self::PACKAGE_NAME . self::PACKAGE_NAME_SUFFIX . '_' . md5(serialize($list)) . '.js';
-	}
-	
-	protected function setBaseOutput()
-	{
-		$outString = $this->fileController->getLoader()->getString();
-		Main\Page\Asset::getInstance()->addString($outString);
+
+		$list[] = 'version_' . Main\ModuleManager::getVersion('landing');
+		$list[] = 'lid_' . $this->landingId;
+		$list[] = Landing::getPreviewMode() ? 'previewMode' : 'publicMode';
+
+		return substr(md5(serialize($list)), 0, 10);
 	}
 }

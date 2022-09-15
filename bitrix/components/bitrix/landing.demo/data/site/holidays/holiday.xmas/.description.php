@@ -6,8 +6,6 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 
 use \Bitrix\Main\Localization\Loc;
 
-$buttons = \Bitrix\Landing\Hook\Page\B24button::getButtons();
-$buttons = array_keys($buttons);
 
 return array(
 	'name' => Loc::getMessage("LANDING_DEMO___XMAS-TITLE"),
@@ -18,14 +16,16 @@ return array(
 	'preview_url' => '',
 	'show_in_list' => 'Y',
 	'version' => 2,
-	'sort' => \LandingSiteDemoComponent::checkActivePeriod(12,1,12,25) ? 21 : -191,
 	'fields' => array(
 		'ADDITIONAL_FIELDS' => array(
 			'VIEW_USE' => 'N',
 			'VIEW_TYPE' => 'no',
 			'UP_SHOW' => 'Y',
 			'THEME_CODE' => 'travel',
-			'THEME_CODE_TYPO' => 'travel',
+			'THEMEFONTS_CODE' => 'Montserrat',
+			'THEMEFONTS_CODE_H' => 'Alegreya Sans',
+			'THEMEFONTS_SIZE' => '1',
+			'THEMEFONTS_USE' => 'Y',
 			'COPYRIGHT_SHOW' => 'Y',
 			'B24BUTTON_COLOR' => 'site',
 			'GMAP_USE' => 'N',

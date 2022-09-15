@@ -5087,29 +5087,27 @@ a.dashed-link:hover { text-decoration: none; }
 }
 
 .adm-bus-orderinfoblock-content-customer-info li {
+	display: flex;
+	align-items: stretch;
 	position: relative;
-	height: 22px;
-	border-bottom: 1px dotted #cfd5b0;
+	min-height: 22px;
+	/*height: 22px;*/
+	/*border-bottom: 1px dotted #cfd5b0;*/
 }
 
 .adm-bus-orderinfoblock-content-customer-info-param {
 	font-size: 13px;
-	position: absolute;
-	bottom: -1px;
-	left: 0;
+}
+
+.adm-bus-orderinfoblock-content-customer-info-separator {
+	flex-grow: 1;
 	height: 15px;
-	padding-right: 10px;
-	background: #fbfae2;
+	border-bottom: 1px dotted #cfd5b0;
 }
 
 .adm-bus-orderinfoblock-content-customer-info-value {
 	font-size: 13px;
-	position: absolute;
-	right: 0;
-	bottom: -1px;
-	height: 15px;
-	padding-left: 10px;
-	background: #fbfae2;
+	text-align: right;
 }
 
 .adm-bus-orderinfoblock-content-block-order {
@@ -6154,7 +6152,7 @@ a.dashed-link:hover { text-decoration: none; }
 }
 
 .adm-s-result-container-itog {
-	flex:500;
+	/*flex:1;*/
 	max-width: 500px;
 	background: #ecf1d4;
 	padding: 10px;
@@ -6877,14 +6875,27 @@ td.bdb-line { border-bottom: 1px solid #c9d0d1; }
 	margin-left: 3px;
 }
 
-tr.adm-s-delivery-restriction-delcat a.adm-s-bus-morelinkqhsw {
+a.adm-s-restriction-open-dialog-link {
+	color: #113c7d !important;
+	text-decoration: none !important;
+	border-bottom: 1px dashed #113c7d;
+	font-weight: bold !important;
+}
+
+tr.adm-s-product-category-restriction-delcat a.adm-s-bus-morelinkqhsw,
+tr.adm-s-concrete-product-restriction-delprod a.adm-s-bus-morelinkqhsw,
+tr.adm-s-delivery-restriction-delcat a.adm-s-bus-morelinkqhsw
+{
 	display: none;
 	color: #808080;
 	text-decoration: none;
 	border-bottom: 1px dashed #808080;
 }
 
-tr.adm-s-delivery-restriction-delcat:hover a.adm-s-bus-morelinkqhsw {
+tr.adm-s-product-category-restriction-delcat:hover a.adm-s-bus-morelinkqhsw,
+tr.adm-s-concrete-product-restriction-delprod:hover a.adm-s-bus-morelinkqhsw,
+tr.adm-s-delivery-restriction-delcat:hover a.adm-s-bus-morelinkqhsw
+{
 	display: inline-block;
 	color: #808080;
 	text-decoration: none;
@@ -7124,7 +7135,6 @@ tr.adm-s-delivery-restriction-delcat:hover a.adm-s-bus-morelinkqhsw {
 }
 
 /* CASHBOX STYLES */
-
 .adm-cashbox-border {
 	margin: 65px 0 45px;
 	border-bottom: 1px solid rgba(82, 92, 104, .10);
@@ -7237,7 +7247,8 @@ tr.adm-s-delivery-restriction-delcat:hover a.adm-s-bus-morelinkqhsw {
 	height: 22px;
 	border-radius: 100%;
 	background: #68bb0d;
-	font: bold 15px/17px 'Open Sans', "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: 15px/17px var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-semi-bold, 600);
 	color: #fff;
 	text-align: center;
 	box-sizing: border-box;

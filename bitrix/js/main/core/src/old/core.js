@@ -94,8 +94,14 @@
 			var skipTag = false;
 			if ((matchType = matchScript[1].match(r.script_type)) !== null)
 			{
-				if(matchType[1] == 'text/html' || matchType[1] == 'text/template')
+				if(
+					matchType[1] == 'text/html'
+					|| matchType[1] == 'text/template'
+					|| matchType[1] == 'extension/settings'
+				)
+				{
 					skipTag = true;
+				}
 			}
 
 			if(skipTag)
@@ -2262,11 +2268,13 @@
 				fontSize: '11px',
 				padding: '10px 30px 10px 37px',
 				position: 'absolute',
-				zIndex:'10000',
 				textAlign:'center'
 			},
 			text: msg
 		}));
+
+		BX.ZIndexManager.register(obMsg);
+		BX.ZIndexManager.bringToFront(obMsg);
 
 		setTimeout(BX.delegate(_adjustWait, node), 10);
 
@@ -2296,6 +2304,7 @@
 				}
 			}
 
+			BX.ZIndexManager.unregister(obMsg);
 			obMsg.parentNode.removeChild(obMsg);
 			if (node) node.bxmsg = null;
 			BX.cleanNode(obMsg, true);
@@ -2809,7 +2818,7 @@
 		}
 	}
 
-	BX.reload = function(back_url, bAddClearCache)
+	function reloadInternal(back_url, bAddClearCache)
 	{
 		if (back_url === true)
 		{
@@ -2817,7 +2826,15 @@
 			back_url = null;
 		}
 
-		var new_href = back_url || top.location.href;
+		var topWindow = (function() {
+			if (BX.PageObject && BX.PageObject.getRootWindow)
+			{
+				return BX.PageObject.getRootWindow();
+			}
+
+			return window.top;
+		})();
+		var new_href = back_url || topWindow.location.href;
 
 		var hashpos = new_href.indexOf('#'), hash = '';
 
@@ -2840,7 +2857,23 @@
 			new_href += (new_href.indexOf('?') == -1 ? '?' : '&') + '_r='+Math.round(Math.random()*10000) + hash;
 		}
 
-		top.location.href = new_href;
+		topWindow.location.href = new_href;
+	}
+
+	BX.reload = function(back_url, bAddClearCache)
+	{
+		if (window !== window.top)
+		{
+			BX.Runtime
+				.loadExtension('main.pageobject')
+				.then(function() {
+					reloadInternal(back_url, bAddClearCache);
+				});
+		}
+		else
+		{
+			reloadInternal(back_url, bAddClearCache);
+		}
 	};
 
 	BX.clearCache = function()
@@ -3315,6 +3348,12 @@
 
 	BX.CHint = function(params)
 	{
+		if (BX.CHint.cssLoaded === false)
+		{
+			BX.load(['/bitrix/js/main/core/css/core_hint.css']);
+			BX.CHint.cssLoaded = true;
+		}
+
 		this.PARENT = BX(params.parent);
 
 		this.HINT = params.hint;
@@ -3348,6 +3387,8 @@
 			BX.bind(this.PARENT, 'mouseout', BX.proxy(this.Hide, this));
 		}
 	};
+
+	BX.CHint.cssLoaded = false;
 
 	BX.CHint.openHints = new Set();
 
@@ -3448,6 +3489,8 @@
 		if (this.prepareAdjustPos())
 		{
 			this.DIV.style.display = 'block';
+			BX.ZIndexManager.bringToFront(this.DIV);
+
 			this.adjustPos();
 
 			BX.CHint.openHints.add(this);
@@ -3506,12 +3549,12 @@
 	{
 		this.DIV = document.body.appendChild(BX.create('DIV', {
 			props: {className: 'bx-panel-tooltip'},
-			style: {display: 'none'},
+			style: {
+				display: 'none',
+				position: 'absolute',
+				visibility: 'hidden'
+			},
 			children: [
-				BX.create('DIV', {
-					props: {className: 'bx-panel-tooltip-top-border'},
-					html: '<div class="bx-panel-tooltip-corner bx-panel-tooltip-left-corner"></div><div class="bx-panel-tooltip-border"></div><div class="bx-panel-tooltip-corner bx-panel-tooltip-right-corner"></div>'
-				}),
 				(this.CONTENT = BX.create('DIV', {
 					props: {className: 'bx-panel-tooltip-content'},
 					children: [
@@ -3522,14 +3565,11 @@
 							]
 						})
 					]
-				})),
-
-				BX.create('DIV', {
-					props: {className: 'bx-panel-tooltip-bottom-border'},
-					html: '<div class="bx-panel-tooltip-corner bx-panel-tooltip-left-corner"></div><div class="bx-panel-tooltip-border"></div><div class="bx-panel-tooltip-corner bx-panel-tooltip-right-corner"></div>'
-				})
+				}))
 			]
 		}));
+
+		BX.ZIndexManager.register(this.DIV);
 
 		if (this.ID)
 		{
@@ -3537,7 +3577,7 @@
 				attrs: {href: 'javascript:void(0)'},
 				props: {className: 'bx-panel-tooltip-close'},
 				events: {click: BX.delegate(this.Close, this)}
-			}), this.CONTENT.firstChild)
+			}), this.CONTENT.firstChild);
 		}
 
 		if (this.HINT_TITLE)
@@ -3547,7 +3587,7 @@
 					props: {className: 'bx-panel-tooltip-title'},
 					text: this.HINT_TITLE
 				})
-			)
+			);
 		}
 
 		if (this.HINT)
@@ -3691,6 +3731,8 @@
 		{
 			BX.unbind(this.DIV, 'mouseover', BX.proxy(this.Show, this));
 			BX.unbind(this.DIV, 'mouseout', BX.proxy(this.Hide, this));
+
+			BX.ZIndexManager.unregister(this.DIV);
 
 			BX.cleanNode(this.DIV, true);
 		}

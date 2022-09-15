@@ -38,7 +38,20 @@ use Bitrix\Vote\Vote\Option;
  * </ul>
  *
  * @package Bitrix\Forum
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_File_Query query()
+ * @method static EO_File_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_File_Result getById($id)
+ * @method static EO_File_Result getList(array $parameters = array())
+ * @method static EO_File_Entity getEntity()
+ * @method static \Bitrix\Forum\EO_File createObject($setDefaultValues = true)
+ * @method static \Bitrix\Forum\EO_File_Collection createCollection()
+ * @method static \Bitrix\Forum\EO_File wakeUpObject($row)
+ * @method static \Bitrix\Forum\EO_File_Collection wakeUpCollection($rows)
+ */
 class FileTable extends Main\Entity\DataManager
 {
 	/**
@@ -68,8 +81,29 @@ class FileTable extends Main\Entity\DataManager
 			(new Reference("USER", \Bitrix\Main\UserTable::class, Join::on("this.USER_ID", "ref.ID"))),
 			(new DatetimeField("TIMESTAMP_X", ["default_value" => function(){return new DateTime();}])),
 			(new IntegerField("HITS")),
-			(new Reference("FORUM", ForumTable::class, Join::on("this.FORUM_ID", "ref.ID")))
+			(new Reference("FORUM", ForumTable::class, Join::on("this.FORUM_ID", "ref.ID"))),
+			(new Reference("FILE", Main\FileTable::class, Join::on("this.FILE_ID", "ref.ID")))
 		];
+	}
+
+	public static function deleteBatch(array $filter)
+	{
+		$tableName = static::getTableName();
+		$connection = Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$where = [];
+		foreach ($filter as $key => $value)
+		{
+			$where[] = $helper->prepareAssignment($tableName, $key, $value);
+		}
+		$where = implode(' AND ', $where);
+
+		if($where)
+		{
+			$quotedTableName = $helper->quote($tableName);
+			$connection->queryExecute("DELETE FROM {$quotedTableName} WHERE {$where}");
+		}
 	}
 }
 class File
@@ -98,7 +132,7 @@ class File
 				$existingFiles[] = $file["FILE_ID"];
 				continue;
 			}
-			if (strLen($file["name"]) <= 0)
+			if ($file["name"] == '')
 			{
 				unset($files[$key]);
 				continue;
@@ -121,7 +155,7 @@ class File
 			{
 				$res = "Uploading is forbidden";
 			}
-			if (strlen($res) > 0)
+			if ($res <> '')
 			{
 				$result->addError(new Main\Error($res));
 			}
@@ -135,9 +169,8 @@ class File
 					"FORUM_ID" => $params["FORUM_ID"] ?: $forum->getId(),
 					"TOPIC_ID" => $params["TOPIC_ID"],
 					"MESSAGE_ID" => $params["MESSAGE_ID"],
-					"USER_ID" => $params["USER_ID"],
 					"FILE_ID" => $existingFiles
-				],
+				] + ($params["MESSAGE_ID"] > 0 ? [] : ["USER_ID" => $params["USER_ID"]]),
 				"order" => [
 					"FILE_ID" => "ASC"
 				]
@@ -151,7 +184,7 @@ class File
 			}
 			if (!empty($existingFiles))
 			{
-				$result->addError(new Main\Error("Файл принадлежит другой сущности."));
+				$result->addError(new Main\Error("The file is occupied."));
 			}
 		}
 		return $result;
@@ -179,7 +212,7 @@ class File
 			}
 			else
 			{
-				$id = \CFile::SaveFile($file, $uploadDir, true, true);
+				$id = \CFile::SaveFile($file, $uploadDir);
 				if ($id > 0)
 				{
 					$files[$key]["FILE_ID"] = $id;
@@ -187,7 +220,7 @@ class File
 				}
 				else
 				{
-					$result->addError(new Main\Error("Файл не добавлен."));
+					$result->addError(new Main\Error("The file is not saved."));
 				}
 			}
 		}

@@ -1,22 +1,31 @@
 <?php
 namespace Bitrix\Forum\Internals;
+use \Bitrix\Main;
 trait EntityFabric
 {
 	protected static $repo = [];
 
 	/**
-	 * @param $id
+	 * @param int $id
 	 * @return static
 	 */
-	public static function getById(int $id)
+	public static function getById($id)
 	{
 		if (!array_key_exists(__CLASS__, self::$repo))
 		{
 			self::$repo[__CLASS__] = [];
 		}
+		$id = intval($id);
 		if (!array_key_exists($id, self::$repo[__CLASS__]))
 		{
-			self::$repo[__CLASS__][$id] = new static($id);
+			try
+			{
+				self::$repo[__CLASS__][$id] = new static($id);
+			}
+			catch (Main\ObjectNotFoundException $exception)
+			{
+				return null;
+			}
 		}
 		return self::$repo[__CLASS__][$id];
 	}

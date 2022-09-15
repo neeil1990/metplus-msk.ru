@@ -1,11 +1,11 @@
 <?php
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_ALFABANK'] = 'Настройки подключения Альфа-Банка';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_AUTHORIZE'] = 'Настройки подключения Authorize.net';
-$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_YANDEX'] = 'Настройки подключения Яндекса';
-$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_YANDEX_INVOICE'] = 'Настройки подключения Яндекс.Денег';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_YANDEX'] = 'Настройки подключения ЮKassa';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_YANDEX_INVOICE'] = 'Настройки подключения ЮMoney';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_WEBMONEY'] = 'Настройки подключения Webmoney';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_ASSIST'] = 'Настройки подключения Assist';
-$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_ROBOXCHANGE'] = 'Настройки подключения RoboxChange';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_ROBOXCHANGE'] = 'Настройки подключения RoboKassa';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_QIWI'] = 'Настройки подключения QIWI';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_PAYPAL'] = 'Настройки подключения PayPal';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_PAYMASTER'] = 'Настройки подключения PayMaster';
@@ -26,3 +26,9 @@ $MESS['SALE_PS_MANAGER_GROUP_PS_OTHER'] = 'Остальные свойства �
 $MESS['SALE_PS_MANAGER_INNER_NAME'] = 'Внутренний счет';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_SBERBANK'] = 'Настройки подключения Сбербанк';
 $MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_UAPAY'] = 'Настройки подключения UAPAY';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_ADYEN'] = 'Настройки подключения Adyen';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_APPLE_PAY'] = 'Настройки подключения Apple Pay';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_SKB'] = 'Настройки подключения СКБ банк';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_BEPAID'] = 'Настройки подключения BePaid';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_WOOPPAY'] = 'Настройки подключения Wooppay';
+$MESS['SALE_PS_MANAGER_GROUP_CONNECT_SETTINGS_PLATON'] = 'Настройки подключения Platon';

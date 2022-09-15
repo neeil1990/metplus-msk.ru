@@ -1,4 +1,4 @@
-<?
+<?php
 $MESS["ACTIVE"] = "Active:";
 $MESS["ADD"] = "Add";
 $MESS["ALL_SITES"] = "All Sites: ";
@@ -6,20 +6,6 @@ $MESS["DEFAULT"] = "< default >";
 $MESS["DESCRIPTION"] = "Description:";
 $MESS["EDIT_GROUP_TITLE"] = "Group Editor";
 $MESS["EDIT_GROUP_TITLE_VIEW"] = "Group Viewer";
-$MESS["GP_BLOCK_LOGIN_ATTEMPTS"] = "Maximum wrong password entry attempts";
-$MESS["GP_BLOCK_TIME"] = "Block user for (minutes)";
-$MESS["GP_CHECKWORD_TIMEOUT"] = "Checkword lifetime for password recovery (min)";
-$MESS["GP_LOGIN_ATTEMPTS"] = "Password entry attempts without using CAPTCHA";
-$MESS["GP_MAX_STORE_NUM"] = "Maximum number of computers to store authorization simultaneously";
-$MESS["GP_PASSWORD_DIGITS"] = "Password must contain digits (0-9)";
-$MESS["GP_PASSWORD_LENGTH"] = "Min. Password Length";
-$MESS["GP_PASSWORD_LOWERCASE"] = "Password must contain Latin lowercase letters (a-z)";
-$MESS["GP_PASSWORD_PUNCTUATION"] = "Password must contain punctuation marks (,.<>/?;:'\"[]{}\\|`~!@#\$%^&*()-_+=)";
-$MESS["GP_PASSWORD_UPPERCASE"] = "Password must contain Latin uppercase letters (A-Z)";
-$MESS["GP_SESSION_IP_MASK"] = "Network mask to bind session";
-$MESS["GP_SESSION_TIMEOUT"] = "Session maximum life time (minutes)";
-$MESS["GP_STORE_IP_MASK"] = "Network mask to bind stored authorization";
-$MESS["GP_STORE_TIMEOUT"] = "Time to store authorization on user's computer";
 $MESS["KERNEL"] = "Main module:";
 $MESS["LAST_UPDATE"] = "Last update:";
 $MESS["MAIN_COPY_RECORD"] = "Copy group";
@@ -62,4 +48,3 @@ $MESS["USERS"] = "Users in the group";
 $MESS["USER_GROUP_DATE_FROM"] = "from";
 $MESS["USER_GROUP_DATE_TO"] = "to";
 $MESS["USER_LIST"] = "User";
-?>

@@ -69,6 +69,7 @@ class Utils
 
 		if (!$iblock)
 		{
+			\Bitrix\Landing\Hook::setEditMode(true);
 			$settings = \Bitrix\Landing\Hook\Page\Settings::getDataForSite(
 				$siteId
 			);
@@ -105,7 +106,7 @@ class Utils
 		{
 			$order = [];
 			$groupBy = false;
-			$navParams = false;
+			$navParams = ['nTopCount' => 50];
 			$select = [
 				'ID', 'NAME', 'IBLOCK_SECTION_ID', 'DETAIL_PICTURE'
 			];
@@ -330,7 +331,7 @@ class Utils
 		static $settings = array();
 
 		$elementId = (int)$elementId;
-		$key = $urlType . '_' . $elementId;
+		$key = (string)$urlType . '_' . $elementId;
 
 		if (isset($urls[$key]))
 		{
@@ -344,6 +345,7 @@ class Utils
 
 		if (empty($settings))
 		{
+			\Bitrix\Landing\Hook::setEditMode(true);
 			$settings = \Bitrix\Landing\Hook\Page\Settings::getDataForSite();
 		}
 
@@ -446,5 +448,24 @@ class Utils
 		}
 
 		return false;
+	}
+
+	public static function getUserOption(string $name): ?PublicActionResult
+	{
+		$whiteList = ['color_field_recent_colors'];
+
+		$response = new PublicActionResult();
+		if (in_array($name, $whiteList, true))
+		{
+			$response->setResult(\CUserOptions::getOption('landing', $name, null));
+		}
+		else
+		{
+			$error = new Error;
+			$error->addError('WRONG_OPTION', 'Option name is not allowed');
+			$response->setError($error);
+		}
+
+		return $response;
 	}
 }

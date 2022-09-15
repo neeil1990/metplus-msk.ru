@@ -14,6 +14,22 @@ use Bitrix\Main\ORM\Fields;
 use Bitrix\Main\PhoneNumber;
 use Bitrix\Main\Localization\Loc;
 
+/**
+ * Class UserPhoneAuthTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_UserPhoneAuth_Query query()
+ * @method static EO_UserPhoneAuth_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_UserPhoneAuth_Result getById($id)
+ * @method static EO_UserPhoneAuth_Result getList(array $parameters = [])
+ * @method static EO_UserPhoneAuth_Entity getEntity()
+ * @method static \Bitrix\Main\EO_UserPhoneAuth createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\EO_UserPhoneAuth_Collection createCollection()
+ * @method static \Bitrix\Main\EO_UserPhoneAuth wakeUpObject($row)
+ * @method static \Bitrix\Main\EO_UserPhoneAuth_Collection wakeUpCollection($rows)
+ */
 class UserPhoneAuthTable extends Data\DataManager
 {
 	public static function getTableName()
@@ -38,7 +54,7 @@ class UserPhoneAuthTable extends Data\DataManager
 				}
 			)),
 
-			new Fields\CryptoField("OTP_SECRET", array(
+			new Fields\SecretField("OTP_SECRET", array(
 				'crypto_enabled' => static::cryptoEnabled("OTP_SECRET"),
 			)),
 
@@ -80,26 +96,15 @@ class UserPhoneAuthTable extends Data\DataManager
 
 	public static function onBeforeAdd(ORM\Event $event)
 	{
-		$fields = $event->getParameter('fields');
-		$result = new ORM\EventResult();
-		$modifiedFields = array();
-
-		if(!isset($fields["OTP_SECRET"]))
-		{
-			$modifiedFields["OTP_SECRET"] = base64_encode(Security\Random::getBytes(20));
-		}
-		if(isset($fields["PHONE_NUMBER"]))
-		{
-			//normalize the number
-			$modifiedFields["PHONE_NUMBER"] = static::normalizePhoneNumber($fields["PHONE_NUMBER"]);
-		}
-
-		$result->modifyFields($modifiedFields);
-
-		return $result;
+		return static::modifyFields($event);
 	}
 
 	public static function onBeforeUpdate(ORM\Event $event)
+	{
+		return static::modifyFields($event);
+	}
+
+	protected static function modifyFields(ORM\Event $event)
 	{
 		$fields = $event->getParameter('fields');
 		$result = new ORM\EventResult();

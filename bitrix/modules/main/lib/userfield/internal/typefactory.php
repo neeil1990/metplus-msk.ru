@@ -7,6 +7,8 @@ namespace Bitrix\Main\UserField\Internal;
  */
 abstract class TypeFactory
 {
+	protected $itemEntities = [];
+
 	/**
 	 * @return TypeDataManager
 	 */
@@ -25,7 +27,24 @@ abstract class TypeFactory
 	 */
 	public function getItemDataClass($type): string
 	{
-		return $this->getTypeDataClass()::compileEntity($type)->getDataClass();
+		return $this->getItemEntity($type)->getDataClass();
+	}
+
+	public function getItemEntity($type): \Bitrix\Main\ORM\Entity
+	{
+		$typeData = $this->getTypeDataClass()::resolveType($type);
+		if(!empty($typeData) && isset($this->itemEntities[$typeData['ID']]))
+		{
+			return $this->itemEntities[$typeData['ID']];
+		}
+
+		$entity = $this->getTypeDataClass()::compileEntity($type);
+		if($entity)
+		{
+			$this->itemEntities[$typeData['ID']] = $entity;
+		}
+
+		return $entity;
 	}
 
 	/**
@@ -49,11 +68,16 @@ abstract class TypeFactory
 
 	public static function getCodeByPrefix(string $prefix): string
 	{
-		return strtolower($prefix);
+		return mb_strtolower($prefix);
 	}
 
 	public static function getPrefixByCode(string $code): string
 	{
-		return strtoupper($code);
+		return mb_strtoupper($code);
+	}
+
+	public function prepareIdentifier($identifier)
+	{
+		return (int)$identifier;
 	}
 }

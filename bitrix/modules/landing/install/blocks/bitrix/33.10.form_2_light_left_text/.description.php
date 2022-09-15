@@ -12,7 +12,6 @@ return array(
 		'section' => array('forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'type' => ['page', 'store'],
 	),
 	'cards' => array(
 		'.landing-block-card-contact' => array(
@@ -86,7 +85,7 @@ return array(
 	'style' => array(
 		'.landing-block-node-main-title' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.10_NODE_TITLE'),
-			'type' => 'typo',
+			'type' => ['typo', 'heading'],
 		),
 		'.landing-block-node-text' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.10_NODE_TEXT'),
@@ -117,7 +116,7 @@ return array(
 		
 		'.landing-block-card-linkcontact-title' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.10_NODE_CONTACT_TITLE'),
-			'type' => 'typo-link',
+			'type' => 'typo',
 		),
 		'.landing-block-card-linkcontact-text' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.10_NODE_CONTACT_TEXT'),
@@ -125,7 +124,7 @@ return array(
 		),
 		'.landing-block-card-linkcontact-link' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.10_NODE_CONTACT_LINK'),
-			'type' => 'typo-link',
+			'type' => 'typo',
 		),
 	),
 	'assets' => array(

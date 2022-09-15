@@ -43,7 +43,7 @@ foreach ($arResult['ROWS'] as $index => $data)
 		}
 
 		$data['ADDRESS_COUNT'] = implode(', ', $counterStrings);
-		$data['ADDRESS_COUNT'] = strtolower($data['ADDRESS_COUNT']);
+		$data['ADDRESS_COUNT'] = mb_strtolower($data['ADDRESS_COUNT']);
 	}
 
 	$actions = array();
@@ -53,6 +53,15 @@ foreach ($arResult['ROWS'] as $index => $data)
 		'ONCLICK' => "BX.Sender.Page.open('".CUtil::JSEscape($data['URLS']['EDIT'])."')",
 		'DEFAULT' => true
 	);
+	if ($arParams['CAN_EDIT'])
+	{
+
+		$actions[] = array(
+			'TITLE' => Loc::getMessage('SENDER_SEGMENT_LIST_BTN_COPY_TITLE'),
+			'TEXT' => Loc::getMessage('SENDER_SEGMENT_LIST_BTN_COPY'),
+			'ONCLICK' => "BX.Sender.SegmentList.copy({$data['ID']});"
+		);
+	}
 	if ($arParams['CAN_EDIT'])
 	{
 		$actions[] = array(

@@ -19,14 +19,14 @@ class CGoogleMessage extends CPushMessage
 	{
 		$data = $this->getPayload();
 		$batch = "Content-type: application/json\r\n";
-		$batch .= "Content-length: " . CUtil::BinStrlen($data) . "\r\n";
+		$batch .= "Content-length: " . strlen($data) . "\r\n";
 		$batch .= "\r\n";
 		$batch .= $data;
 
 		return base64_encode($batch);
 	}
 
-	public function getPayload()
+	public function getPayload(): string
 	{
 		$data = [
 			"data" => [
@@ -41,9 +41,13 @@ class CGoogleMessage extends CPushMessage
 			"priority" => "high",
 			"registration_ids" => $this->deviceTokens
 		];
-		$jsonPayload = json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
 
-		$payloadLength = CUtil::BinStrlen($jsonPayload);
+		return $this->strippedPayload($data);
+	}
+
+	public function strippedPayload($data): string {
+		$jsonPayload = json_encode($data, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
+		$payloadLength = strlen($jsonPayload);
 		if ($payloadLength > self::DEFAULT_PAYLOAD_MAXIMUM_SIZE)
 		{
 			$text = $this->text;
@@ -53,31 +57,27 @@ class CGoogleMessage extends CPushMessage
 				$useSenderText = true;
 				$text = $this->customProperties["senderMessage"];
 			}
-			$maxTextLength = $nTextLen = CUtil::BinStrlen($text) - ($payloadLength - self::DEFAULT_PAYLOAD_MAXIMUM_SIZE);
-			if ($maxTextLength > 0)
-			{
-				while (CUtil::BinStrlen($text = substr($text, 0, --$nTextLen)) > $maxTextLength) ;
-				if($useSenderText)
-				{
-					$this->setCustomProperty("senderMessage", $text);
-				}
-				else
-				{
-					$this->setText($text);
-				}
-
-
-				return $this->getPayload();
-			}
-			else
+			$maxTextLength = $nTextLen = strlen($text) - ($payloadLength - self::DEFAULT_PAYLOAD_MAXIMUM_SIZE);
+			if ($maxTextLength <= 0)
 			{
 				return false;
 			}
+			while (strlen($text = mb_substr($text, 0, --$nTextLen)) > $maxTextLength) ;
+			if($useSenderText)
+			{
+				$this->setCustomProperty("senderMessage", $text);
+			}
+			else
+			{
+				$this->setText($text);
+			}
+
+
+			return $this->getPayload();
 		}
 
 		return $jsonPayload;
 	}
-
 
 }
 
@@ -91,13 +91,13 @@ class CGooglePush extends CPushService
 	/**
 	 * Returns the final batch for the Android's push notification
 	 *
-	 * @param array $messageData
+	 * @param array $messages
 	 *
 	 * @return bool|string
 	 */
-	public function getBatch($messageData = Array())
+	public function getBatch($messages = Array())
 	{
-		$arGroupedMessages = self::getGroupedByAppID($messageData);
+		$arGroupedMessages = self::getGroupedByAppID($messages);
 		if (is_array($arGroupedMessages) && count($arGroupedMessages) <= 0)
 		{
 			return false;
@@ -105,7 +105,7 @@ class CGooglePush extends CPushService
 
 		$batch = $this->getBatchWithModifier($arGroupedMessages, ";3;");
 
-		if (strlen($batch) == 0)
+		if ($batch == '')
 		{
 			return $batch;
 		}

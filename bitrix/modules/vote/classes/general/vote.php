@@ -5,6 +5,8 @@
 # http://www.bitrixsoft.com					 #
 # mailto:admin@bitrixsoft.com				 #
 ##############################################
+use Bitrix\Main\Error;
+
 IncludeModuleLangFile(__FILE__);
 
 class CAllVote
@@ -41,7 +43,7 @@ class CAllVote
 					"id" => "CHANNEL_ID",
 					"text" => GetMessage("VOTE_EMPTY_CHANNEL_ID"));
 			else:
-				$rChannel = CVoteChannel::GetList($by, $order, arraY('ID' => intval($arFields['CHANNEL_ID'])), $filtered);
+				$rChannel = CVoteChannel::GetList('', '', array('ID' => intval($arFields['CHANNEL_ID'])));
 				if (! ($rChannel && $arChannel = $rChannel->Fetch()))
 				{
 					$aMsg[] = array(
@@ -70,7 +72,7 @@ class CAllVote
 		if (is_set($arFields, "DATE_END") || $ACTION == "ADD")
 		{
 			$arFields["DATE_END"] = trim($arFields["DATE_END"]);
-			if (strlen($arFields["DATE_END"]) <= 0):
+			if ($arFields["DATE_END"] == ''):
 				if ($date_start != false):
 					$date_end = $date_start + 2592000;
 					$arFields["DATE_END"] = GetTime($date_end, "FULL");
@@ -112,7 +114,7 @@ class CAllVote
 					"text" => str_replace("#ID#", $vid, GetMessage("VOTE_WRONG_INTERVAL")));
 			endif;
 		}
-		if (is_set($arFields, "IMAGE_ID") && strlen($arFields["IMAGE_ID"]["name"]) <= 0 && strlen($arFields["IMAGE_ID"]["del"]) <= 0)
+		if (is_set($arFields, "IMAGE_ID") && $arFields["IMAGE_ID"]["name"] == '' && $arFields["IMAGE_ID"]["del"] == '')
 		{
 			unset($arFields["IMAGE_ID"]);
 		}
@@ -199,11 +201,13 @@ class CAllVote
 		if (!$result->isSuccess())
 		{
 			$aMsg = [];
-			$error = $result->getErrorCollection()->rewind();
-			do
+			$errCollection = $result->getErrorCollection();
+			for ($errCollection->rewind(); $errCollection->valid(); $errCollection->next())
 			{
+				/** @var Error $error */
+				$error = $errCollection->current();
 				$aMsg[] = ["id" => $error->getCode(), "text" => $error->getMessage()];
-			} while ($error = $result->getErrorCollection()->next());
+			}
 			if (!empty($aMsg))
 			{
 				global $APPLICATION;
@@ -227,11 +231,13 @@ class CAllVote
 		if (!$result->isSuccess())
 		{
 			$aMsg = [];
-			$error = $result->getErrorCollection()->rewind();
-			do
+			$errCollection = $result->getErrorCollection();
+			for ($errCollection->rewind(); $errCollection->valid(); $errCollection->next())
 			{
+				/** @var Error $error */
+				$error = $errCollection->current();
 				$aMsg[] = ["id" => $error->getCode(), "text" => $error->getMessage()];
-			} while ($error = $result->getErrorCollection()->next());
+			}
 			if (!empty($aMsg))
 			{
 				global $APPLICATION;
@@ -320,7 +326,7 @@ class CAllVote
 		}
 
 		$state = true;
-		$rQuestions = CVoteQuestion::GetList($ID, $by, $order, array(), $is_filtered);
+		$rQuestions = CVoteQuestion::GetList($ID);
 		while ($arQuestion = $rQuestions->Fetch())
 		{
 			$state = $state && ( CVoteQuestion::Copy($arQuestion['ID'], $newID) !== false);
@@ -352,7 +358,7 @@ class CAllVote
 	public static function GetByID($ID)
 	{
 		$ID = intval($ID);
-		return CVote::GetList($by="s_id", $order="desc", array("ID" => $ID), $is_filtered = false);
+		return CVote::GetList("s_id", "desc", array("ID" => $ID));
 	}
 
 	public static function GetByIDEx($ID)
@@ -554,11 +560,10 @@ class CAllVote
 		}
 		global $APPLICATION, $VOTING_OK;
 		$VOTING_OK = "N";
-		$e = $errorCollection->rewind();
-		$m = array();
-		do {
-			$m[] = $e->getMessage();
-		} while ($e = $errorCollection->next());
+		$m = [];
+		for ($errorCollection->rewind(); $errorCollection->valid(); $errorCollection->next())
+			$m[] = $errorCollection->current()->getMessage();
+
 		$APPLICATION->ThrowException(implode("", $m), "CVote::KeepVoting");
 
 		return false;
@@ -635,9 +640,9 @@ class CAllVote
 
 class _CVoteDBResult extends CDBResult
 {
-	function _CVoteDBResult($res, $params = array())
+	public function __construct($res, $params = array())
 	{
-		parent::CDBResult($res);
+		parent::__construct($res);
 	}
 	function Fetch()
 	{

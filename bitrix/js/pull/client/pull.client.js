@@ -11,7 +11,7 @@
 
 	/****************** ATTENTION *******************************
 	 * Please do not use Bitrix CoreJS in this class.
-	 * This class can be called on page without Bitrix Framework
+	 * This class can be called on a page without Bitrix Framework
 	*************************************************************/
 
 	if (!window.BX)
@@ -19,6 +19,10 @@
 		window.BX = {};
 	}
 	else if (window.BX.PullClient)
+	{
+		return;
+	}
+	else if (!window.BX.RestClient)
 	{
 		return;
 	}
@@ -31,6 +35,7 @@
 	var RESTORE_WEBSOCKET_TIMEOUT = 30 * 60;
 	var CONFIG_TTL = 24 * 60 * 60;
 	var CONFIG_CHECK_INTERVAL = 60000;
+	var MAX_IDS_TO_STORE = 10;
 
 	var LS_SESSION = "bx-pull-session";
 	var LS_SESSION_CACHE_TIME = 20;
@@ -68,6 +73,7 @@
 		SERVER_RESTARTED : 3002,
 		CONFIG_EXPIRED : 3003,
 		MANUAL : 3004,
+		WRONG_CHANNEL_ID : 4010,
 	};
 
 	var SystemCommands = {
@@ -137,9 +143,11 @@
 		this.connectionAttempt = 0;
 		this.connectionType = '';
 		this.reconnectTimeout = null;
+		this.restartTimeout = null;
 		this.restoreWebSocketTimeout = null;
 
 		this.configGetMethod = typeof params.configGetMethod !== 'string'? 'pull.config.get': params.configGetMethod;
+		this.getPublicListMethod = typeof params.getPublicListMethod !== 'string'? 'pull.channel.public.list': params.getPublicListMethod;
 
 		this.skipStorageInit = params.skipStorageInit === true;
 
@@ -169,6 +177,7 @@
 			tag : null,
 			time : null,
 			history: {},
+			lastMessageIds: [],
 			messageCount: 0
 		};
 
@@ -202,7 +211,8 @@
 			storage: this.storage
 		});
 		this.channelManager = new ChannelManager({
-			restClient: this.restClient
+			restClient: this.restClient,
+			getPublicListMethod: this.getPublicListMethod
 		});
 
 		this.notificationPopup = null;
@@ -213,6 +223,8 @@
 
 		// manual stop workaround
 		this.isManualDisconnect = false;
+
+		this.loggingEnabled = this.sharedConfig.isLoggingEnabled();
 	};
 
 	/**
@@ -308,7 +320,7 @@
 	{
 		/**
 		 * After modify this method, copy to follow scripts:
-		 * mobile/install/mobileapp/mobile/extensions/bitrix/pull/client/extension.js
+		 * mobile/install/mobileapp/mobile/extensions/bitrix/pull/client/events/extension.js
 		 */
 		if (typeof handler.getModuleId !== 'function' || typeof handler.getModuleId() !== 'string')
 		{
@@ -322,7 +334,7 @@
 			type = handler.getSubscriptionType();
 		}
 
-		this.subscribe({
+		return this.subscribe({
 			type: type,
 			moduleId: handler.getModuleId(),
 			callback: function(data)
@@ -463,8 +475,13 @@
 
 		if (BX && BX.desktop)
 		{
-			BX.desktop.addCustomEvent("BXLoginSuccess", function ()
-			{
+			BX.addCustomEvent("onDesktopReload", function() {
+				this.session.mid = null;
+				this.session.tag = null;
+				this.session.time = null;
+			}.bind(this));
+
+			BX.desktop.addCustomEvent("BXLoginSuccess", function() {
 				this.restart(1000, "Desktop login");
 			}.bind(this));
 		}
@@ -472,6 +489,8 @@
 
 	Pull.prototype.start = function(config)
 	{
+		var allowConfigCaching = true;
+
 		if(this.starting || this.isConnected())
 		{
 			return;
@@ -504,6 +523,7 @@
 				delete config.skipReconnectToLastSession;
 			}
 			this.config = config;
+			allowConfigCaching = false;
 		}
 
 		if (!this.enabled)
@@ -536,7 +556,7 @@
 			result.reject(error);
 		}).then(function(config)
 		{
-			self.setConfig(config);
+			self.setConfig(config, allowConfigCaching);
 			self.init();
 			self.connect();
 			self.updateWatch();
@@ -580,14 +600,14 @@
 	};
 
 	/**
-	 * Send single message to the specified public channel.
+	 * Send single message to the specified users.
 	 *
-	 * @param {integer[]} users User ids the message receivers.
+	 * @param {integer[]} users User ids of the message receivers.
 	 * @param {string} moduleId Name of the module to receive message,
 	 * @param {string} command Command name.
 	 * @param {object} params Command parameters.
 	 * @param {integer} [expiry] Message expiry time in seconds.
-	 * @return {BX.Promise<bool>}
+	 * @return void
 	 */
 	Pull.prototype.sendMessage = function(users, moduleId, command, params, expiry)
 	{
@@ -601,15 +621,37 @@
 	};
 
 	/**
+	 * Send single message to the specified public channels.
+	 *
+	 * @param {string[]} publicChannels Public ids of the channels to receive message.
+	 * @param {string} moduleId Name of the module to receive message,
+	 * @param {string} command Command name.
+	 * @param {object} params Command parameters.
+	 * @param {integer} [expiry] Message expiry time in seconds.
+	 * @return void
+	 */
+	Pull.prototype.sendMessageToChannels = function(publicChannels, moduleId, command, params, expiry)
+	{
+		return this.sendMessageBatch([{
+			publicChannels: publicChannels,
+			moduleId: moduleId,
+			command: command,
+			params: params,
+			expiry: expiry
+		}]);
+	}
+
+	/**
 	 * Sends batch of messages to the multiple public channels.
 	 *
 	 * @param {object[]} messageBatch Array of messages to send.
 	 * @param  {int[]} messageBatch.users User ids the message receivers.
+	 * @param  {string[]|object[]} messageBatch.publicChannels Public ids of the channels to send messages.
 	 * @param {string} messageBatch.moduleId Name of the module to receive message,
 	 * @param {string} messageBatch.command Command name.
 	 * @param {object} messageBatch.params Command parameters.
 	 * @param {integer} [messageBatch.expiry] Message expiry time in seconds.
-	 * @return {BX.Promise<bool>}
+	 * @return void
 	 */
 	Pull.prototype.sendMessageBatch = function(messageBatch)
 	{
@@ -619,45 +661,95 @@
 			return false;
 		}
 
-		var messages = [];
 		var userIds = {};
 		for(var i = 0; i < messageBatch.length; i++)
 		{
-			for(var j = 0; j < messageBatch[i].users.length; j++)
+			if (messageBatch[i].users)
 			{
-				userIds[messageBatch[i].users[j]] = true;
+				for(var j = 0; j < messageBatch[i].users.length; j++)
+				{
+					userIds[messageBatch[i].users[j]] = true;
+				}
 			}
 		}
 
 		this.channelManager.getPublicIds(Object.keys(userIds)).then(function(publicIds)
 		{
-			messageBatch.forEach(function(messageFields)
-			{
-				var messageBody = {
-					module_id: messageFields.moduleId,
-					command: messageFields.command,
-					params: messageFields.params
-				};
-				var message = IncomingMessage.create({
-					receivers: this.createMessageReceivers(messageFields.users, publicIds),
-					body: JSON.stringify(messageBody),
-					expiry: messageFields.expiry || 0
-				});
-				messages.push(message);
-			}, this);
-
-			var requestBatch = RequestBatch.create({
-				requests: [{
-					incomingMessages: {
-						messages: messages
-					}
-				}]
-			});
-
-			var buffer = RequestBatch.encode(requestBatch).finish();
-			return this.connector.send(buffer);
-
+			return this.connector.send(this.encodeMessageBatch(messageBatch, publicIds));
 		}.bind(this))
+	};
+
+	Pull.prototype.encodeMessageBatch = function(messageBatch, publicIds)
+	{
+		var messages = [];
+		messageBatch.forEach(function(messageFields)
+		{
+			var messageBody = {
+				module_id: messageFields.moduleId,
+				command: messageFields.command,
+				params: messageFields.params
+			};
+
+			var receivers;
+			if (messageFields.users)
+			{
+				receivers = this.createMessageReceivers(messageFields.users, publicIds);
+			}
+			else
+			{
+				receivers = [];
+			}
+
+			if (messageFields.publicChannels)
+			{
+				if (!BX.type.isArray(messageFields.publicChannels))
+				{
+					throw new Error('messageFields.publicChannels must be an array');
+				}
+				messageFields.publicChannels.forEach(function(publicChannel)
+				{
+					var publicId;
+					var signature;
+					if (typeof(publicChannel) === 'string' && publicChannel.includes('.'))
+					{
+						var fields = publicChannel.toString().split('.');
+						publicId = fields[0];
+						signature = fields[1];
+					}
+					else if (typeof(publicChannel) === 'object' && ('publicId' in publicChannel) && ('signature' in publicChannel))
+					{
+						publicId = publicChannel.publicId;
+						signature = publicChannel.signature;
+					}
+					else
+					{
+						throw new Error('Public channel MUST be either a string, formatted like "{publicId}.{signature}" or an object with fields \'publicId\' and \'signature\'');
+					}
+
+					receivers.push(Receiver.create({
+						id: this.encodeId(publicId),
+						signature: this.encodeId(signature)
+					}))
+				}.bind(this))
+			}
+
+			var message = IncomingMessage.create({
+				receivers: receivers,
+				body: JSON.stringify(messageBody),
+				expiry: messageFields.expiry || 0
+			});
+			messages.push(message);
+		}, this);
+
+		var requestBatch = RequestBatch.create({
+			requests: [{
+				incomingMessages: {
+					messages: messages
+				}
+			}]
+		});
+
+		return RequestBatch.encode(requestBatch).finish();
 	};
 
 	Pull.prototype.createMessageReceivers = function(users, publicIds)
@@ -679,9 +771,24 @@
 		return result;
 	};
 
+	Pull.prototype.scheduleRestart = function(disconnectCode, disconnectReason, restartDelay)
+	{
+		clearTimeout(this.restartTimeout);
+		if (!restartDelay || restartDelay < 1)
+		{
+			restartDelay = Math.ceil(Math.random() * 30) + 5;
+		}
+
+		this.restartTimeout = setTimeout(
+			() => this.restart(disconnectCode, disconnectReason),
+			restartDelay
+		);
+	}
+
 	Pull.prototype.restart = function(disconnectCode, disconnectReason)
 	{
 		var self = this;
+		clearTimeout(this.restartTimeout);
 		this.disconnect(disconnectCode, disconnectReason);
 		if(this.storage)
 		{
@@ -706,7 +813,7 @@
 			}
 		}).then(function(config)
 		{
-			self.setConfig(config);
+			self.setConfig(config, true);
 			self.connect();
 			self.updateWatch();
 			self.startCheckConfig();
@@ -721,6 +828,7 @@
 			this.config = {
 				api: {},
 				channels: {},
+				publicChannels: {},
 				server: { timeShift: 0 },
 				clientId: null
 			};
@@ -750,44 +858,31 @@
 			this.config = {
 				api: {},
 				channels: {},
+				publicChannels: {},
 				server: { timeShift: 0 },
 				clientId: null
 			};
 		}
 
-		this.restClient.callBatch({
-			serverTime : ['server.time'],
-			configGet : [this.configGetMethod, {'CACHE': 'N'}]
-		}, function(response) {
-			if (!response)
-			{
-				result.reject(new Error("Network error while getting new config"));
-				return false;
-			}
-
+		this.restClient.callMethod(this.configGetMethod, {'CACHE': 'N'}).then(function(response) {
 			var timeShift = 0;
-			if (response.serverTime && !response.serverTime.error())
-			{
-				timeShift = Math.floor((Utils.getTimestamp() - new Date(response.serverTime.data()).getTime())/1000);
-			}
+			var data = response.data();
+			timeShift = Math.floor((Utils.getTimestamp() - new Date(data.serverTime).getTime())/1000);
+			delete data.serverTime;
 
-			if (response.configGet.error())
-			{
-				var error = response.configGet.error();
+			var config = Object.assign({}, data);
+			config.server.timeShift = timeShift;
+
+			result.resolve(config)
+		}).catch(function(response)
+		{
+				var error = response.error();
 				if(error.getError().error == "AUTHORIZE_ERROR" || error.getError().error == "WRONG_AUTH_TYPE")
 				{
 					error.status = 403;
 				}
 				result.reject(error);
-			}
-			else if (response.configGet)
-			{
-				var config = response.configGet.data();
-				config.server.timeShift = timeShift;
-
-				result.resolve(config)
-			}
-		}, false, false, 'pull.config');
+		});
 
 		return result;
 	};
@@ -861,12 +956,12 @@
 		}
 		else
 		{
-			console.log(Utils.getDateForLog() + ": Stale config detected. Restarting");
+			this.logToConsole("Stale config detected. Restarting");
 			this.restart(CloseReasons.CONFIG_EXPIRED, "Config update required");
 		}
 	};
 
-	Pull.prototype.setConfig = function(config)
+	Pull.prototype.setConfig = function(config, allowCaching)
 	{
 		for (var key in config)
 		{
@@ -875,9 +970,27 @@
 				this.config[key] = config[key];
 			}
 		}
-		if(this.storage)
+
+		if (config.publicChannels)
 		{
-			this.storage.set('bx-pull-config', config);
+			this.setPublicIds(Utils.objectValues(config.publicChannels));
+		}
+
+		if(this.storage && allowCaching)
+		{
+			try
+			{
+				this.storage.set('bx-pull-config', config);
+			}
+			catch (e)
+			{
+				// try to delete the key "history" (landing site change history, see http://jabber.bx/view.php?id=136492)
+				if (localStorage && localStorage.removeItem)
+				{
+					localStorage.removeItem('history');
+				}
+				console.error(Utils.getDateForLog() + " Pull: Could not cache config in local storage. Error: ", e);
+			}
 		}
 	};
 
@@ -971,7 +1084,7 @@
 
 		if(!connectionDelay)
 		{
-			if(this.connectionAttempt > 3 && this.connectionType === ConnectionType.WebSocket)
+			if(this.connectionAttempt > 3 && this.connectionType === ConnectionType.WebSocket && !this.sharedConfig.isLongPollingBlocked())
 			{
 				// Websocket seems to be closed by network filter. Trying to fallback to long polling
 				this.sharedConfig.setWebSocketBlocked(true);
@@ -989,14 +1102,14 @@
 			clearTimeout(this.reconnectTimeout);
 		}
 
-		console.log(Utils.getDateForLog() + ': Pull: scheduling reconnection in ' + connectionDelay + ' seconds; attempt # ' + this.connectionAttempt);
+		this.logToConsole('Pull: scheduling reconnection in ' + connectionDelay + ' seconds; attempt # ' + this.connectionAttempt);
 
 		this.reconnectTimeout = setTimeout(this.connect.bind(this), connectionDelay * 1000);
 	};
 
 	Pull.prototype.scheduleRestoreWebSocketConnection = function()
 	{
-		console.log(Utils.getDateForLog() + ': Pull: scheduling restoration of websocket connection in ' + RESTORE_WEBSOCKET_TIMEOUT + ' seconds');
+		this.logToConsole('Pull: scheduling restoration of websocket connection in ' + RESTORE_WEBSOCKET_TIMEOUT + ' seconds');
 
 		var self = this;
 		if(this.restoreWebSocketTimeout)
@@ -1030,8 +1143,6 @@
 
 	Pull.prototype.parseResponse = function (response)
 	{
-		var text;
-
 		var events = this.extractMessages(response);
 		var messages = [];
 		if (events.length === 0)
@@ -1043,11 +1154,19 @@
 		for (var i = 0; i < events.length; i++)
 		{
 			var event = events[i];
+			if (event.mid && this.session.lastMessageIds.includes(event.mid))
+			{
+				console.warn("Duplicate message " + event.mid + " skipped");
+				continue;
+			}
 
 			this.session.mid = event.mid || null;
 			this.session.tag = event.tag || null;
 			this.session.time = event.time || null;
-
+			if (event.mid)
+			{
+				this.session.lastMessageIds.push(event.mid);
+			}
 			messages.push(event.text);
 
 			if (!this.session.history[event.text.module_id])
@@ -1062,6 +1181,10 @@
 			this.session.messageCount++;
 		}
 
+		if (this.session.lastMessageIds.length > MAX_IDS_TO_STORE)
+		{
+			this.session.lastMessageIds = this.session.lastMessageIds.slice( - MAX_IDS_TO_STORE);
+		}
 		this.broadcastMessages(messages);
 	};
 
@@ -1323,6 +1446,14 @@
 		}, this);
 	};
 
+	Pull.prototype.logToConsole = function(message)
+	{
+		if(this.loggingEnabled)
+		{
+			console.log(Utils.getDateForLog() + ': ' + message);
+		}
+	};
+
 	Pull.prototype.logMessage = function(message)
 	{
 		if(!this.debug)
@@ -1358,7 +1489,7 @@
 			this.offlineTimeout = null;
 		}
 
-		console.log(Utils.getDateForLog() + ': Pull: Long polling connection with push-server opened');
+		this.logToConsole('Pull: Long polling connection with push-server opened');
 		if(this.isWebSocketEnabled())
 		{
 			this.scheduleRestoreWebSocketConnection();
@@ -1397,6 +1528,9 @@
 		this.sendPullStatus(PullStatus.Online);
 		this.sharedConfig.setWebSocketBlocked(false);
 
+		// to prevent fallback to long polling in case of networking problems
+		this.sharedConfig.setLongPollingBlocked(true);
+
 		if(this.connectionType == ConnectionType.LongPolling)
 		{
 			this.connectionType = ConnectionType.WebSocket;
@@ -1408,7 +1542,12 @@
 			clearTimeout(this.offlineTimeout);
 			this.offlineTimeout = null;
 		}
-		console.log(Utils.getDateForLog() + ': Pull: Websocket connection with push-server opened');
+		if (this.restoreWebSocketTimeout)
+		{
+			clearTimeout(this.restoreWebSocketTimeout);
+			this.restoreWebSocketTimeout = null;
+		}
+		this.logToConsole('Pull: Websocket connection with push-server opened');
 	};
 
 	Pull.prototype.onWebSocketDisconnect = function(e)
@@ -1433,12 +1572,21 @@
 			e = {};
 		}
 
-		console.log(Utils.getDateForLog() + ': Pull: Websocket connection with push-server closed. Code: ' + e.code + ', reason: ' + e.reason);
+		this.logToConsole('Pull: Websocket connection with push-server closed. Code: ' + e.code + ', reason: ' + e.reason);
 		if(!this.isManualDisconnect)
 		{
-			this.scheduleReconnect();
+			if (e.code == CloseReasons.WRONG_CHANNEL_ID)
+			{
+				this.scheduleRestart(CloseReasons.WRONG_CHANNEL_ID, "restarting to reload config");
+			}
+			else
+			{
+				this.scheduleReconnect();
+			}
 		}
 
+		// to prevent fallback to long polling in case of networking problems
+		this.sharedConfig.setLongPollingBlocked(true);
 		this.isManualDisconnect = false;
 	};
 
@@ -1476,7 +1624,7 @@
 			e = {};
 		}
 
-		console.log(Utils.getDateForLog() + ': Pull: Long polling connection with push-server closed. Code: ' + e.code + ', reason: ' + e.reason);
+		this.logToConsole('Pull: Long polling connection with push-server closed. Code: ' + e.code + ', reason: ' + e.reason);
 		if(!this.isManualDisconnect)
 		{
 			this.scheduleReconnect();
@@ -1508,10 +1656,17 @@
 		session.ttl = (new Date()).getTime() + LS_SESSION_CACHE_TIME * 1000;
 		if(this.storage)
 		{
-			this.storage.set(LS_SESSION, JSON.stringify(session), LS_SESSION_CACHE_TIME);
+			try
+			{
+				this.storage.set(LS_SESSION, JSON.stringify(session), LS_SESSION_CACHE_TIME);
+			}
+			catch (e)
+			{
+				console.error(Utils.getDateForLog() + " Pull: Could not save session info in local storage. Error: ", e);
+			}
 		}
 
-		this.reconnect(CloseReasons.NORMAL_CLOSURE, "onbeforeunload", 15);
+		this.scheduleReconnect(15);
 	};
 
 	Pull.prototype.onOffline = function()
@@ -1533,7 +1688,7 @@
 				if (message.params.action == 'reconnect')
 				{
 					this.config.channels[message.params.channel.type] = message.params.new_channel;
-					console.info("Pull: new config for " + message.params.channel.type + " channel set:\n", this.config.channels[message.params.channel.type]);
+					this.logToConsole("Pull: new config for " + message.params.channel.type + " channel set:\n", this.config.channels[message.params.channel.type]);
 
 					this.reconnect(CloseReasons.CONFIG_REPLACED, "config was replaced");
 				}
@@ -1587,7 +1742,7 @@
 				}
 			});
 
-			console.log(Utils.getDateForLog() + ": Pull revision changed from " + REVISION + " to " + serverRevision + ". Reload required");
+			this.logToConsole("Pull revision changed from " + REVISION + " to " + serverRevision + ". Reload required");
 
 			return false;
 		}
@@ -1666,7 +1821,7 @@
 		{
 			configDump = "ChannelID: " + this.config.channels.private.id + "\n" +
 				"ChannelDie: " + this.config.channels.private.end + "\n" +
-				"ChannelDieShared: " + this.config.channels.shared.end;
+				("shared" in this.config.channels ? "ChannelDieShared: " + this.config.channels.shared.end : "");
 		}
 		else
 		{
@@ -1679,6 +1834,7 @@
 			(this.guestMode && this.guestUserId !== 0? "Guest userId: " + this.guestUserId + "\n":"") +
 			"Browser online: " + (navigator.onLine ? 'Y' : 'N') + "\n" +
 			"Connect: " + (this.isConnected() ? 'Y': 'N') + "\n" +
+			"Server type: " + (this.isSharedMode() ? 'cloud' : 'local') + "\n" +
 			"WebSocket support: " + (this.isWebSocketSupported() ? 'Y': 'N') + "\n" +
 			"WebSocket connect: " + (this._connectors.webSocket && this._connectors.webSocket.connected ? 'Y': 'N') + "\n"+
 			"WebSocket mode: " + (this._connectors.webSocket && this._connectors.webSocket.socket ? (this._connectors.webSocket.socket.url.search("binaryMode=true") != -1 ? "protobuf" : "text") : '-') + "\n"+
@@ -1695,6 +1851,18 @@
 			"================================\n";
 
 		return console.info(text);
+	};
+
+	Pull.prototype.enableLogging = function(loggingFlag)
+	{
+		if(loggingFlag === undefined)
+		{
+			loggingFlag = true;
+		}
+		loggingFlag = loggingFlag === true;
+
+		this.sharedConfig.setLoggingEnabled(loggingFlag);
+		this.loggingEnabled = loggingFlag;
 	};
 
 	Pull.prototype.capturePullEvent = function(debugFlag)
@@ -1943,7 +2111,9 @@
 		this.ttl = 24 * 60 * 60;
 
 		this.lsKeys = {
-			websocketBlocked: 'bx-pull-websocket-blocked'
+			websocketBlocked: 'bx-pull-websocket-blocked',
+			longPollingBlocked: 'bx-pull-longpolling-blocked',
+			loggingEnabled: 'bx-pull-logging-enabled'
 		};
 
 		this.callbacks = {
@@ -1986,7 +2156,69 @@
 			return false;
 		}
 
-		this.storage.set(this.lsKeys.websocketBlocked, (isWebSocketBlocked ? Utils.getTimestamp()+this.ttl : 0));
+		try
+		{
+			this.storage.set(this.lsKeys.websocketBlocked, (isWebSocketBlocked ? Utils.getTimestamp()+this.ttl : 0));
+		}
+		catch (e)
+		{
+			console.error(Utils.getDateForLog() + " Pull: Could not save WS_blocked flag in local storage. Error: ", e);
+		}
+	};
+
+	SharedConfig.prototype.isLongPollingBlocked = function()
+	{
+		if (!this.storage)
+		{
+			return false;
+		}
+
+		return this.storage.get(this.lsKeys.longPollingBlocked, 0) > Utils.getTimestamp();
+	};
+
+	SharedConfig.prototype.setLongPollingBlocked = function(isLongPollingBlocked)
+	{
+		if (!this.storage)
+		{
+			return false;
+		}
+
+		try
+		{
+			this.storage.set(this.lsKeys.longPollingBlocked, (isLongPollingBlocked ? Utils.getTimestamp()+this.ttl : 0));
+		}
+		catch (e)
+		{
+			console.error(Utils.getDateForLog() + " Pull: Could not save LP_blocked flag in local storage. Error: ", e);
+		}
+	};
+
+	SharedConfig.prototype.isLoggingEnabled = function()
+	{
+		if (!this.storage)
+		{
+			return false;
+		}
+
+		return this.storage.get(this.lsKeys.loggingEnabled, 0) > Utils.getTimestamp();
+	};
+
+	SharedConfig.prototype.setLoggingEnabled = function(isLoggingEnabled)
+	{
+		if (!this.storage)
+		{
+			return false;
+		}
+
+		try
+		{
+			this.storage.set(this.lsKeys.loggingEnabled, (isLoggingEnabled ? Utils.getTimestamp()+this.ttl : 0));
+		}
+		catch (e)
+		{
+			console.error("LocalStorage error: ", e);
+			return false;
+		}
 	};
 
 	var ObjectExtend = function(child, parent)
@@ -2353,6 +2585,8 @@
 		this.publicIds = {};
 
 		this.restClient = typeof params.restClient !== "undefined"? params.restClient: BX.rest;
+
+		this.getPublicListMethod = params.getPublicListMethod;
 	};
 
 	/**
@@ -2386,15 +2620,15 @@
 			return promise;
 		}
 
-		this.restClient.callMethod('pull.channel.public.list', {users: unknownUsers}, function(result)
+		this.restClient.callMethod(this.getPublicListMethod, {users: unknownUsers}).then(function(response)
 		{
-			if(result.error())
+			if(response.error())
 			{
 				promise.resolve({});
 				return promise;
 			}
 
-			var data = result.data();
+			var data = response.data();
 
 			this.setPublicIds(Utils.objectValues(data));
 			unknownUsers.forEach(function(userId) {
@@ -2719,4 +2953,5 @@
 	BX.PullClient.PullStatus = PullStatus;
 	BX.PullClient.SubscriptionType = SubscriptionType;
 	BX.PullClient.CloseReasons = CloseReasons;
+	BX.PullClient.StorageManager = StorageManager;
 })();

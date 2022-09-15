@@ -5,13 +5,13 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 }
 
 /**
- * @var StoreCatalogListBlock $classBlock
+ * @var StoreCatalogDetailBlock $classBlock
  */
 
 $elementCode = $classBlock->get('ELEMENT_CODE');
 ?>
 
-<?if ($classBlock->get('SHOW_CART')):?>
+<?if ($classBlock->get('SHOW_CART') && $classBlock->get('FIRST_TIME')):?>
 	<?$APPLICATION->IncludeComponent(
 		'bitrix:sale.basket.basket.line',
 		'.default',
@@ -40,7 +40,7 @@ $elementCode = $classBlock->get('ELEMENT_CODE');
 	);?>
 <?endif;?>
 
-<?if ($classBlock->get('DISPLAY_COMPARE') == 'Y'):?>
+<?if ($classBlock->get('DISPLAY_COMPARE') == 'Y' && $classBlock->get('FIRST_TIME')):?>
 	<?$APPLICATION->IncludeComponent(
 		'bitrix:catalog.compare.list',
 		'',
@@ -49,7 +49,7 @@ $elementCode = $classBlock->get('ELEMENT_CODE');
 			'NAME' => 'CATALOG_COMPARE_LIST',
 			'DETAIL_URL' => '#system_catalogitem/#ELEMENT_CODE#/',
 			'COMPARE_URL' => '#system_compare',
-			'ACTION_VARIABLE' => 'action',
+			'ACTION_VARIABLE' => 'compare',
 			'PRODUCT_ID_VARIABLE' => 'id',
 			'POSITION_FIXED' => 'Y',
 			'POSITION' => 'top left',
@@ -131,7 +131,7 @@ $elementCode = $classBlock->get('ELEMENT_CODE');
 						'SECTION_ID_VARIABLE' => 'SECTION_CODE',
 						'CACHE_TYPE' => 'A',
 						'CACHE_TIME' => '3600000',
-						'CACHE_GROUPS' => 'N',
+						'CACHE_GROUPS' => 'Y',
 						'META_KEYWORDS' => '-',
 						'META_DESCRIPTION' => '-',
 						'BROWSER_TITLE' => '-',
@@ -141,9 +141,10 @@ $elementCode = $classBlock->get('ELEMENT_CODE');
 						'ADD_ELEMENT_CHAIN' => 'Y',
 						'USE_ELEMENT_COUNTER' => 'Y',
 						'PRICE_VAT_SHOW_VALUE' => 'N',
-						'CONVERT_CURRENCY' => 'N',
+						'CONVERT_CURRENCY' => 'Y',
 						'BASKET_URL' => '#system_cart',
 						'ACTION_VARIABLE' => $classBlock->get('ACTION_VARIABLE'),
+						'ACTION_COMPARE_VARIABLE' => 'compare',
 						'PRODUCT_ID_VARIABLE' => 'id',
 						'PRODUCT_QUANTITY_VARIABLE' => 'quantity',
 						'ADD_PROPERTIES_TO_BASKET' => 'N',
@@ -257,7 +258,9 @@ $elementCode = $classBlock->get('ELEMENT_CODE');
 						'BRAND_PROPERTY' => $classBlock->get('BRAND_PROPERTY'),
 						'CUSTOM_SITE_ID' => $classBlock->get('SITE_ID'),
 						'CONTEXT_SITE_ID' => $classBlock->get('SITE_ID'),
-						'SECTIONS_CHAIN_START_FROM' => 1
+						'SECTIONS_CHAIN_START_FROM' => 1,
+						'ALLOW_SEO_DATA' => 'N',
+						'ADDITIONAL_FILTER_NAME' => $classBlock->get('ADDITIONAL_FILTER_NAME'),
 					),
 					false
 				);?>

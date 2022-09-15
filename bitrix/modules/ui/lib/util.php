@@ -12,15 +12,16 @@ Loc::loadMessages(__FILE__);
  */
 class Util
 {
-	public static function getHelpdeskUrl()
+	public static function getHelpdeskUrl($byLang = false)
 	{
+		$lang = LANGUAGE_ID;
 		if (Loader::includeModule('bitrix24'))
 		{
-			$lang = \CBitrix24::getLicensePrefix();
-		}
-		else
-		{
-			$lang = LANGUAGE_ID;
+			$licensePrefix = \CBitrix24::getLicensePrefix();
+			if(!$byLang || $licensePrefix === 'ua')
+			{
+				$lang = $licensePrefix;
+			}
 		}
 
 		switch ($lang)
@@ -51,6 +52,14 @@ class Util
 				$helpdeskUrl = "https://helpdesk.bitrix24.es";
 				break;
 
+			case "pl":
+				$helpdeskUrl = "https://helpdesk.bitrix24.pl";
+				break;
+
+			case "it":
+				$helpdeskUrl = "https://helpdesk.bitrix24.it";
+				break;
+
 			default:
 				$helpdeskUrl = "https://helpdesk.bitrix24.com";
 		}
@@ -59,8 +68,8 @@ class Util
 	}
 
 	/**
-	 * @param string $code Article code.
-	 * @return string|null
+	 * @param string $code article code.
+	 * @return string
 	 */
 	public static function getArticleUrlByCode(string $code): ?string
 	{

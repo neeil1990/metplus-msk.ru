@@ -4,6 +4,7 @@ namespace Bitrix\Main\Engine;
 
 
 use Bitrix\Main\Config\Configuration;
+use Bitrix\Main\ObjectException;
 
 final class Resolver
 {
@@ -25,28 +26,21 @@ final class Resolver
 		$actionName = array_pop($parts);
 
 		$controllerClass = self::buildControllerClassName($vendor, $module, $parts);
+		if (!$controllerClass)
+		{
+			return null;
+		}
+
 		try
 		{
-			$reflectionClass = new \ReflectionClass($controllerClass);
-			if ($reflectionClass->isAbstract())
-			{
-				return null;
-			}
+			$controller = ControllerBuilder::build($controllerClass, [
+				'scope' => $scope,
+				'currentUser' => CurrentUser::get(),
+			]);
 
-			if (!$reflectionClass->isSubclassOf(Controller::className()))
-			{
-				return null;
-			}
-
-			/** @var Controller $controller */
-			/** @see \Bitrix\Main\Engine\Controller::__construct */
-			$controller = $reflectionClass->newInstance();
-			$controller->setScope($scope);
-			$controller->setCurrentUser(CurrentUser::get());
-
-			return array($controller, $actionName);
+			return [$controller, $actionName];
 		}
-		catch (\ReflectionException $exception)
+		catch (ObjectException $exception)
 		{}
 
 		return null;
@@ -71,7 +65,7 @@ final class Resolver
 		$namespaces = self::listAllowedNamespaces($module);
 
 		$aliases = array_change_key_case($namespaces, CASE_LOWER);
-		$probablyPrefix = strtolower(reset($actionParts));
+		$probablyPrefix = mb_strtolower(reset($actionParts));
 		if (isset($aliases[$probablyPrefix]))
 		{
 			$alias = $aliases[$probablyPrefix];
@@ -81,10 +75,14 @@ final class Resolver
 			return $alias . '\\' . implode('\\', $actionParts);
 		}
 
-		$furtherNamespace = strtolower(self::buildClassNameByAction($vendor, $module, $actionParts));
-		if (self::checkClassUnderAllowedNamespaces($module, $furtherNamespace))
+		$furtherControllerClassName = self::buildClassNameByAction(
+			$vendor,
+			$module,
+			array_merge($actionParts, [$controllerName])
+		);
+		if (self::checkClassUnderAllowedNamespaces($module, $furtherControllerClassName))
 		{
-			return $furtherNamespace . '\\' . $controllerName;
+			return $furtherControllerClassName;
 		}
 
 		$defaultNamespaceByModule = self::getDefaultNamespaceByModule($module);
@@ -93,7 +91,17 @@ final class Resolver
 			return null;
 		}
 
-		$defaultPath = strtolower(strtr($defaultNamespaceByModule, ['\\' => '.']));
+		$defaultPath = strtr($defaultNamespaceByModule, ['\\' => '.']);
+
+		// do not lower if probably psr4
+		$firstLetter = mb_substr($controllerName, 0, 1);
+
+		if ($firstLetter === mb_strtolower($firstLetter))
+		{
+			$defaultPath = mb_strtolower($defaultPath);
+		}
+
+
 		array_unshift($actionParts, ...explode('.', $defaultPath));
 		array_push($actionParts, $controllerName);
 
@@ -178,7 +186,7 @@ final class Resolver
 		$namespaces = self::listAllowedNamespaces($module);
 		foreach ($namespaces as $namespace)
 		{
-			if (stripos(ltrim($class, '\\'), ltrim($namespace, '\\')) === 0)
+			if (mb_stripos(trim($class, '\\'), trim($namespace, '\\') . '\\') === 0)
 			{
 				return true;
 			}
@@ -213,7 +221,7 @@ final class Resolver
 
 		return "{$namespace}\\" . trim(implode('\\', $actionParts), '\\');
 	}
-	
+
 	/**
 	 * Returns name of controller for using in routing.
 	 * The name is built by rules: fully qualified name contains delimiters by dot.
@@ -226,7 +234,9 @@ final class Resolver
 	public static function getNameByController(Controller $controller)
 	{
 		$parts = explode('\\', get_class($controller));
-		$vendor = strtolower(array_shift($parts));
+		$vendor = mb_strtolower(array_shift($parts));
+		//lower case for module name
+		$parts[0] = mb_strtolower($parts[0]);
 
 		return $vendor . ':' . implode('.', $parts);
 	}

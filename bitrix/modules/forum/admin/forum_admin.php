@@ -1,6 +1,17 @@
-<?
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/include.php");
+<?require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
+use \Bitrix\Main\Localization\Loc;
+
+\Bitrix\Main\Loader::includeModule("forum");
+$userOpt = \CUserOptions::getOption("admin_panel", "forum");
+if ($userOpt["forum_admin"] != "old")
+{
+	require_once ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	?><?$APPLICATION->IncludeComponent("bitrix:forum.admin.forums", ".default", []);?><?
+	?><?=BeginNote();?><a href="javascript:void(0);" onclick="BX.userOptions.save('admin_panel', 'forum', 'forum_admin', 'old');BX.reload();return false;"><?
+	?><?=Loc::getMessage("FORUM_ADMIN_GO_BACK_TO_OLD_VIEW")?></a><?=EndNote();
+	require_once ($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	return;
+}
 
 $forumModulePermissions = $APPLICATION->GetGroupRight("forum");
 if ($forumModulePermissions == "D"):
@@ -14,7 +25,7 @@ global $by, $order;
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/forum/prolog.php");
 
 $arSites = array();
-$db_res = CSite::GetList($by1 = "sort", $order1 = "asc");
+$db_res = CSite::GetList();
 if ($db_res && $res = $db_res->GetNext()):
 	do 
 	{
@@ -55,11 +66,11 @@ $arFilterFields = array(
 $lAdmin->InitFilter($arFilterFields);
 
 $arFilter = array();
-if (strlen($filter_site_id) > 0 && $filter_site_id != "NOT_REF")
+if ($filter_site_id <> '' && $filter_site_id != "NOT_REF")
 	$arFilter["SITE_ID"] = $filter_site_id;
-if (strlen($filter_active) > 0)
+if ($filter_active <> '')
 	$arFilter["ACTIVE"] = $filter_active;
-if (strlen($filter_group_id) > 0)
+if ($filter_group_id <> '')
 	$arFilter["FORUM_GROUP_ID"] = $filter_group_id;
 
 if (check_bitrix_sessid() && $forumModulePermissions >= "R"):
@@ -68,7 +79,7 @@ if (check_bitrix_sessid() && $forumModulePermissions >= "R"):
 		foreach ($FIELDS as $ID => $arFields)
 		{
 			$DB->StartTransaction();
-			$ID = IntVal($ID);
+			$ID = intval($ID);
 	
 			if (!$lAdmin->IsUpdated($ID))
 				continue;
@@ -108,7 +119,7 @@ if (check_bitrix_sessid() && $forumModulePermissions >= "R"):
 	
 		foreach ($arID as $ID)
 		{
-			if (strlen($ID) <= 0)
+			if ($ID == '')
 				continue;
 			switch ($_REQUEST['action'])
 			{
@@ -186,7 +197,7 @@ if (check_bitrix_sessid() && $forumModulePermissions >= "R"):
 		{
 			$componentRelativePath = CComponentEngine::MakeComponentPath($path);
 			$arComponentDescription = CComponentUtil::GetComponentDescr($path);
-			if (strLen($componentRelativePath) <= 0 || !is_array($arComponentDescription)):
+			if ($componentRelativePath == '' || !is_array($arComponentDescription)):
 				continue;
 			elseif (!array_key_exists("CACHE_PATH", $arComponentDescription)):
 				continue;
@@ -369,7 +380,7 @@ $oFilter->Begin();
 				foreach ($arForumGroupsTitle as $key => $val):
 					?>
 					<option value="<?=$key?>"
-					<?=(intVal($filter_group_id)==intVal($key) ? " selected" : "")?>
+					<?=(intval($filter_group_id)==intval($key) ? " selected" : "")?>
 					><?=htmlspecialcharsbx($val)?></option><?
 				endforeach;
 				?>
@@ -390,6 +401,7 @@ $oFilter->End();
 </form>
 <?=\Bitrix\Main\Update\Stepper::getHtml("forum");?><?
 $lAdmin->DisplayList();
+?><?=BeginNote();?><a href="javascript:void(0);" onclick="BX.userOptions.save('admin_panel', 'forum', 'forum_admin', 'new');BX.reload();return false;"><?=Loc::getMessage("FORUM_ADMIN_GO_TO_NEW_VIEW")?></a><?=EndNote();
 ?>
 <style>
 dl, dd, dt { margin: 0; }

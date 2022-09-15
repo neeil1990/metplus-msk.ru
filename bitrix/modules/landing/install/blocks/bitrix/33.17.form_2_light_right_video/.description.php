@@ -12,8 +12,7 @@ return array(
 		'section' => array('video', 'forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'version' => '18.5.0',
-		'type' => ['page', 'store'],
+		'version' => '18.5.0', // old param for backward compatibility. Can used for old versions of module via repo. Do not delete!
 	),
 	'cards' => array(),
 	'nodes' => array(
@@ -26,6 +25,10 @@ return array(
 		'.landing-block-node-video-col' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33.16_NODE--VIDEO'),
 			'type' => 'animation',
+		),
+		'.landing-block-node-row' => array(
+			'name' => Loc::getMessage('LANDING_BLOCK_FORM_33_16_NODE_BLOCK'),
+			'type' => 'align-items',
 		),
 	),
 	'assets' => array(

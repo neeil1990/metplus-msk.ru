@@ -34,6 +34,19 @@ Loc::loadMessages(__FILE__);
  * <li> STAT_GUEST_ID int,
  * </ul>
  *
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_User_Query query()
+ * @method static EO_User_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_User_Result getById($id)
+ * @method static EO_User_Result getList(array $parameters = array())
+ * @method static EO_User_Entity getEntity()
+ * @method static \Bitrix\Vote\EO_User createObject($setDefaultValues = true)
+ * @method static \Bitrix\Vote\EO_User_Collection createCollection()
+ * @method static \Bitrix\Vote\EO_User wakeUpObject($row)
+ * @method static \Bitrix\Vote\EO_User_Collection wakeUpCollection($rows)
  */
 class UserTable extends Entity\DataManager
 {
@@ -155,7 +168,7 @@ class User extends BaseObject
 			"COOKIE_ID" => $cookieId,
 			"AUTH_USER_ID"	=> intval($this->getId())
 		];
-		$id = implode($filter, "_");
+		$id = implode("_", $filter);
 
 		if ($cookieId > 0 && !array_key_exists($id, self::$usersIds) && ($res = UserTable::getList([
 				"select" => ["ID"],
@@ -227,10 +240,13 @@ class User extends BaseObject
 		}
 		$id = $dbRes->getId();
 		$fields = $dbRes->getData();
-		self::$usersIds[implode([
-			"COOKIE_ID" => $fields["COOKIE_ID"],
-			"AUTH_USER_ID"	=> $fields["AUTH_USER_ID"]
-		], "_")] = $id;
+		self::$usersIds[implode(
+			"_",
+			[
+				"COOKIE_ID" => $fields["COOKIE_ID"],
+				"AUTH_USER_ID"	=> $fields["AUTH_USER_ID"]
+			]
+		)] = $id;
 		self::setCookieId($fields["COOKIE_ID"]);
 		return $id;
 	}

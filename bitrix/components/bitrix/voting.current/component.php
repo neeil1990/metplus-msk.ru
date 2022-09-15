@@ -39,11 +39,11 @@ if (!$obCache->InitCache($arParams["CACHE_TIME"], $cache_id, $cache_path))
 	}
 	else
 	{
-		$obChannel = CVoteChannel::GetList($by, $order,
-			array("SID"=> $arParams["CHANNEL_SID"], "SID_EXACT_MATCH" => "Y", "SITE" => SITE_ID, "ACTIVE" => "Y", "HIDDEN" => "N"), $is_filtered);
+		$obChannel = CVoteChannel::GetList('', '',
+			array("SID"=> $arParams["CHANNEL_SID"], "SID_EXACT_MATCH" => "Y", "SITE" => SITE_ID, "ACTIVE" => "Y", "HIDDEN" => "N"));
 		if ($obChannel && ($arChannel = $obChannel->Fetch()))
 		{
-			$db_res = CVote::GetList($by, $order, array("CHANNEL_ID"=>$arChannel["ID"], "LAMP" => "green"), $is_filtered);
+			$db_res = CVote::GetList('', '', array("CHANNEL_ID"=>$arChannel["ID"], "LAMP" => "green"));
 		}
 	}
 	$arVote = ($db_res ? $db_res->Fetch() : array());
@@ -74,11 +74,11 @@ elseif ($GLOBALS["VOTING_OK"] == "Y" && $GLOBALS["VOTING_ID"] == $arParams["VOTE
 {
 	$var = array("VOTE_ID", "VOTING_OK", "VOTE_SUCCESSFULL", "view_result", "view_form");
 	$url = CComponentEngine::MakePathFromTemplate($arParams["VOTE_RESULT_TEMPLATE"], array("VOTE_ID" => $arResult["VOTE"]["ID"]));
-	if (strpos($url, "?") === false)
+	if (mb_strpos($url, "?") === false)
 	{
 		$url .= "?";
 	}
-	elseif (($token = substr($url, (strpos($url, "?") + 1))) && !empty($token) &&
+	elseif (($token = mb_substr($url, (mb_strpos($url, "?") + 1))) && !empty($token) &&
 		preg_match_all("/(?<=^|\&)\w+(?=$|\=)/is", $token, $matches))
 	{
 		$var = array_merge($var, $matches[0]);

@@ -10,7 +10,10 @@ return array(
 	'code' => 'store-instagram/payment',
 	'name' => Loc::getMessage("LANDING_DEMO_STORE_INSTAGRAM--PAYMENT--NAME"),
 	'description' => Loc::getMessage("LANDING_DEMO_STORE_INSTAGRAM--PAYMENT--NAME"),
-	'active' => true,
+	'active' => \LandingSiteDemoComponent::checkActive([
+		'ONLY_IN' => [],
+		'EXCEPT' => ['ru'],
+	]),
 	'preview' => '',
 	'preview2x' => '',
 	'preview3x' => '',
@@ -25,7 +28,7 @@ return array(
 			'VIEW_USE' => 'N',
 			'VIEW_TYPE' => 'no',
 			'THEME_CODE' => '1construction',
-			'THEME_CODE_TYPO' => '3corporate',
+
 		),
 	),
 	'layout' => array(

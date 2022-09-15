@@ -22,12 +22,13 @@ define('DEBUG_FLAG', str_replace('\\','/',$_SERVER['DOCUMENT_ROOT'] . '/bitrix/s
 require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/classes/general/site_checker.php');
 
 // NO AUTH TESTS
-if ($_REQUEST['unique_id'])
+if (isset($_REQUEST['unique_id']) && $_REQUEST['unique_id'])
 {
 	if (!file_exists(DEBUG_FLAG) && $_REQUEST['unique_id'] != checker_get_unique_id())
 		die('Permission denied: UNIQUE ID ERROR');
 
-	switch ($_GET['test_type'])
+	$testType = $_GET['test_type'] ?? '';
+	switch ($testType)
 	{
 		case 'socket_test':
 			echo "SUCCESS";
@@ -45,8 +46,13 @@ if ($_REQUEST['unique_id'])
 			define("NOT_CHECK_PERMISSIONS", true);
 			define("LDAP_NO_PORT_REDIRECTION", true);
 			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
-			echo $main_exec_time;
+
+			foreach(GetModuleEvents("main", "OnEpilog", true) as $arEvent)
+				ExecuteModuleEventEx($arEvent);
+
+			$APPLICATION->EndBufferContentMan();
+
+			echo round(microtime(true) - START_EXEC_TIME, 4);
 		break;
 		case 'fast_download':
 			header('X-Accel-Redirect: /bitrix/tmp/success.txt');
@@ -64,7 +70,7 @@ if ($_REQUEST['unique_id'])
 			ob_end_clean();
 			if (function_exists('mb_internal_encoding'))
 				mb_internal_encoding('ISO-8859-1');
-			echo $buff === '' ? 'SUCCESS' : 'Length: '.strlen($buff).' ('.$buff . ')';
+			echo $buff === '' ? 'SUCCESS' : 'Length: '.mb_strlen($buff).' ('.$buff . ')';
 		break;
 		case 'pcre_recursion_test':
 			$a = str_repeat('a',4096);
@@ -93,10 +99,10 @@ if ($_REQUEST['unique_id'])
 			$binaryData = '';
 			for($i=40;$i<240;$i++)
 				$binaryData .= chr($i);
-			if ($_REQUEST['big'])
+			if (isset($_REQUEST['big']) && $_REQUEST['big'])
 				$binaryData = str_repeat($binaryData, 21000);
 
-			if ($_REQUEST['raw'])
+			if (isset($_REQUEST['raw']) && $_REQUEST['raw'])
 				$binaryData_received = file_get_contents('php://input');
 			elseif (move_uploaded_file($tmp_name = $_FILES['test_file']['tmp_name'], $image = $dir.'/site_checker.bin'))
 			{
@@ -114,7 +120,7 @@ if ($_REQUEST['unique_id'])
 			if ($binaryData === $binaryData_received)
 				echo "SUCCESS";
 			else
-				echo 'strlen($binaryData)='.strlen($binaryData).', strlen($binaryData_received)='.strlen($binaryData_received);
+				echo 'strlen($binaryData)='.mb_strlen($binaryData).', strlen($binaryData_received)='.mb_strlen($binaryData_received);
 		break;
 		case 'post_test':
 			$ok = true;
@@ -136,7 +142,7 @@ if ($_REQUEST['unique_id'])
 		break;
 		case 'auth_test':
 			$remote_user = $_SERVER["REMOTE_USER"] ? $_SERVER["REMOTE_USER"] : $_SERVER["REDIRECT_REMOTE_USER"];
-			$strTmp = base64_decode(substr($remote_user,6));
+			$strTmp = base64_decode(mb_substr($remote_user, 6));
 			if ($strTmp)
 				list($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']) = explode(':', $strTmp);
 			if ($_SERVER['PHP_AUTH_USER']=='test_user' && $_SERVER['PHP_AUTH_PW']=='test_password')
@@ -144,7 +150,7 @@ if ($_REQUEST['unique_id'])
 		break;
 		case 'session_test':
 			session_start();
-			echo $_SESSION['CHECKER_CHECK_SESSION'];
+			echo $_SESSION['CHECKER_CHECK_SESSION'] ?? '';
 			$_SESSION['CHECKER_CHECK_SESSION'] = 'SUCCESS';
 		break;
 		case 'redirect_test':
@@ -152,12 +158,12 @@ if ($_REQUEST['unique_id'])
 				$GLOBALS['_SERVER'][$key] = $GLOBALS['_REQUEST'][$key];
 			function IsHTTPS()
 			{
-				return ($_SERVER["SERVER_PORT"]==443 || strtolower($_SERVER["HTTPS"])=="on");
+				return ($_SERVER["SERVER_PORT"]==443 || mb_strtolower($_SERVER["HTTPS"]) == "on");
 			}
 
 			function SetStatus($status)
 			{
-				$bCgi = (stristr(php_sapi_name(), "cgi") !== false);
+				$bCgi = (mb_stristr(php_sapi_name(), "cgi") !== false);
 				$bFastCgi = ($bCgi && (array_key_exists('FCGI_ROLE', $_SERVER) || array_key_exists('FCGI_ROLE', $_ENV)));
 				if($bCgi && !$bFastCgi)
 					header("Status: ".$status);
@@ -165,14 +171,14 @@ if ($_REQUEST['unique_id'])
 					header($_SERVER["SERVER_PROTOCOL"]." ".$status);
 			}
 
-			if ($_REQUEST['done'])
+			if (isset($_REQUEST['done']))
 				echo 'SUCCESS';
 			else
 			{
 				SetStatus("302 Found");
 				$protocol = (IsHTTPS() ? "https" : "http");
 				$host = $_SERVER['HTTP_HOST'];
-				if($_SERVER['SERVER_PORT'] <> 80 && $_SERVER['SERVER_PORT'] <> 443 && $_SERVER['SERVER_PORT'] > 0 && strpos($_SERVER['HTTP_HOST'], ":") === false)
+				if($_SERVER['SERVER_PORT'] <> 80 && $_SERVER['SERVER_PORT'] <> 443 && $_SERVER['SERVER_PORT'] > 0 && mb_strpos($_SERVER['HTTP_HOST'], ":") === false)
 					$host .= ":".$_SERVER['SERVER_PORT'];
 				$url = "?redirect_test=Y&done=Y&unique_id=".checker_get_unique_id();
 				header("Request-URI: ".$protocol."://".$host.$url);
@@ -185,9 +191,9 @@ if ($_REQUEST['unique_id'])
 		break;
 	}
 
-	if ($fix_mode = intval($_GET['fix_mode']))
+	if (isset($_GET['fix_mode']) && ($fix_mode = intval($_GET['fix_mode'])))
 	{
-		if ($_REQUEST['charset'])
+		if (isset($_REQUEST['charset']) && $_REQUEST['charset'])
 		{
 			define('LANG_CHARSET', preg_replace('#[^a-z0-9\-]#i', '', $_REQUEST['charset']));
 			header('Content-type: text/plain; charset='.LANG_CHARSET);
@@ -197,53 +203,15 @@ if ($_REQUEST['unique_id'])
 			include_once($file);
 		else
 			include_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/lang/en/admin/site_checker.php');
+
 		InitPureDB();
-		if (!function_exists('AddMessage2Log'))
-		{
-			function AddMessage2Log($sText, $sModule = "", $traceDepth = 6, $bShowArgs = false)
-			{
-				echo $sText;
-			}
-		}
-
-		if (!function_exists('htmlspecialcharsbx'))
-		{
-			function htmlspecialcharsbx($string, $flags=ENT_COMPAT)
-			{
-				//shitty function for php 5.4 where default encoding is UTF-8
-				return htmlspecialchars($string, $flags, (defined("BX_UTF")? "UTF-8" : "ISO-8859-1"));
-			}
-		}
-
-		if (!function_exists('GetMessage'))
-		{
-			function GetMessage($code, $arReplace = array())
-			{
-				global $MESS;
-				$strResult = $MESS[$code];
-				foreach($arReplace as $k => $v)
-					$strResult = str_replace($k, $v, $strResult);
-				return $strResult;
-			}
-		}
-
-		if (!function_exists('JSEscape'))
-		{
-			function JSEscape($s)
-			{
-				static $aSearch = array("\xe2\x80\xa9", "\\", "'", "\"", "\r\n", "\r", "\n", "\xe2\x80\xa8");
-				static $aReplace = array(" ", "\\\\", "\\'", '\\"', "\n", "\n", "\\n'+\n'", "\\n'+\n'");
-				$val =  str_replace($aSearch, $aReplace, $s);
-				return preg_replace("'</script'i", "</s'+'cript", $val);
-			}
-		}
 
 		$oTest = new CSiteCheckerTest($_REQUEST['step'], 0, $fix_mode);
 		if (file_exists(DEBUG_FLAG))
 			$oTest->timeout = 30;
 
 		if ($_REQUEST['global_test_vars'] && ($d = base64_decode($_REQUEST['global_test_vars'])))
-			$oTest->arTestVars = unserialize($d);
+			$oTest->arTestVars = unserialize($d, ['allowed_classes' => false]);
 		else
 			$oTest->arTestVars = array();
 
@@ -263,11 +231,11 @@ if ($_REQUEST['unique_id'])
 			iPercent = '.$oTest->percent.';
 			test_percent = '.$oTest->test_percent.';
 			strCurrentTestFunc = "'.$oTest->last_function.'";
-			strCurrentTestName = "'.JSEscape($oTest->strCurrentTestName).'";
-			strNextTestName = "'.JSEscape($oTest->strNextTestName).'";
-			strNextRequest = "'.JSEscape($strNextRequest).'";
-			strResult = "'.JSEscape(str_replace(array("\r","\n"),"",$oTest->strResult)).'";
-			strFinalStatus = "'.JSEscape($strFinalStatus).'";
+			strCurrentTestName = "'.CUtil::JSEscape($oTest->strCurrentTestName).'";
+			strNextTestName = "'.CUtil::JSEscape($oTest->strNextTestName).'";
+			strNextRequest = "'.CUtil::JSEscape($strNextRequest).'";
+			strResult = "'.CUtil::JSEscape(str_replace(array("\r","\n"),"",$oTest->strResult)).'";
+			strFinalStatus = "'.CUtil::JSEscape($strFinalStatus).'";
 			test_result = '.($oTest->result === true ? 1 : ($oTest->result === false ? -1 : 0)).'; // 0 = note
 		';
 	}
@@ -278,10 +246,9 @@ if ($_REQUEST['unique_id'])
 if (file_exists(DEBUG_FLAG))
 {
 	define('NOT_CHECK_PERMISSIONS', true);
-	define("BX_COMPRESSION_DISABLED", true);
 }
 
-if($_REQUEST['test_start'])
+if(isset($_REQUEST['test_start']) && $_REQUEST['test_start'])
 {
 	define("NO_KEEP_STATISTIC", true);
 	define("NO_AGENT_CHECK", true);
@@ -324,7 +291,7 @@ if ($_POST['access_check'])
 				mkdir($tmp);
 			$upload = $_SERVER['DOCUMENT_ROOT'].'/'.COption::GetOptionString('main', 'upload_dir', 'upload');
 
-			if (0===strpos($_REQUEST['break_point'], $upload))
+			if (0 === mb_strpos($_REQUEST['break_point'], $upload))
 				$path = $upload;
 			else
 			{
@@ -403,9 +370,7 @@ elseif($_REQUEST['test_start'])
 		$oTest = new CSiteCheckerTest($_REQUEST['step'], (int) $_REQUEST['fast']);
 		if ($_REQUEST['global_test_vars'] && ($d = base64_decode($_REQUEST['global_test_vars'])))
 		{
-			if (!CheckSerializedData($d))
-				die('Error unserialize');
-			$oTest->arTestVars = unserialize($d);
+			$oTest->arTestVars = unserialize($d, ['allowed_classes' => false]);
 		}
 
 		$oTest->Start();
@@ -443,7 +408,7 @@ elseif ($_REQUEST['read_log']) // after prolog to send correct charset
 	$oTest = new CSiteCheckerTest();
 	$str = htmlspecialcharsEx(file_get_contents($_SERVER['DOCUMENT_ROOT'].$oTest->LogFile));
 
-	if (($s = CUtil::BinStrlen($str)) > ini_get('pcre.backtrack_limit'))
+	if (($s = strlen($str)) > ini_get('pcre.backtrack_limit'))
 		@ini_set('pcre.backtrack_limit', $s);
 
 	?><!DOCTYPE HTML><html><body style="color:#666"><h1 style="color:#000"><?=GetMessage("MAIN_SC_SYSTEST_LOG")?></h1><?
@@ -526,7 +491,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 			color:#000000;
 			vertical-align: middle;
 		}
-		
+
 		.sc_error {
 			color:#DD0000 !important;
 			vertical-align: middle;
@@ -779,7 +744,7 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 			}
 			else
 			{
-				try 
+				try
 				{
 					if (result)
 						eval(result);
@@ -984,7 +949,7 @@ $tabControl->BeginNextTab();
 		<?
 		foreach(CSiteCheckerTest::GetTestList() as $test)
 		{
-			$help = GetMessage('SC_HELP_'.strtoupper($test));
+			$help = GetMessage('SC_HELP_'.mb_strtoupper($test));
 			$help = str_replace('<code>','<div class="sc_code">',$help);
 			$help = str_replace('</code>','</div>',$help);
 			$help = str_replace("\r", "", $help);

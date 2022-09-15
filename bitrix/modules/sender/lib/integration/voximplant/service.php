@@ -121,4 +121,22 @@ class Service
 
 		CallLogTable::removeByCallId($callId);
 	}
+
+	public static function getFormattedOutputNumber($value)
+	{
+		static $lines;
+		if (null === $lines)
+		{
+			if (static::canUse())
+			{
+				$lines = \CVoxImplantConfig::GetPortalNumbers(false);
+			}
+			else
+			{
+				$lines = [];
+			}
+		}
+
+		return $lines[$value] ?: $value;
+	}
 }

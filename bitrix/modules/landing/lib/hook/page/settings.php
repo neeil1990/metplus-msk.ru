@@ -7,6 +7,7 @@ use \Bitrix\Landing\Field;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Main\ModuleManager;
 use \Bitrix\Main\Loader;
+use \Bitrix\Currency\CurrencyManager;
 
 Loc::loadMessages(__FILE__);
 
@@ -45,14 +46,38 @@ class Settings extends \Bitrix\Landing\Hook\Page
 		'USE_ENHANCED_ECOMMERCE' => 'Y',
 		'DATA_LAYER_NAME' => 'dataLayer',
 		'BRAND_PROPERTY' => 'BRAND_REF',
-		'CART_POSITION' => 'BL'
+		'CART_POSITION' => 'BL',
+		'AGREEMENT_ID' => 0,
 	);
+
+	/**
+	 * Returns transform $defValues.
+	 * @return array
+	 */
+	protected static function getDefaultValues(): array
+	{
+		static $defValues = [];
+
+		if (!$defValues)
+		{
+			$defValues = self::$defValues;
+			if (
+				!$defValues['CURRENCY_ID']
+				&& Loader::includeModule('currency')
+			)
+			{
+				$defValues['CURRENCY_ID'] = CurrencyManager::getBaseCurrency();
+			}
+		}
+
+		return $defValues;
+	}
 
 	/**
 	 * Build local allowed codes array.
 	 * @return array
 	 */
-	protected static function getCodesVsalues()
+	protected static function getCodesValues()
 	{
 		static $codes = array();
 
@@ -139,9 +164,9 @@ class Settings extends \Bitrix\Landing\Hook\Page
 				}
 		}
 
-		if ($field && isset(self::$defValues[$code]))
+		if ($field && isset(self::getDefaultValues()[$code]))
 		{
-			$field->setValue(self::$defValues[$code]);
+			$field->setValue(self::getDefaultValues()[$code]);
 		}
 
 		return $field;
@@ -168,7 +193,7 @@ class Settings extends \Bitrix\Landing\Hook\Page
 					'miss_subtype' => true
 				)
 			);
-			$codes = self::getCodesVsalues();
+			$codes = self::getCodesValues();
 			foreach (array_keys($codes) as $k)
 			{
 				foreach ($codes[$k] as $code)
@@ -195,14 +220,14 @@ class Settings extends \Bitrix\Landing\Hook\Page
 
 		if ($linear)
 		{
-			foreach (self::getCodesVsalues() as $item)
+			foreach (self::getCodesValues() as $item)
 			{
 				$codes = array_merge($codes, $item);
 			}
 		}
 		else
 		{
-			$codes = self::getCodesVsalues();
+			$codes = self::getCodesValues();
 		}
 
 		return $codes;
@@ -217,7 +242,7 @@ class Settings extends \Bitrix\Landing\Hook\Page
 		$fields = array();
 
 		// set iblock_id to the map
-		if (!Manager::isB24())
+		if (!Manager::isB24() && !Manager::isExtendedSMN())
 		{
 			$catalogs = array(
 				'' => ''
@@ -291,6 +316,9 @@ class Settings extends \Bitrix\Landing\Hook\Page
 			}
 		}
 
+		$fields['AGREEMENT_USE'] = self::getFieldByType(
+			'CHECKBOX', 'AGREEMENT_USE'
+		);
 		$fields['AGREEMENT_ID'] = self::getFieldByType(
 			null, 'AGREEMENT_ID'
 		);
@@ -349,7 +377,6 @@ class Settings extends \Bitrix\Landing\Hook\Page
 			return $settings[$id];
 		}
 
-		$default = self::getComponentsParams();
 		$settings[$id] = array();
 
 		if ($id)
@@ -360,19 +387,15 @@ class Settings extends \Bitrix\Landing\Hook\Page
 			);
 		}
 
-		foreach ($default as $key => $item)
+		foreach (self::getDefaultValues() as $key => $defValue)
 		{
 			if (isset($hooks['SETTINGS'][$key]))
 			{
 				$settings[$id][$key] = $hooks['SETTINGS'][$key];
 			}
-			elseif (isset(self::$defValues[$key]))
-			{
-				$settings[$id][$key] = self::$defValues[$key];
-			}
 			else
 			{
-				$settings[$id][$key] = $item['VALUE'];
+				$settings[$id][$key] = $defValue;
 			}
 		}
 
@@ -389,10 +412,21 @@ class Settings extends \Bitrix\Landing\Hook\Page
 				'crm', 'default_product_catalog_id'
 			);
 		}
-		if (isset($hooks['SETTINGS']['AGREEMENT_ID']))
+
+		// agreement
+		if(isset($hooks['SETTINGS']['AGREEMENT_USE']))
 		{
-			$settings[$id]['AGREEMENT_ID'] = $hooks['SETTINGS']['AGREEMENT_ID'];
+			$settings[$id]['AGREEMENT_USE'] = $hooks['SETTINGS']['AGREEMENT_USE'];
+			if($hooks['SETTINGS']['AGREEMENT_USE'] === 'N')
+			{
+				$settings[$id]['AGREEMENT_ID'] = 0;
+			}
 		}
+		else
+		{
+			$settings[$id]['AGREEMENT_USE'] = $settings[$id]['AGREEMENT_ID'] ? 'Y' : 'N';
+		}
+
 		if (isset($hooks['SETTINGS']['CART_POSITION']))
 		{
 			$settings[$id]['CART_POSITION'] = $hooks['SETTINGS']['CART_POSITION'];

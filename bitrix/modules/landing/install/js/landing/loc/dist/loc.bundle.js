@@ -2,9 +2,14 @@ this.BX = this.BX || {};
 (function (exports,main_core,landing_env) {
 	'use strict';
 
-	var Loc =
-	/*#__PURE__*/
-	function (_MainLoc) {
+	var pageTypeAlias = {
+	  GROUP: 'KNOWLEDGE'
+	};
+	/**
+	 * @memberOf BX.Landing
+	 */
+
+	var Loc = /*#__PURE__*/function (_MainLoc) {
 	  babelHelpers.inherits(Loc, _MainLoc);
 
 	  function Loc() {
@@ -15,7 +20,10 @@ this.BX = this.BX || {};
 	  babelHelpers.createClass(Loc, null, [{
 	    key: "getMessage",
 	    value: function getMessage(key) {
-	      var pageType = landing_env.Env.getInstance().getType();
+	      var pageType = function () {
+	        var type = landing_env.Env.getInstance().getType();
+	        return pageTypeAlias[type] || type;
+	      }();
 
 	      if (pageType) {
 	        var typedMessageKey = "".concat(key, "__").concat(pageType);

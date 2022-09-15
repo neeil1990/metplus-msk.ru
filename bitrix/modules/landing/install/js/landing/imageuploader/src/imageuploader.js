@@ -4,6 +4,9 @@ import {Backend} from 'landing.backend';
 import type ImageUploaderOptions from './types/imageuploader.options';
 import renameX from './internal/renamex';
 
+/**
+ * @memberOf BX.Landing
+ */
 export class ImageUploader
 {
 	constructor(options: ImageUploaderOptions)
@@ -15,6 +18,12 @@ export class ImageUploader
 			sizes: ['1x'],
 			...options,
 		};
+	}
+
+	setSizes(sizes: Array<string>): ImageUploader
+	{
+		this.options.sizes = sizes;
+		return this;
 	}
 
 	getDimensions(): Array<number>

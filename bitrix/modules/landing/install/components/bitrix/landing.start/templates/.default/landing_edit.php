@@ -1,8 +1,13 @@
 <?php
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
+
+/** @var array $arResult */
+/** @var array $arParams */
+/** @var \CMain $APPLICATION */
+/** @var \CBitrixComponent $component */
 
 $request = \bitrix\Main\HttpContext::getCurrent()->getRequest();
 
@@ -26,9 +31,39 @@ $arParams['PAGE_URL_SITE_EDIT'] = str_replace(
 $arParams['DEMO_TYPE'] = ($arParams['STRICT_TYPE'] == 'Y')
 						? $arParams['TYPE']
 						: 'PAGE';
+
+// add new pages to the sidebar menu
+if (
+	!$arResult['VARS']['landing_edit'] &&
+	(
+		$arParams['TYPE'] == \Bitrix\Landing\Site\Type::SCOPE_CODE_KNOWLEDGE ||
+		$arParams['TYPE'] == \Bitrix\Landing\Site\Type::SCOPE_CODE_GROUP
+	)
+)
+{
+	\Bitrix\Landing\Landing::callback('OnAfterAdd',
+		function(\Bitrix\Main\Event $event) use($arResult)
+		{
+			$primary = $event->getParameter('primary');
+			$fields = $event->getParameter('fields');
+			\Bitrix\Landing\Site::addLandingToMenu(
+				$arResult['VARS']['site_show'],
+				[
+					'ID' => $primary['ID'],
+					'TITLE' => $fields['TITLE']
+				]
+			);
+		}
+	);
+}
+
+if ($request->get('frameMode') === 'Y')
+{
+	$arParams['EDIT_DONT_LEAVE_FRAME'] = 'Y';
+}
 ?>
 
-<?if ($arResult['VARS']['landing_edit']):?>
+<?if ($arResult['VARS']['landing_edit'] > 0):?>
 
 	<?$APPLICATION->IncludeComponent(
 		'bitrix:landing.landing_edit',
@@ -39,6 +74,7 @@ $arParams['DEMO_TYPE'] = ($arParams['STRICT_TYPE'] == 'Y')
 			'PAGE_URL_LANDINGS' => $arParams['PAGE_URL_SITE_SHOW'],
 			'PAGE_URL_LANDING_VIEW' => $arParams['PAGE_URL_LANDING_VIEW'],
 			'PAGE_URL_SITE_EDIT' => $arParams['PAGE_URL_SITE_EDIT'],
+			'PAGE_URL_FOLDER_EDIT' => $arParams['PAGE_URL_FOLDER_EDIT'],
 			'TYPE' => $arParams['TYPE']
 		),
 		$component

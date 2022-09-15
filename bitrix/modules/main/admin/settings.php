@@ -19,7 +19,7 @@ define("HELP_FILE", "settings/settings/settings.php");
 if(!$USER->CanDoOperation('view_other_settings') && !$USER->CanDoOperation('edit_other_settings'))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-if(strpos($_REQUEST["back_url_settings"], '/') !== 0 || strpos($_REQUEST["back_url_settings"], '//') === 0)
+if(mb_strpos($_REQUEST["back_url_settings"], '/') !== 0 || mb_strpos($_REQUEST["back_url_settings"], '//') === 0)
 	$_REQUEST["back_url_settings"] = '';
 
 IncludeModuleLangFile(__FILE__);
@@ -105,7 +105,7 @@ function __AdmSettingsSaveOption($module_id, $arOption)
 
 	if ($isChoiceSites)
 	{
-		if (isset($_REQUEST[$name."_all"]) && strlen($_REQUEST[$name."_all"]) > 0)
+		if (isset($_REQUEST[$name."_all"]) && $_REQUEST[$name."_all"] <> '')
 			COption::SetOptionString($module_id, $name, $_REQUEST[$name."_all"], $arOption[1]);
 		else
 			COption::RemoveOption($module_id, $name);
@@ -116,14 +116,18 @@ function __AdmSettingsSaveOption($module_id, $arOption)
 		));
 		while ($site = $queryObject->fetch())
 		{
-			if (isset($_REQUEST[$name."_".$site["LID"]]) && strlen($_REQUEST[$name."_".$site["LID"]]) > 0 &&
+			if (isset($_REQUEST[$name."_".$site["LID"]]) && $_REQUEST[$name."_".$site["LID"]] <> '' &&
 				!isset($_REQUEST[$name."_all"]))
 			{
 				$val = $_REQUEST[$name."_".$site["LID"]];
 				if($arOption[3][0] == "checkbox" && $val != "Y")
+				{
 					$val = "N";
-				if($arOption[3][0] == "multiselectbox")
-					$val = @implode(",", $val);
+				}
+				if($arOption[3][0] == "multiselectbox" && is_array($val))
+				{
+					$val = implode(",", $val);
+				}
 				COption::SetOptionString($module_id, $name, $val, $arOption[1], $site["LID"]);
 			}
 			else
@@ -145,9 +149,13 @@ function __AdmSettingsSaveOption($module_id, $arOption)
 		$val = $_REQUEST[$name];
 
 		if($arOption[3][0] == "checkbox" && $val != "Y")
+		{
 			$val = "N";
-		if($arOption[3][0] == "multiselectbox")
-			$val = @implode(",", $val);
+		}
+		if($arOption[3][0] == "multiselectbox" && is_array($val))
+		{
+			$val = implode(",", $val);
+		}
 
 		COption::SetOptionString($module_id, $name, $val, $arOption[1]);
 	}
@@ -249,7 +257,7 @@ function __AdmSettingsDrawRow($module_id, $Option)
 			<tr>
 				<td width="50%">
 					<a href="javascript:void(0)" onclick="addSiteSelector(this)" class="bx-action-href">
-						<?=GetMessage("MAIN_ADMIN_ADD_SITE_SELECTOR")?>
+						<?=GetMessage("MAIN_ADMIN_ADD_SITE_SELECTOR_1")?>
 					</a>
 				</td>
 				<td width="50%"></td>
@@ -320,7 +328,7 @@ function renderLable($Option, array $listSite, $siteValue = "")
 			echo "<label for='".htmlspecialcharsbx($Option[0])."'>".$Option[1]."</label>";
 		else
 			echo $Option[1];
-		if (strlen($sup_text) > 0)
+		if ($sup_text <> '')
 		{
 			?><span class="required"><sup><?=$sup_text?></sup></span><?
 		}

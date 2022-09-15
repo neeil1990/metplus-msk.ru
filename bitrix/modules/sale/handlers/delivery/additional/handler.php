@@ -68,12 +68,12 @@ class AdditionalHandler extends Base
 	{
 		parent::__construct($initParams);
 
-		if(isset($initParams['SERVICE_TYPE']) && strlen($initParams['SERVICE_TYPE']) > 0)
+		if(isset($initParams['SERVICE_TYPE']) && $initParams['SERVICE_TYPE'] <> '')
 			$this->serviceType = $initParams['SERVICE_TYPE'];
 		elseif(isset($this->config["MAIN"]["SERVICE_TYPE"]))
 			$this->serviceType = $this->config["MAIN"]["SERVICE_TYPE"];
 
-		if(strlen($this->serviceType) <= 0)
+		if($this->serviceType == '')
 			throw new ArgumentNullException('initParams[SERVICE_TYPE]');
 
 		if($initParams['CONFIG']['MAIN']['SERVICE_TYPE'] == "RUSPOST")
@@ -96,6 +96,14 @@ class AdditionalHandler extends Base
 		}
 
 		$this->deliveryRequestHandler = $this->getDeliveryRequestHandler();
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getHandlerCode(): string
+	{
+		return 'BITRIX_ADDITIONAL_' . (string)$this->serviceType;
 	}
 
 	public function getDeliveryRequestHandler()
@@ -219,10 +227,17 @@ class AdditionalHandler extends Base
 			{
 				$errors = array();
 				$notes = array();
+				$nothingFound = false;
 				
 				/** @var Error $error */
 				foreach($res->getErrorCollection() as $error)
 				{
+					if($error->getCode() === \Bitrix\Sale\Services\Base\RestClient::ERROR_NOTHING_FOUND)
+					{
+						$nothingFound = true;
+						continue;
+					}
+
 					$message = $error->getMessage();
 
 					if($message == 'verification_needed. License check failed.')
@@ -238,7 +253,12 @@ class AdditionalHandler extends Base
 					$result['NOTES'] = $notes;
 
 				if(empty($errors) && empty($notes))
-					$errors[] = Loc::getMessage('SALE_DLVRS_ADD_LIST_RECEIVE_ERROR');
+				{
+					if($nothingFound === false || $res->getErrorCollection()->count() !== 1)
+					{
+						$errors[] = Loc::getMessage('SALE_DLVRS_ADD_LIST_RECEIVE_ERROR');
+					}
+				}
 			}
 		}
 
@@ -509,10 +529,13 @@ class AdditionalHandler extends Base
 	protected function addRestriction($type, $profileId, array $params)
 	{
 		$fields  = array();
+		$className = null;
 
 		switch($type)
 		{
 			case "WEIGHT":
+				$className = \Bitrix\Sale\Delivery\Restrictions\ByWeight::class;
+
 				$p = array();
 				if(isset($params['MIN']))	$p['MIN_WEIGHT'] = $params['MIN'];
 				if(isset($params['MAX']))	$p['MAX_WEIGHT'] = $params['MAX'];
@@ -521,7 +544,6 @@ class AdditionalHandler extends Base
 				{
 					$fields = array(
 						"SERVICE_ID" => $profileId,
-						"CLASS_NAME" => '\Bitrix\Sale\Delivery\Restrictions\ByWeight',
 						"SERVICE_TYPE" => \Bitrix\Sale\Services\Base\RestrictionManager::SERVICE_TYPE_SHIPMENT,
 						"PARAMS" => $p
 					);
@@ -530,6 +552,8 @@ class AdditionalHandler extends Base
 				break;
 
 			case "DIMENSIONS":
+				$className = \Bitrix\Sale\Delivery\Restrictions\ByDimensions::class;
+
 				$p = array();
 				if(isset($params['LENGTH']))	$p['LENGTH'] = $params['LENGTH'];
 				if(isset($params['WIDTH']))	$p['WIDTH'] = $params['WIDTH'];
@@ -539,7 +563,6 @@ class AdditionalHandler extends Base
 				{
 					$fields = array(
 						"SERVICE_ID" => $profileId,
-						"CLASS_NAME" => '\Bitrix\Sale\Delivery\Restrictions\ByDimensions',
 						"SERVICE_TYPE" => \Bitrix\Sale\Services\Base\RestrictionManager::SERVICE_TYPE_SHIPMENT,
 						"PARAMS" => $p
 					);
@@ -549,6 +572,8 @@ class AdditionalHandler extends Base
 
 			case "MAX_SIZE":
 
+				$className = \Bitrix\Sale\Delivery\Restrictions\ByMaxSize::class;
+
 				$p = array();
 				if(isset($params['MAX_SIZE']) && intval($params['MAX_SIZE']) > 0)	$p['MAX_SIZE'] = $params['MAX_SIZE'];
 
@@ -556,7 +581,6 @@ class AdditionalHandler extends Base
 				{
 					$fields = array(
 						"SERVICE_ID" => $profileId,
-						"CLASS_NAME" => '\Bitrix\Sale\Delivery\Restrictions\ByMaxSize',
 						"SERVICE_TYPE" => \Bitrix\Sale\Services\Base\RestrictionManager::SERVICE_TYPE_SHIPMENT,
 						"PARAMS" => $p
 					);
@@ -564,10 +588,34 @@ class AdditionalHandler extends Base
 
 				break;
 
+			case 'BY_LOCATION':
+			case 'EXCLUDE_LOCATION':
+
+				$className = ($type === 'BY_LOCATION')
+					? \Bitrix\Sale\Delivery\Restrictions\ByLocation::class
+					: \Bitrix\Sale\Delivery\Restrictions\ExcludeLocation::class;
+
+				if (isset($params['LOCATION']))
+				{
+					$p['LOCATION'] = $params['LOCATION'];
+				}
+
+				if(!empty($p))
+				{
+					$fields = array(
+						'SERVICE_ID' => $profileId,
+						'SERVICE_TYPE' => \Bitrix\Sale\Services\Base\RestrictionManager::SERVICE_TYPE_SHIPMENT,
+						'PARAMS' => $p,
+					);
+				}
+
+				break;
 		}
 
-		if(!empty($fields))
-			ServiceRestrictionTable::add($fields);
+		if($className && !empty($fields))
+		{
+			$className::save($fields);
+		}
 	}
 
 	/**
@@ -624,7 +672,7 @@ class AdditionalHandler extends Base
 		elseif(!Location::isInstalled() && !empty($_REQUEST['ID']))
 			$message = Loc::getMessage('SALE_DLVRS_ADD_LOC_INSTALL');
 
-		if(strlen($message) > 0)
+		if($message <> '')
 		{
 			$result = array(
 				"DETAILS" => $message,
@@ -824,8 +872,10 @@ class AdditionalHandler extends Base
 			"ITEMS" => array(),
 			"LOCATION_FROM" => $locFromRequest['EXTERNAL_ID'],
 			"LOCATION_FROM_NAME" => $locFromRequest['NAME'],
+			"LOCATION_FROM_CODE" => (!empty($shopLocation['CODE'])) ? $shopLocation['CODE'] : '',
 			"LOCATION_TO" => $locToRequest['EXTERNAL_ID'],
 			"LOCATION_TO_NAME" => $locToRequest['NAME'],
+			"LOCATION_TO_CODE" => $locToInternalCode,
 			"LOCATION_TO_TYPES" => self::getLocationChainByTypes($locToInternalCode, LANGUAGE_ID)
 		);
 
@@ -842,7 +892,7 @@ class AdditionalHandler extends Base
 		{
 			$zipFrom = \CSaleHelper::getShopLocationZIP();
 
-			if(strlen($zipFrom) > 0)
+			if($zipFrom <> '')
 			{
 				$result["ZIP_FROM"] = $zipFrom;
 			}
@@ -857,7 +907,7 @@ class AdditionalHandler extends Base
 			$zipTo = $props->getDeliveryLocationZip();
 			$zipTo = !!$zipTo ? $zipTo->getValue() : "";
 
-			if(strlen($zipTo) > 0)
+			if($zipTo <> '')
 			{
 				$result["ZIP_TO"] = $zipTo;
 			}
@@ -893,7 +943,7 @@ class AdditionalHandler extends Base
 			$price += $itemFieldValues["PRICE"] * $itemFieldValues["QUANTITY"];
 
 			if(!empty($itemFieldValues["DIMENSIONS"]) && is_string($itemFieldValues["DIMENSIONS"]))
-				$itemFieldValues["DIMENSIONS"] = unserialize($itemFieldValues["DIMENSIONS"]);
+				$itemFieldValues["DIMENSIONS"] = unserialize($itemFieldValues["DIMENSIONS"], ['allowed_classes' => false]);
 
 			$result["ITEMS"][] = $itemFieldValues;
 		}
@@ -918,7 +968,7 @@ class AdditionalHandler extends Base
 		}
 
 		$delivery= Manager::getObjectById($shipment->getDeliveryId());
-		$result['DELIVERY_SERVICE_CONFIG'] = $delivery->getConfigValues();
+		$result['DELIVERY_SERVICE_CONFIG'] = $delivery ? $delivery->getConfigValues() : [];
 		$result['WEIGHT'] = $shipment->getWeight();
 		$result['PRICE'] = $price;
 		$result['SHIPMENT_ID'] = $shipment->getId();
@@ -934,7 +984,7 @@ class AdditionalHandler extends Base
 	 */
 	protected static function getLocationForRequest($locationCode)
 	{
-		if(strlen($locationCode) <= 0)
+		if($locationCode == '')
 			return array();
 
 		static $result = array();
@@ -944,7 +994,7 @@ class AdditionalHandler extends Base
 			$externalId = Location::getExternalId($locationCode);
 			$name = '';
 
-			if(strlen($externalId) > 0)
+			if($externalId <> '')
 			{
 				$dbRes = ExternalTable::getList(array(
 					'filter' => array(
@@ -972,47 +1022,58 @@ class AdditionalHandler extends Base
 	 * @param int $locationCode Location code.
 	 * @param string $lang Language identifier.
 	 * @return array Location components by type.
-	 * @throws \Bitrix\Main\ArgumentException
 	 */
 	protected static function getLocationChainByTypes($locationCode, $lang = LANGUAGE_ID)
 	{
-		if(strlen($locationCode) <= 0)
-			return array();
+		if ($locationCode == '')
+		{
+			return [];
+		}
+
+		$res = LocationTable::getList([
+			'filter' => [
+				'=CODE' => $locationCode,
+			],
+			'select' => [
+				'ID',
+				'CODE',
+				'LEFT_MARGIN',
+				'RIGHT_MARGIN',
+			]
+		]);
+
+		if (!$loc = $res->fetch())
+		{
+			return [];
+		}
+
+		$result = [];
 
 		$res = LocationTable::getList(array(
-			'filter' => array(
-				array(
-					'LOGIC' => 'OR',
-					'=CODE' => $locationCode
-				),
-			),
-			'select' => array(
-				'ID', 'CODE', 'LEFT_MARGIN', 'RIGHT_MARGIN'
-			)
-		));
-
-		if(!$loc = $res->fetch())
-			return array();
-
-		$result = array();
-
-		$res = LocationTable::getList(array(
-			'filter' => array(
+			'filter' => [
 				'<=LEFT_MARGIN' => $loc['LEFT_MARGIN'],
 				'>=RIGHT_MARGIN' => $loc['RIGHT_MARGIN'],
 				'NAME.LANGUAGE_ID' => $lang,
-				'TYPE.NAME.LANGUAGE_ID' => $lang
-			),
-			'select' => array(
-				'ID', 'CODE',
+				'TYPE.NAME.LANGUAGE_ID' => $lang,
+			],
+			'select' => [
+				'ID',
+				'CODE',
 				'LOCATION_NAME' => 'NAME.NAME',
 				'TYPE_NAME' => 'TYPE.NAME.NAME',
-				'TYPE_CODE' => 'TYPE.CODE'
-			)
+				'TYPE_CODE' => 'TYPE.CODE',
+			]
 		));
 
-		while($locParent = $res->fetch())
-			$result[$locParent['TYPE_CODE']] = $locParent['LOCATION_NAME'];
+		while ($locParent = $res->fetch())
+		{
+			if (!isset($result[$locParent['TYPE_CODE']]))
+			{
+				$result[$locParent['TYPE_CODE']] = [];
+			}
+
+			$result[$locParent['TYPE_CODE']][] = $locParent['LOCATION_NAME'];
+		}
 
 		return $result;
 	}
@@ -1029,5 +1090,20 @@ class AdditionalHandler extends Base
 			$fields['CONFIG']['MAIN']['SHIPPING_POINT']['ADDITIONAL'] = htmlspecialcharsback($fields['CONFIG']['MAIN']['SHIPPING_POINT']['ADDITIONAL']);
 
 		return parent::prepareFieldsForSaving($fields);
+	}
+
+	/** @inheritDoc */
+	public static function isHandlerCompatible()
+	{
+		if(!parent::isHandlerCompatible())
+		{
+			return false;
+		}
+
+		return in_array(
+			\Bitrix\Sale\Delivery\Helper::getPortalZone(),
+			['', 'ru', 'kz', 'by'],
+			true
+		);
 	}
 }

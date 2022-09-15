@@ -8,8 +8,6 @@ use \Bitrix\Main\Localization\Loc;
 
 Loc::loadLanguageFile(__FILE__);
 
-$buttons = \Bitrix\Landing\Hook\Page\B24button::getButtons();
-$buttons = array_keys($buttons);
 
 return array(
 	'code' => 'search-result2',
@@ -23,15 +21,16 @@ return array(
 	'preview3x' => '',
 	'preview_url' => '',
 	'show_in_list' => 'Y',
-	// 'sort' => 10,
 	'fields' => array(
 		'ADDITIONAL_FIELDS' => array(
-			'B24BUTTON_CODE' => $buttons[0],
 			'B24BUTTON_COLOR' => 'site',
 			'VIEW_USE' => 'Y',
 			'UP_SHOW' => 'Y',
 			'THEME_CODE' => '2business',
-			'THEME_CODE_TYPO' => 'app',
+			'THEMEFONTS_CODE' => 'Open Sans',
+			'THEMEFONTS_CODE_H' => 'Montserrat',
+			'THEMEFONTS_SIZE' => '1.14286',
+			'THEMEFONTS_USE' => 'Y',
 			'BACKGROUND_USE' => 'N',
 			'BACKGROUND_POSITION' => 'center',
 			'YACOUNTER_USE' => 'N',

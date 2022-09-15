@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Bitrix Framework
  * @package bitrix
@@ -17,7 +18,7 @@ use Bitrix\Main;
 
 global $USER, $APPLICATION;
 
-define("START_EXEC_PROLOG_AFTER_1", microtime());
+define("START_EXEC_PROLOG_AFTER_1", microtime(true));
 $GLOBALS["BX_STATE"] = "PA";
 
 if(!headers_sent())
@@ -113,8 +114,6 @@ $BX_GLOBAL_AREA_EDIT_ICON = false;
 
 if($APPLICATION->GetShowIncludeAreas())
 {
-	require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/interface/init_admin.php");
-
 	$aUserOpt = CUserOptions::GetOption("global", "settings", array());
 	if ($aUserOpt["page_edit_control_enable"] != "N")
 	{
@@ -143,7 +142,7 @@ if($APPLICATION->GetShowIncludeAreas())
 		}
 	}
 }
-define("START_EXEC_PROLOG_AFTER_2", microtime());
+define("START_EXEC_PROLOG_AFTER_2", microtime(true));
 $GLOBALS["BX_STATE"] = "WA";
 $APPLICATION->RestartWorkarea(true);
 

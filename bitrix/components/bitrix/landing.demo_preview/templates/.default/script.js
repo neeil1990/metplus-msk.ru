@@ -6,14 +6,12 @@
 	var slice = BX.Landing.Utils.slice;
 	var proxy = BX.Landing.Utils.proxy;
 	var bind = BX.Landing.Utils.bind;
-	var unbind = BX.Landing.Utils.unbind;
 	var addClass = BX.Landing.Utils.addClass;
 	var removeClass = BX.Landing.Utils.removeClass;
 	var isNumber = BX.Landing.Utils.isNumber;
 	var style = BX.Landing.Utils.style;
 	var data = BX.Landing.Utils.data;
 	var addQueryParams = BX.Landing.Utils.addQueryParams;
-	var getDeltaFromEvent = BX.Landing.Utils.getDeltaFromEvent;
 
 	/**
 	 * Implements interface for works with template preview
@@ -26,8 +24,9 @@
 		this.createByImportButton = document.querySelector(".landing-template-preview-create-by-import");
 		this.title = document.querySelector(".landing-template-preview-input-title");
 		this.description = document.querySelector(".landing-template-preview-input-description");
-		this.themesPalete = document.querySelector(".landing-template-preview-themes");
-		this.themesSiteColorNode = document.querySelector(".landing-template-preview-sitecolor");
+		this.themesPalette = document.querySelector(".landing-template-preview-themes");
+		this.themesSiteColorNode = document.querySelector(".landing-template-preview-site-color");
+		this.themesSiteCustomColorNode = document.querySelector(".landing-demo-preview-custom-color");
 		this.imageContainer = document.querySelector(".preview-desktop-body-image");
 		this.loaderContainer = document.querySelector(".preview-desktop-body-loader-container");
 		this.previewFrame = document.querySelector(".preview-desktop-body-preview-frame");
@@ -38,9 +37,8 @@
 		this.loaderText = null;
 		this.progressBar = null;
 		this.IsLoadedFrame = false;
-
 		this.baseUrl = '';
-		this.theme = '';
+		this.color = null;
 		this.ajaxUrl = '';
 		this.ajaxParams = {};
 
@@ -53,10 +51,23 @@
 		this.disableClickHandler = BX.type.isBoolean(params.disableClickHandler)
 						? params.disableClickHandler
 						: false;
+		this.adminSection = BX.type.isBoolean(params.adminSection)
+						? params.adminSection
+						: null;
+		this.zipInstallPath = params.zipInstallPath
+						? params.zipInstallPath
+						: null;
+		this.siteId = params.siteId || 0;
+		this.langId = BX.type.isString(params.langId)
+						? params.langId
+						: '';
 
 		this.onCreateButtonClick = proxy(this.onCreateButtonClick, this);
 		this.onCancelButtonClick = proxy(this.onCancelButtonClick, this);
+		this.onColorPickerThemeSelect = proxy(this.onColorPickerThemeSelect, this);
 		this.onFrameLoad = proxy(this.onFrameLoad, this);
+
+		BX.addCustomEvent('BX.Landing.ColorPickerTheme:onSelectColor', this.onColorPickerThemeSelect);
 
 		this.init();
 
@@ -82,10 +93,14 @@
 		init: function()
 		{
 			// themes
-			var colorItems = slice(this.themesPalete.children);
+			var colorItems = slice(this.themesPalette.children);
 			if(this.themesSiteColorNode)
 			{
 				colorItems = colorItems.concat(slice(this.themesSiteColorNode.children));
+			}
+			if(this.themesSiteCustomColorNode)
+			{
+				colorItems = colorItems.concat(slice(this.themesSiteCustomColorNode.children));
 			}
 			colorItems.forEach(this.initSelectableItem, this);
 
@@ -105,12 +120,12 @@
 			}
 
 			this.setBaseUrl();
-			this.setTheme();
+			this.setDefaultColor();
 			this.showPreview();
 		},
 
 		setBaseUrl: function(url) {
-			if(url === undefined)
+			if (url === undefined)
 			{
 				this.baseUrl = data(this.baseUrlNode, "data-base-url");
 			}
@@ -120,28 +135,39 @@
 			}
 		},
 
-		setTheme: function(theme) {
-			if(theme === undefined)
+		setColor: function(theme) {
+			if (theme !== undefined)
 			{
-				this.theme = data(this.getActiveColorNode(), "data-theme");
-			}
-			else
-			{
-				this.theme = theme;
+				this.color = theme;
 			}
 		},
 
+		setDefaultColor: function()
+		{
+			if (this.getActiveColorNode())
+			{
+				this.color = data(this.getActiveColorNode(), "data-value");
+			}
+		},
+
+		getColor: function()
+		{
+			return this.color;
+		},
+
 		createPreviewUrl: function() {
-			if(!this.baseUrl)
+			var queryParams = {};
+			if (!this.baseUrl)
 			{
 				this.setBaseUrl();
 			}
-			if(!this.theme)
+
+			if (this.getColor())
 			{
-				this.setTheme();
+				queryParams = {color: this.getColor()};
 			}
 
-			return addQueryParams(this.baseUrl, {theme: this.theme});
+			return addQueryParams(this.baseUrl, queryParams);
 		},
 
 		onFrameLoad: function() {
@@ -152,22 +178,29 @@
 			this.IsLoadedFrame = true;
 		},
 
+		/**
+		 *
+		 * @returns {HTMLElement|null}
+		 */
 		getActiveColorNode: function()
 		{
-			var active = this.themesPalete.querySelector(".active");
-			if(!active && this.themesSiteColorNode)
+			var active = this.themesPalette.querySelector(".active");
+			if (!active && this.themesSiteColorNode)
 			{
 				active = this.themesSiteColorNode.querySelector(".active");
 			}
-			// by default - first
-			if(!active)
+			if (!active && this.themesSiteCustomColorNode)
 			{
-				active = this.themesPalete.firstElementChild;
+				active = this.themesSiteCustomColorNode.querySelector(".active");
 			}
 
 			return active;
 		},
 
+		/**
+		 *
+		 * @returns {HTMLElement}
+		 */
 		getActiveSiteGroupItem: function()
 		{
 			return this.siteGroupPalette.querySelector(".active");
@@ -319,18 +352,24 @@
 		{
 			var result = {};
 
-			if(this.themesSiteColorNode && this.getActiveColorNode().parentElement === this.themesSiteColorNode)
+			if (this.getActiveColorNode())
 			{
-				// add theme_use_site flag
-				result[data(this.themesSiteColorNode, "data-name")] = 'Y';
+				if (this.themesSiteColorNode && this.getActiveColorNode().parentElement === this.themesSiteColorNode)
+				{
+					result[this.themesSiteColorNode.dataset.name] = this.getActiveColorNode().dataset.value;
+				}
+				if (this.siteGroupPalette)
+				{
+					result[this.siteGroupPalette.dataset.name] = this.getActiveSiteGroupItem().dataset.value;
+				}
+				result[this.themesPalette.dataset.name] = this.getActiveColorNode().dataset.value;
+				if (this.themesSiteCustomColorNode)
+				{
+					result[this.themesPalette.dataset.name] = this.getActiveColorNode().dataset.value;
+				}
 			}
-			if(this.siteGroupPalette)
-			{
-				result[data(this.siteGroupPalette, "data-name")] = data(this.getActiveSiteGroupItem(), "data-value");
-			}
-			result[data(this.themesPalete, "data-name")] = data(this.getActiveColorNode(), "data-value");
-			result[data(this.title, "data-name")] = this.title.value;
-			result[data(this.description, "data-name")] = this.description.value;
+			result[this.title.dataset.name] = this.title.value;
+			result[this.description.dataset.name] = this.description.value;
 
 			return result;
 		},
@@ -408,6 +447,7 @@
 			}
 			this.ajaxParams = this.getValue();
 			this.ajaxParams['start'] = 'Y';
+			this.ajaxParams['showcaseId'] = 'clothes';
 		},
 
 		/**
@@ -454,7 +494,36 @@
 		 */
 		finalRedirectAjax: function(url)
 		{
-			if (this.disableStoreRedirect)
+			if (this.zipInstallPath)
+			{
+				var add = [];
+				var value = this.getValue();
+				for (var name in value)
+				{
+					add['additional[' + name + ']'] = value[name];
+				}
+				add['additional[siteId]'] = this.siteId;
+				if (this.adminSection && this.langId !== '')
+				{
+					add['lang'] = this.langId;
+				}
+
+				if (typeof top.BX.SidePanel !== 'undefined')
+				{
+					top.BX.SidePanel.Instance.open(
+						addQueryParams(this.zipInstallPath, add),
+						{
+							cacheable: false,
+							allowChangeHistory: false,
+							width: 491,
+							data: {
+								rightBoundary: 0,
+							},
+						}
+					);
+				}
+			}
+			else if (this.disableStoreRedirect)
 			{
 				BX.ajax({
 					'method': 'POST',
@@ -465,8 +534,9 @@
 						if (typeof top.BX.SidePanel !== 'undefined')
 						{
 							setTimeout(function() {
+								top.BX.onCustomEvent('Landing:onDemoCreateStart');
 								top.BX.SidePanel.Instance.close();
-							}, 300);
+							}, 100);
 						}
 					}
 				});
@@ -496,13 +566,17 @@
 
 			// themes
 			if (
-				event.currentTarget.parentElement === this.themesPalete ||
+				event.currentTarget.parentElement === this.themesPalette ||
 				(this.themesSiteColorNode && event.currentTarget.parentElement === this.themesSiteColorNode)
 			)
 			{
-				removeClass(this.getActiveColorNode(), "active");
+				if (this.getActiveColorNode())
+				{
+					this.getActiveColorNode().classList.remove("active");
+				}
 				addClass(event.currentTarget, "active");
-				this.setTheme(data(event.currentTarget, 'data-theme'));
+
+				this.setColor(data(event.currentTarget, 'data-value'));
 				this.showPreview();
 			}
 
@@ -519,6 +593,45 @@
 		isStore: function()
 		{
 			return this.createStore;
+		},
+
+		onColorPickerThemeSelect: function(params)
+		{
+			[
+				this.themesPalette,
+				this.themesSiteCustomColorNode,
+				this.themesSiteColorNode
+			].forEach(function(control) {
+				if (control)
+				{
+					BX.removeClass(control.querySelector('.active'), 'active');
+				}
+			});
+			params.data.node.classList.add("active");
+
+
+			var loader = new BX.Loader({});
+			var loaderContainer = document.querySelector(".preview-desktop-body-loader-container");
+			loader.show(loaderContainer);
+			var imageContainer = document.querySelector(".preview-desktop-body-image");
+			addClass(imageContainer, "landing-template-preview-overlay");
+
+			var frame = document.querySelector('.preview-desktop-body-preview-frame');
+			if (frame)
+			{
+				var url = new URL(frame.getAttribute('src'));
+				var search = new URLSearchParams(url.search);
+				search.set('color', params.data.color.substr(1));
+				url.search = search.toString();
+
+				frame.setAttribute('src', url.toString());
+				setTimeout(hideFrameLoader, 1600);
+			}
+
+			function hideFrameLoader() {
+				loader.hide();
+				removeClass(imageContainer, "landing-template-preview-overlay");
+			}
 		}
 	};
 })();

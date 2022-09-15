@@ -17,7 +17,15 @@ class CSocServMailRu2 extends CSocServAuth
 		return array(
 			array("mailru2_client_id", GetMessage("socserv_mailru2_id"), "", Array("text", 40)),
 			array("mailru2_client_secret", GetMessage("socserv_mailru2_key"), "", Array("text", 40)),
-			array("note" => GetMessage("socserv_mailru2_sett_note", ['#URL#' => $this->getEntityOAuth()->GetRedirectURI()])),
+			array(
+				'note' => getMessage(
+					'socserv_mailru2_sett_note_2',
+					array(
+						'#URL#' => $this->getEntityOAuth()->getRedirectUri(),
+						'#MAIL_URL#' => \CHttp::urn2uri('/bitrix/tools/mail_oauth.php'),
+					)
+				),
+			),
 		);
 	}
 
@@ -63,17 +71,16 @@ class CSocServMailRu2 extends CSocServAuth
 	{
 		global $APPLICATION;
 
-		CSocServAuthManager::SetUniqueKey();
 		if (IsModuleInstalled('bitrix24') && defined('BX24_HOST_NAME'))
 		{
 			$redirect_uri = static::CONTROLLER_URL . "/redirect.php";
-			$state = $this->getEntityOAuth()->GetRedirectURI() . "?check_key=" . $_SESSION["UNIQUE_KEY"] . "&state=";
+			$state = $this->getEntityOAuth()->GetRedirectURI() . "?check_key=" . \CSocServAuthManager::getUniqueKey() . "&state=";
 			$backurl = $APPLICATION->GetCurPageParam('', array("logout", "auth_service_error", "auth_service_id", "backurl"));
 			$state .= urlencode("state=" . urlencode("backurl=" . urlencode($backurl) . (isset($arParams['BACKURL']) ? '&redirect_url=' . urlencode($arParams['BACKURL']) : '')));
 		}
 		else
 		{
-			$state = 'site_id=' . SITE_ID . '&backurl=' . urlencode($APPLICATION->GetCurPageParam('check_key=' . $_SESSION["UNIQUE_KEY"], array("logout", "auth_service_error", "auth_service_id", "backurl"))) . (isset($arParams['BACKURL']) ? '&redirect_url=' . urlencode($arParams['BACKURL']) : '');
+			$state = 'site_id=' . SITE_ID . '&backurl=' . urlencode($APPLICATION->GetCurPageParam('check_key=' . \CSocServAuthManager::getUniqueKey(), array("logout", "auth_service_error", "auth_service_id", "backurl"))) . (isset($arParams['BACKURL']) ? '&redirect_url=' . urlencode($arParams['BACKURL']) : '');
 			$redirect_uri = $this->getEntityOAuth()->GetRedirectURI();
 		}
 
@@ -136,7 +143,7 @@ class CSocServMailRu2 extends CSocServAuth
 			}
 		}
 
-		if (strlen(SITE_ID) > 0)
+		if (SITE_ID <> '')
 		{
 			$arFields["SITE_ID"] = SITE_ID;
 		}
@@ -182,7 +189,7 @@ class CSocServMailRu2 extends CSocServAuth
 		$url = ($APPLICATION->GetCurDir() == "/login/") ? "" : $APPLICATION->GetCurDir();
 		$aRemove = array("logout", "auth_service_error", "auth_service_id", "code", "error_reason", "error", "error_description", "check_key", "current_fieldset");
 
-		if (isset($_REQUEST["state"]))
+		if (isset($_REQUEST["state"]) && $bSuccess)
 		{
 			$arState = array();
 			parse_str($_REQUEST["state"], $arState);
@@ -190,7 +197,7 @@ class CSocServMailRu2 extends CSocServAuth
 			if (isset($arState['backurl']) || isset($arState['redirect_url']))
 			{
 				$url = !empty($arState['redirect_url']) ? $arState['redirect_url'] : $arState['backurl'];
-				if (substr($url, 0, 1) !== "#")
+				if (mb_substr($url, 0, 1) !== "#")
 				{
 					$parseUrl = parse_url($url);
 
@@ -201,7 +208,7 @@ class CSocServMailRu2 extends CSocServAuth
 					{
 						foreach ($aRemove as $param)
 						{
-							if (strpos($value, $param . "=") === 0)
+							if (mb_strpos($value, $param."=") === 0)
 							{
 								unset($arUrlQuery[$key]);
 								break;
@@ -224,9 +231,9 @@ class CSocServMailRu2 extends CSocServAuth
 			$url = (isset($urlPath)) ? $urlPath . '?auth_service_id=' . self::ID . '&auth_service_error=' . $authError : $GLOBALS['APPLICATION']->GetCurPageParam(('auth_service_id=' . self::ID . '&auth_service_error=' . $authError), $aRemove);
 		}
 
-		if (CModule::IncludeModule("socialnetwork") && strpos($url, "current_fieldset=") === false)
+		if (CModule::IncludeModule("socialnetwork") && mb_strpos($url, "current_fieldset=") === false)
 		{
-			$url .= ((strpos($url, "?") === false) ? '?' : '&') . "current_fieldset=SOCSERV";
+			$url .= ((mb_strpos($url, "?") === false) ? '?' : '&') . "current_fieldset=SOCSERV";
 		}
 		?>
 		<script type="text/javascript">
@@ -264,12 +271,12 @@ class CMailRu2Interface extends CSocServOAuthTransport
 	{
 		if ($appID === false)
 		{
-			$appID = trim(CSocServFacebook::GetOption("mailru2_client_id"));
+			$appID = trim(CSocServAuth::GetOption("mailru2_client_id"));
 		}
 
 		if ($appSecret === false)
 		{
-			$appSecret = trim(CSocServFacebook::GetOption("mailru2_client_secret"));
+			$appSecret = trim(CSocServAuth::GetOption("mailru2_client_secret"));
 		}
 
 		parent::__construct($appID, $appSecret, $code);
@@ -282,12 +289,13 @@ class CMailRu2Interface extends CSocServOAuthTransport
 
 	public function GetAuthUrl($redirect_uri, $state = '')
 	{
-		return self::AUTH_URL .
-			"?client_id=" . $this->appID .
-			"&redirect_uri=" . urlencode($redirect_uri) .
-			"&scope=" . $this->getScopeEncode() .
-			"&response_type=" . "code" .
-			($state <> '' ? '&state=' . urlencode($state) : '');
+		return self::AUTH_URL
+			."?client_id=".$this->appID
+			."&redirect_uri=".urlencode($redirect_uri)
+			."&scope=".$this->getScopeEncode()
+			."&response_type="."code"
+			.($state <> '' ? '&state='.urlencode($state) : '')
+			.'&prompt_force=1';
 	}
 
 	public function getResult()
@@ -302,9 +310,23 @@ class CMailRu2Interface extends CSocServOAuthTransport
 		{
 			$this->access_token = $token["OATOKEN"];
 			$this->accessTokenExpires = $token["OATOKEN_EXPIRES"];
-			$this->refresh_token = $token['REFRESH_TOKEN'];
 
-			return true;
+			if (!$this->code)
+			{
+				if ($this->checkAccessToken())
+				{
+					return true;
+				}
+				else if (isset($token['REFRESH_TOKEN']))
+				{
+					if ($this->getNewAccessToken($token['REFRESH_TOKEN'], $this->userId, true))
+					{
+						return true;
+					}
+				}
+			}
+
+			$this->deleteStorageTokens();
 		}
 
 		if ($this->code === false)
@@ -353,6 +375,68 @@ class CMailRu2Interface extends CSocServOAuthTransport
 		return false;
 	}
 
+	public function getNewAccessToken($refreshToken = false, $userId = 0, $save = false)
+	{
+		if ($this->appID == false || $this->appSecret == false)
+		{
+			return false;
+		}
+
+		if ($refreshToken == false)
+		{
+			$refreshToken = $this->refresh_token;
+		}
+
+		$http = new HttpClient(array(
+			'socketTimeout' => $this->httpTimeout,
+			'streamTimeout' => $this->httpTimeout,
+		));
+		$http->setHeader('User-Agent', 'Bitrix');
+
+		$result = $http->post(static::TOKEN_URL, array(
+			'refresh_token' => $refreshToken,
+			'client_id' => $this->appID,
+			'client_secret' => $this->appSecret,
+			'grant_type' => 'refresh_token',
+		));
+
+		try
+		{
+			$arResult = Json::decode($result);
+		}
+		catch (\Bitrix\Main\ArgumentException $e)
+		{
+			$arResult = array();
+		}
+
+		if (!empty($arResult['access_token']))
+		{
+			$this->access_token = $arResult['access_token'];
+			$this->accessTokenExpires = $arResult['expires_in'] + time();
+			if ($save && intval($userId) > 0)
+			{
+				$dbSocservUser = \Bitrix\Socialservices\UserTable::getList(array(
+					'filter' => array(
+						'=EXTERNAL_AUTH_ID' => static::SERVICE_ID,
+						'=USER_ID' => $userId,
+					),
+					'select' => array('ID')
+				));
+				if ($arOauth = $dbSocservUser->fetch())
+				{
+					\Bitrix\Socialservices\UserTable::update($arOauth['ID'], array(
+						'OATOKEN' => $this->access_token,
+						'OATOKEN_EXPIRES' => $this->accessTokenExpires)
+					);
+				}
+			}
+
+			return true;
+		}
+
+		return false;
+	}
+
 	public function GetCurrentUser()
 	{
 		if ($this->access_token === false)
@@ -379,4 +463,10 @@ class CMailRu2Interface extends CSocServOAuthTransport
 	{
 		return false;
 	}
+
+	public function getScopeEncode()
+	{
+		return implode(' ', array_map('urlencode', array_unique($this->getScope())));
+	}
+
 }

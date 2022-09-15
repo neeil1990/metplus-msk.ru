@@ -1,38 +1,48 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Error;
-use Bitrix\Main\Loader;
+use Bitrix\Fileman;
 use Bitrix\Main\Context;
+use Bitrix\Main\Error;
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Mail\Address;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\Web\Uri;
-
+use Bitrix\Sender\Access\ActionDictionary;
+use Bitrix\Sender\Access\Map\AdsAction;
+use Bitrix\Sender\Access\Map\MailingAction;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\Security;
-use Bitrix\Sender\Message;
-use Bitrix\Sender\Templates;
 use Bitrix\Sender\Integration;
-use Bitrix\Sender\UI;
-
-use Bitrix\Fileman;
 use Bitrix\Sender\Internals\PostFiles;
+use Bitrix\Sender\Internals\SqlBatch;
+use Bitrix\Sender\Message;
+use Bitrix\Sender\Security;
+use Bitrix\Sender\Templates;
+use Bitrix\Sender\UI;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderLetterEditComponent extends CBitrixComponent
+class SenderLetterEditComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
 
 	/** @var Entity\Letter $letter Letter. */
 	protected $letter;
+
+	protected $contentValue = null;
 
 	protected function checkRequiredParams()
 	{
@@ -44,6 +54,10 @@ class SenderLetterEditComponent extends CBitrixComponent
 		$this->arParams['ID'] = isset($this->arParams['ID']) ? (int) $this->arParams['ID'] : 0;
 		$this->arParams['ID'] = $this->arParams['ID'] ? $this->arParams['ID'] : (int) $this->request->get('ID');
 		$this->arParams['IS_OUTSIDE'] = isset($this->arParams['IS_OUTSIDE']) ? (bool) $this->arParams['IS_OUTSIDE'] : $this->request->get('isOutside') === 'Y';
+
+		$this->arParams['IFRAME'] = isset($this->arParams['IFRAME'])
+			? ($this->arParams['IFRAME'] === true ? 'Y' : false)
+			: false;
 
 		if (empty($this->arParams['CAMPAIGN_ID']))
 		{
@@ -69,24 +83,27 @@ class SenderLetterEditComponent extends CBitrixComponent
 			$this->arParams['MESSAGE_CODE'] = current($this->arParams['MESSAGE_CODE_LIST']);
 		}
 
-		if (!isset($this->arParams['IFRAME']))
+		if (!isset($this->arParams['IFRAME']) || !$this->arParams['IFRAME'])
 		{
 			$this->arParams['IFRAME'] = $this->request->get('IFRAME');
 		}
 
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
 		$this->arParams['SHOW_SEGMENT_COUNTERS'] = isset($this->arParams['SHOW_SEGMENT_COUNTERS']) ? $this->arParams['SHOW_SEGMENT_COUNTERS'] : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifyLetters();
+		$this->arParams['CHECK_ON_STATIC'] = $this->arParams['CHECK_ON_STATIC'] ?? false;
 
-		$this->arParams['CAN_VIEW'] = isset($this->arParams['CAN_VIEW'])
-			?
-			$this->arParams['CAN_VIEW']
-			:
-			Security\Access::current()->canViewLetters();
+		$map = MailingAction::getMap();
+		$map = isset($map[$this->arParams['MESSAGE_CODE']]) ? $map : AdsAction::getMap();
+
+		$this->arParams['CAN_EDIT'] = $this->arParams['CAN_EDIT']??
+			$this->getAccessController()->check(
+				$map[$this->arParams['MESSAGE_CODE']]
+			);
+
+		$this->arParams['CAN_VIEW'] = $this->arParams['CAN_VIEW']??
+									$this->getAccessController()->check(
+										ActionDictionary::ACTION_MAILING_VIEW
+										);
 
 		$this->arParams['IS_TRIGGER'] = isset($this->arParams['IS_TRIGGER']) ? (bool) $this->arParams['IS_TRIGGER'] : false;
 		$this->arParams['SHOW_SEGMENTS'] = isset($this->arParams['SHOW_SEGMENTS']) ? (bool) $this->arParams['SHOW_SEGMENTS'] : true;
@@ -113,6 +130,10 @@ class SenderLetterEditComponent extends CBitrixComponent
 			$value = $this->request->get($key);
 			switch ($option->getType())
 			{
+				case Message\ConfigurationOption::TYPE_TITLE:
+					$value = $this->request->get('TITLE');
+					$configuration->set('TITLE', $value);
+					break;
 				case Message\ConfigurationOption::TYPE_TEMPLATE_TYPE:
 					$value = $this->letter->get('TEMPLATE_TYPE');
 					$configuration->set('TEMPLATE_TYPE', $value);
@@ -132,6 +153,7 @@ class SenderLetterEditComponent extends CBitrixComponent
 				case Message\ConfigurationOption::TYPE_MAIL_EDITOR:
 					$value = Security\Sanitizer::fixReplacedStyles($value);
 					$value = Security\Sanitizer::sanitizeHtml($value, $option->getValue());
+					$this->contentValue = $value;
 					break;
 				case Message\ConfigurationOption::TYPE_USER_LIST:
 					$value = array_filter(
@@ -264,12 +286,6 @@ class SenderLetterEditComponent extends CBitrixComponent
 
 	protected function preparePost()
 	{
-		// agreement accept check
-		if(!Security\User::current()->isAgreementAccepted())
-		{
-			$this->errors->setError(new Error(Security\Agreement::getErrorText()));
-		}
-
 		// prepare letter
 		$data = array(
 			'TITLE' => $this->request->get('TITLE'),
@@ -280,9 +296,10 @@ class SenderLetterEditComponent extends CBitrixComponent
 			'IS_TRIGGER' => $this->arParams['IS_TRIGGER'] ? 'Y' : 'N',
 			'UPDATED_BY' => Security\User::current()->getId()
 		);
+
 		if (!$this->letter->getId())
 		{
-			$data['CAMPAIGN_ID'] = $this->arParams['CAMPAIGN_ID'] ?: Entity\Campaign::getDefaultId();
+			$data['CAMPAIGN_ID'] = $this->arParams['CAMPAIGN_ID'] ?: Entity\Campaign::getDefaultId(SITE_ID);
 			$data['CREATED_BY'] = Security\User::current()->getId();
 		}
 		$this->letter->mergeData($data);
@@ -313,6 +330,14 @@ class SenderLetterEditComponent extends CBitrixComponent
 		// redirect
 		if ($this->errors->isEmpty())
 		{
+			if(in_array(
+				$this->arResult['MESSAGE_CODE'],
+				[Message\iMarketing::CODE_FACEBOOK, Message\iMarketing::CODE_INSTAGRAM]
+			))
+			{
+				$this->letter->send();
+			}
+
 			if ($this->request->get('apply'))
 			{
 				if ($this->arParams['ID'])
@@ -347,6 +372,11 @@ class SenderLetterEditComponent extends CBitrixComponent
 				$uri->addParams($this->request->get('DISPATCH'));
 			}
 
+			if ($this->contentValue)
+			{
+				\Bitrix\Sender\FileTable::syncFiles($this->letter->getId(), 0, $this->contentValue);
+			}
+
 			LocalRedirect($uri->getLocator());
 		}
 	}
@@ -365,10 +395,26 @@ class SenderLetterEditComponent extends CBitrixComponent
 			$this->arParams['ID'],
 			$this->arParams['MESSAGE_CODE_LIST']
 		);
+
 		if (!$this->letter)
 		{
 			Security\AccessChecker::addError($this->errors, Security\AccessChecker::ERR_CODE_NOT_FOUND);
 			return false;
+		}
+		$appliedConsents = json_decode(\COption::GetOptionString("sender", "sender_approve_consent_created"), true);
+		if (!$appliedConsents[Context::getCurrent()->getLanguage()])
+		{
+			\CAgent::AddAgent(
+				'\\Bitrix\\Sender\\Preset\\Consent\\ConsentInstaller::run(\''.Context::getCurrent()->getLanguage().'\');',
+				"sender",
+				"N",
+				60,
+				"",
+				"Y",
+				\ConvertTimeStamp(time()+\CTimeZone::GetOffset()+450, "FULL"));
+
+			$appliedConsents[Context::getCurrent()->getLanguage()] = Context::getCurrent()->getLanguage();
+			\COption::SetOptionString("sender", "sender_approve_consent_created", json_encode($appliedConsents));
 		}
 
 		try
@@ -383,11 +429,54 @@ class SenderLetterEditComponent extends CBitrixComponent
 			$this->arResult['MESSAGE_ID'] = $message->getId();
 			$this->arResult['MESSAGE_NAME'] = $message->getName();
 			$this->arResult['MESSAGE'] = $message;
+			$defaultCategory = null;
+
+			if($message != null && method_exists($message, "getConfiguration"))
+			{
+				foreach ($message->getConfiguration()->getOptions() as $option)
+				{
+					if($option->getCode() === 'CATEGORY_ID')
+					{
+						$items = $option->getItems();
+						$newItems = [];
+
+						foreach ($items as $item)
+						{
+							$newItems[$item['code']] = $item['value'];
+						}
+
+						$items = (new \Bitrix\Sender\Access\Service\RoleDealCategoryService())
+							->getFilteredDealCategories($this->userId, $newItems);
+						$convertedItems = [];
+
+						foreach($items as $key => $item)
+						{
+							$convertedItems[] = ['code' => $key, 'value' => $item];
+						}
+
+						$option->setItems($convertedItems);
+					}
+				}
+			}
 		}
 		catch (SystemException $exception)
 		{
 			$this->errors->setError(new Error(Loc::getMessage('SENDER_COMP_LETTER_EDIT_ERROR_MSG_CODE', array('%type%' => $this->arParams['MESSAGE_CODE']))));
 			return false;
+		}
+
+		$isNewAds = in_array(
+			$this->arResult['MESSAGE_CODE'],
+			[Message\iMarketing::CODE_FACEBOOK, Message\iMarketing::CODE_INSTAGRAM]
+		);
+		// get row
+		$this->arResult['ROW'] = $this->letter->getData();
+		if ($this->arResult['ROW']['IS_TRIGGER'] === 'Y'
+			|| $isNewAds)
+		{
+			$this->arParams['SHOW_SEGMENTS'] = false;
+			$this->arParams['SHOW_CAMPAIGNS'] = false;
+			$this->arParams['GOTO_URI_AFTER_SAVE'] = $isNewAds ? false : null;
 		}
 
 		// Process POST
@@ -400,17 +489,8 @@ class SenderLetterEditComponent extends CBitrixComponent
 			$this->prepareDefaultSegments();
 		}
 
-		// get row
-		$this->arResult['ROW'] = $this->letter->getData();
-		if ($this->arResult['ROW']['IS_TRIGGER'] === 'Y')
-		{
-			$this->arParams['SHOW_SEGMENTS'] = false;
-			$this->arParams['SHOW_CAMPAIGNS'] = false;
-			$this->arParams['GOTO_URI_AFTER_SAVE'] = null;
-		}
-
 		// get campaign
-		$this->arResult['CAMPAIGN_ID'] = $this->arParams['CAMPAIGN_ID'] ?: $this->letter->getCampaignId() ?: Entity\Campaign::getDefaultId();
+		$this->arResult['CAMPAIGN_ID'] = $this->arParams['CAMPAIGN_ID'] ?: $this->letter->getCampaignId() ?: Entity\Campaign::getDefaultId(SITE_ID);
 
 		// get campaigns
 		$this->arResult['CAMPAIGNS'] = array();
@@ -428,6 +508,19 @@ class SenderLetterEditComponent extends CBitrixComponent
 
 		// get options list
 		$configuration = $this->letter->getMessage()->getConfiguration();
+		$templateType = $configuration->get('TEMPLATE_TYPE');
+		$templateId = $configuration->get('TEMPLATE_ID');
+		if ($templateType)
+		{
+			$configuration->getOption('TEMPLATE_TYPE')->setValue($templateType);
+			$this->arResult['ROW']['TEMPLATE_TYPE'] = $templateType;
+		}
+		if ($templateId)
+		{
+			$configuration->getOption('TEMPLATE_ID')->setValue($templateId);
+			$this->arResult['ROW']['TEMPLATE_ID'] = $templateId;
+		}
+
 		$this->arResult['LIST'] = array(
 			Message\ConfigurationOption::GROUP_DEFAULT => Message\Configuration::convertToArray(
 				$configuration->getOptionsByGroup(Message\ConfigurationOption::GROUP_DEFAULT)
@@ -437,16 +530,30 @@ class SenderLetterEditComponent extends CBitrixComponent
 			),
 		);
 
-		$this->arResult['USE_TEMPLATES'] = Templates\Selector::create()
+		$this->arResult['USE_TEMPLATES'] = $this->accessController
+				->check(ActionDictionary::ACTION_TEMPLATE_VIEW)
+			&& Templates\Selector::create()
 			->withMessageCode($this->arResult['MESSAGE_CODE'])
 			->hasAny();
 
-		$this->arResult['SHOW_TEMPLATE_SELECTOR'] = !$this->letter->getId() && !$this->request->isPost() && $this->arResult['USE_TEMPLATES'];
+		$this->arResult['SHOW_BUTTONS'] = true;
+
+		if(in_array($this->letter->getMessage()->getCode(),[
+			Integration\Seo\Ads\MessageMarketingFb::CODE,
+			Integration\Seo\Ads\MessageMarketingInstagram::CODE
+		]))
+		{
+			$this->arResult['SHOW_BUTTONS'] = false;
+		}
+
+		$this->arResult['SHOW_TEMPLATE_SELECTOR'] =
+			!$this->letter->getId() && !$this->request->isPost() && $this->arResult['USE_TEMPLATES'];
+
 		$this->arResult['CAN_CHANGE_TEMPLATE'] = $this->letter->canChangeTemplate();
 
 
 		$this->arResult['SEGMENTS'] = array(
-			'INCLUDE' => $this->arResult['ROW']['SEGMENTS_INCLUDE'],
+			'INCLUDE' => $this->arResult['ROW']['SEGMENTS_INCLUDE'] + $this->letter->get('SEGMENTS_INCLUDE'),
 			'EXCLUDE' => $this->arResult['ROW']['SEGMENTS_EXCLUDE'],
 			'RECIPIENT_COUNT' => $this->letter->getId() ?
 				$this->letter->getCounter()->getAll()
@@ -490,6 +597,7 @@ class SenderLetterEditComponent extends CBitrixComponent
 			]
 		);
 		$this->arResult['IS_SAVED'] = $this->request->get('IS_SAVED') == 'Y';
+		$this->arResult['IS_AVAILABLE']  = $this->letter->getMessage()->isAvailable();
 
 		return true;
 	}
@@ -552,37 +660,21 @@ class SenderLetterEditComponent extends CBitrixComponent
 	{
 		foreach ($this->errors as $error)
 		{
+			/** @var Error $error */
 			ShowError($error);
+			$code = explode('feature:', $error->getCode());
+			if (!empty($code[1]))
+			{
+				?><script>BX.UI.InfoHelper.show('<?=CUtil::JSescape($code[1])?>');</script><?php
+			}
 		}
 	}
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
-
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->printErrors();
-
+		parent::executeComponent();
 		$templateName = $this->request->get('showTime') == 'y' ? 'time' : '';
-		$this->includeComponentTemplate($templateName);
+		parent::prepareResultAndTemplate($templateName);
 	}
 
 	public function getLocMessage($messageCode, $replace = [])
@@ -597,5 +689,15 @@ class SenderLetterEditComponent extends CBitrixComponent
 		}
 
 		return str_replace(array_keys($replace), array_values($replace), $message);
+	}
+
+	public function getEditAction()
+	{
+		return $this->getViewAction();
+	}
+
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_MAILING_VIEW;
 	}
 }

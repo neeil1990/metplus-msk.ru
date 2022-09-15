@@ -10,7 +10,7 @@ $switcher = "BX('file-selectdialogswitcher-".$uid."')";
 $controlName = $arParams['INPUT_NAME'];
 $controlNameFull = $controlName . (($arParams['MULTIPLE'] == 'Y') ? '[]' : '');
 $arValue = $arResult['FILES'];
-$addClass = ((strpos($_SERVER['HTTP_USER_AGENT'], 'Mac OS') !== false) ? 'file-filemacos' : '');
+$addClass = ((mb_strpos($_SERVER['HTTP_USER_AGENT'], 'Mac OS') !== false) ? 'file-filemacos' : '');
 $controlNameFull1 = htmlspecialcharsbx($controlNameFull);
 $delOnclick = "window['BfileFD{$uid}'].agent.StopUpload(BX('wd-doc#element_id#'));";
 $thumb = <<<HTML
@@ -116,7 +116,7 @@ if ($arParams["ALLOW_UPLOAD"] != "N")
 			'upload_error':"<?=(GetMessageJS('BFDND_UPLOAD_ERROR'))?>",
 			'access_denied':"<p style='margin-top:0;'><?=(GetMessageJS('BFDND_ACCESS_DENIED'))?></p>"
 		});
-		BX.addCustomEvent(<?=$controller?>.parentNode, "BFileDLoadFormController", function(status) {
+		var handler = function(status) {
 			MFIDD({
 					uid : '<?=$uid?>',
 					controller : <?=$controller?>,
@@ -128,6 +128,10 @@ if ($arParams["ALLOW_UPLOAD"] != "N")
 					inputName : "<?=CUtil::JSEscape($controlName)?>",
 					status : status
 			});
+		};
+		BX.addCustomEvent(<?=$controller?>.parentNode, "BFileDLoadFormController", handler);
+		BX.addCustomEvent(<?=$controller?>.parentNode, "onShowControllers", function(event) {
+			handler(event && event['data'] === 'show' ? 'show' : 'hide');
 		});
 		BX.onCustomEvent(<?=$controller?>, "BFileDLoadFormControllerWasBound", [{id : "<?=$arParams['CONTROL_ID']?>"}]);
 		<?

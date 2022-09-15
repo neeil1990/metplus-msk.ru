@@ -1,7 +1,12 @@
 <?php
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
-use \Bitrix\Main\ModuleManager,
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+use \Bitrix\Main\Application,
+	\Bitrix\Main\ModuleManager,
 	\Bitrix\Main\Config\Option;
 
 /**
@@ -53,7 +58,7 @@ class SaleBsmSiteMasterButton extends \CBitrixComponent
 			(
 				ModuleManager::isModuleInstalled('extranet')
 				&& !ModuleManager::isModuleInstalled('bitrix24')
-				&& LANGUAGE_ID === "ru"
+				&& $this->isAvailableZone(Application::getInstance()->getContext()->getLanguage())
 			)
 		);
 	}
@@ -66,5 +71,14 @@ class SaleBsmSiteMasterButton extends \CBitrixComponent
 	private function isSaleCrmSiteMasterFinish(): bool
 	{
 		return (Option::get("sale", self::IS_SALE_CRM_SITE_MASTER_FINISH, "N") === "Y");
+	}
+
+	/**
+	 * @param $zone
+	 * @return bool
+	 */
+	private function isAvailableZone($zone): bool
+	{
+		return in_array($zone, ["ru", "ua"]);
 	}
 }

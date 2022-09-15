@@ -1,5 +1,11 @@
 <?php
+
 namespace Bitrix\Sale\CrmSiteMaster\Steps;
+
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
 
 use Bitrix\Main\Localization\Loc;
 
@@ -32,12 +38,12 @@ class BitrixVmStep  extends \CWizardStep
 		if (isset($steps["NEXT_STEP"]))
 		{
 			$this->SetNextStep($steps["NEXT_STEP"]);
-			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".strtoupper($shortClassName)."_NEXT"));
+			$this->SetNextCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName)."_NEXT"));
 		}
 		if (isset($steps["PREV_STEP"]))
 		{
 			$this->SetPrevStep($steps["PREV_STEP"]);
-			$this->SetPrevCaption(Loc::getMessage("SALE_CSM_WIZARD_".strtoupper($shortClassName)."_PREV"));
+			$this->SetPrevCaption(Loc::getMessage("SALE_CSM_WIZARD_".mb_strtoupper($shortClassName)."_PREV"));
 		}
 	}
 
@@ -63,6 +69,9 @@ class BitrixVmStep  extends \CWizardStep
 	 */
 	public function showStep()
 	{
+		$vmLink = "https://www.1c-bitrix.ru/download/vmbitrix.php";
+		$vmLinkInstruction = "https://dev.1c-bitrix.ru/learning/course/index.php?COURSE_ID=37&LESSON_ID=8811";
+
 		ob_start();
 		?>
 		<div class="ui-alert ui-alert-warning ui-alert-icon-warning">
@@ -71,8 +80,12 @@ class BitrixVmStep  extends \CWizardStep
 		<div class="ui-alert ui-alert-warning ui-alert-icon-warning">
 			<span class="ui-alert-message"><?=Loc::getMessage("SALE_CSM_WIZARD_BITRIXVMSTEP_INFO2")?></span>
 		</div>
-		<div class="adm-crm-site-master-paragraph"><?=Loc::getMessage("SALE_CSM_WIZARD_BITRIXVMSTEP_VM_LINK_DOWNLOAD")?></div>
-		<div class="adm-crm-site-master-paragraph"><?=Loc::getMessage("SALE_CSM_WIZARD_BITRIXVMSTEP_VM_LINK_DOC")?></div>
+		<div class="adm-crm-site-master-paragraph"><?=Loc::getMessage("SALE_CSM_WIZARD_BITRIXVMSTEP_VM_LINK_DOWNLOAD", [
+			"#VM_LINK#" => $vmLink
+		])?></div>
+		<div class="adm-crm-site-master-paragraph"><?=Loc::getMessage("SALE_CSM_WIZARD_BITRIXVMSTEP_VM_LINK_DOC", [
+			"#VM_LINK_INSTRUCTION#" => $vmLinkInstruction,
+		])?></div>
 		<?php
 		$content = ob_get_contents();
 		ob_end_clean();
@@ -109,7 +122,7 @@ class BitrixVmStep  extends \CWizardStep
 			<button type="submit" class="ui-btn ui-btn-primary" name="<?=$this->GetWizard()->prevButtonID?>">
 				<?=$this->GetPrevCaption()?>
 			</button>
-			<?
+			<?php
 		}
 		if ($this->GetNextStepID() !== null)
 		{
@@ -118,7 +131,7 @@ class BitrixVmStep  extends \CWizardStep
 			<button type="submit" class="ui-btn ui-btn-primary" name="<?=$this->GetWizard()->nextButtonID?>">
 				<?=$this->GetNextCaption()?>
 			</button>
-			<?
+			<?php
 		}
 		$content = ob_get_contents();
 		ob_end_clean();

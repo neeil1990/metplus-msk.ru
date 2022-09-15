@@ -21,7 +21,10 @@ class CIBlockPropertySequence
 			"GetAdminFilterHTML" => array(__CLASS__, "GetPublicFilterHTML"),
 			"GetPublicFilterHTML" => array(__CLASS__, "GetPublicFilterHTML"),
 			"AddFilterFields" => array(__CLASS__, "AddFilterFields"),
-			"GetUIFilterProperty" => array(__CLASS__, "GetUIFilterProperty")
+			"GetUIFilterProperty" => array(__CLASS__, "GetUIFilterProperty"),
+			'GetUIEntityEditorProperty' => array(__CLASS__, 'GetUIEntityEditorProperty'),
+			'GetUIEntityEditorPropertyEditHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyEditHtml'),
+			'GetUIEntityEditorPropertyViewHtml' => array(__CLASS__, 'GetUIEntityEditorPropertyViewHtml'),
 		);
 	}
 
@@ -182,5 +185,12 @@ class CIBlockPropertySequence
 			"more" => ">",
 			"less" => "<"
 		);
+	}
+
+	public static function GetUIEntityEditorProperty($settings, $value)
+	{
+		return [
+			'type' => $settings['MULTIPLE'] === 'Y' ? 'multinumber' : 'number',
+		];
 	}
 }

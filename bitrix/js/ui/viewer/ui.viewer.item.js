@@ -23,6 +23,7 @@
 		this.transformationPromise = null;
 		this.transformationTimeoutId = null;
 		this.viewerGroupBy = null;
+		this.isSeparate = false;
 		this.transformationTimeout = options.transformationTimeout || 22000;
 		this.layout = {
 			container: null
@@ -53,6 +54,7 @@
 			this.title = node.dataset.title || node.title || node.alt;
 			this.src = node.dataset.src;
 			this.viewerGroupBy = node.dataset.viewerGroupBy;
+			this.isSeparate = node.dataset.viewerSeparateItem || false;
 			this.nakedActions = node.dataset.actions? JSON.parse(node.dataset.actions) : undefined;
 		},
 
@@ -66,6 +68,11 @@
 
 		applyReloadOptions: function (options)
 		{},
+
+		isSeparateItem: function ()
+		{
+			return this.isSeparate;
+		},
 
 		isPullConnected: function()
 		{
@@ -559,7 +566,7 @@
 				text: this.content
 			});
 
-			contentNode.style.fontSize = '18px';
+			contentNode.style.fontSize = '14px';
 			contentNode.style.color = 'white';
 
 			return contentNode;
@@ -626,10 +633,12 @@
 			ajaxPromise.then(function (response) {
 				if (!response || !response.data)
 				{
+					var errors = response? response.errors : [];
+
 					promise.reject({
 						item: this,
 						type: 'error',
-						errors: response.errors || []
+						errors: errors || []
 					});
 
 					return;
@@ -787,7 +796,7 @@
 									className: hljs.getLanguage(ext)? ext : 'plaintext'
 								},
 								style: {
-									fontSize: '18px',
+									fontSize: '14px',
 									textAlign: 'left'
 								},
 								text: this.content
@@ -938,10 +947,12 @@
 			ajaxPromise.then(function (response) {
 				if (!response || !response.data)
 				{
+					var errors = response? response.errors : [];
+
 					promise.reject({
 						item: this,
 						type: 'error',
-						errors: response.errors || []
+						errors: errors || []
 					});
 
 					return;
@@ -1064,6 +1075,8 @@
 			}
 			else
 			{
+				maxHeight = window.innerHeight - 250;
+
 				var resultRelativeSize = maxWidth / maxHeight;
 				var videoRelativeSize = videoWidth / videoHeight;
 				var reduceRatio = 1;

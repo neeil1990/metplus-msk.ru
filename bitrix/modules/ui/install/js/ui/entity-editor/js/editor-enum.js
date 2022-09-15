@@ -95,6 +95,29 @@ if(typeof BX.UI.EntityEditorModeOptions === "undefined")
 }
 //endregion
 
+if(typeof BX.UI.EntityEditorControlOptions === "undefined")
+{
+	BX.UI.EntityEditorControlOptions =
+		{
+			none: 0,
+			showAlways: 1,
+			check: function(options, option)
+			{
+				return((options & option) === option);
+			}
+		};
+}
+
+if(typeof BX.UI.EntityEditorPriority === "undefined")
+{
+	BX.UI.EntityEditorPriority =
+		{
+			undefined: 0,
+			normal: 1,
+			high: 2
+		};
+}
+
 //region EDITOR MODE SWITCH TYPE
 if(typeof BX.UI.EntityEditorModeSwitchType === "undefined")
 {
@@ -111,3 +134,54 @@ if(typeof BX.UI.EntityEditorModeSwitchType === "undefined")
 		};
 }
 //endregion
+
+//region EDITOR ACTIONS
+if(typeof BX.UI.EntityEditorActionIds === "undefined")
+{
+	BX.UI.EntityEditorActionIds =
+		{
+			defaultActionId: 'DEFAULT',
+			cancelActionId: 'CANCEL',
+		};
+}
+
+if(typeof BX.UI.EntityEditorActionTypes === "undefined")
+{
+	BX.UI.EntityEditorActionTypes =
+		{
+			save: 'save',
+			direct: 'direct',
+		};
+}
+//endregion
+
+if(typeof BX.UI.EditorFileStorageType === "undefined")
+{
+	BX.UI.EditorFileStorageType =
+		{
+			undefined: 0,
+			file: 1,
+			webdav: 2,
+			diskfile: 3
+		};
+}
+if(typeof BX.UI.EntityFieldAttributeType === "undefined")
+{
+	BX.UI.EntityFieldAttributeType =
+		{
+			undefined:  0,
+			hidden:     1,
+			readonly:   2,
+			required:   3
+		};
+}
+if(typeof BX.UI.EntityFieldAttributePhaseGroupType === "undefined")
+{
+	BX.UI.EntityFieldAttributePhaseGroupType =
+		{
+			undefined:  0,
+			general:    1,
+			pipeline:   2,
+			junk:       3
+		};
+}

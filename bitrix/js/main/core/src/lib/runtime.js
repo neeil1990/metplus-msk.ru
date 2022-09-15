@@ -11,6 +11,9 @@ import {
 import merge from './runtime/merge';
 import createComparator from './runtime/create-comparator';
 
+/**
+ * @memberOf BX
+ */
 export default class Runtime
 {
 	static debug = debug;
@@ -80,7 +83,14 @@ export default class Runtime
 		{
 			if (params.htmlFirst || (!externalJs.length && !externalCss.length))
 			{
-				node.innerHTML = parsedHtml.HTML;
+				if (params.useAdjacentHTML)
+				{
+					node.insertAdjacentHTML('beforeend', parsedHtml.HTML);
+				}
+				else
+				{
+					node.innerHTML = parsedHtml.HTML;
+				}
 			}
 		}
 
@@ -92,7 +102,14 @@ export default class Runtime
 			.then(() => {
 				if (Type.isDomNode(node) && (externalJs.length > 0 || externalCss.length > 0))
 				{
-					node.innerHTML = parsedHtml.HTML;
+					if (params.useAdjacentHTML)
+					{
+						node.insertAdjacentHTML('beforeend', parsedHtml.HTML);
+					}
+					else
+					{
+						node.innerHTML = parsedHtml.HTML;
+					}
 				}
 
 				// eslint-disable-next-line
@@ -134,5 +151,50 @@ export default class Runtime
 	{
 		const comparator = createComparator(fields, orders);
 		return Object.values(collection).sort(comparator);
+	}
+
+	static destroy(target, errorMessage = 'Object is destroyed')
+	{
+		if (Type.isObject(target))
+		{
+			const onPropertyAccess = () => {
+				throw new Error(errorMessage);
+			};
+			const ownProperties = Object.keys(target);
+			const prototypeProperties = (() => {
+				const targetPrototype = Object.getPrototypeOf(target);
+				if (Type.isObject(targetPrototype))
+				{
+					return Object.getOwnPropertyNames(targetPrototype);
+				}
+
+				return [];
+			})();
+
+			const uniquePropertiesList = [
+				...new Set([...ownProperties, ...prototypeProperties]),
+			];
+
+			uniquePropertiesList
+				.filter((name) => {
+					const descriptor = Object.getOwnPropertyDescriptor(target, name);
+					return (
+						!/__(.+)__/.test(name)
+						&& (
+							!Type.isObject(descriptor)
+							|| descriptor.configurable === true
+						)
+					);
+				})
+				.forEach((name) => {
+					Object.defineProperty(target, name, {
+						get: onPropertyAccess,
+						set: onPropertyAccess,
+						configurable: false,
+					});
+				});
+
+			Object.setPrototypeOf(target, null);
+		}
 	}
 }

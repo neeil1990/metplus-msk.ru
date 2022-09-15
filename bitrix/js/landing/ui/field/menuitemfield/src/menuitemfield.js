@@ -2,6 +2,9 @@ import {Dom} from 'main.core';
 import {BaseField} from 'landing.ui.field.basefield';
 import {MenuForm} from 'landing.ui.form.menuform';
 
+/**
+ * @memberOf BX.Landing.UI.Field
+ */
 export class MenuItemField extends BaseField
 {
 	constructor(options = {})

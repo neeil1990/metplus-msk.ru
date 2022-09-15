@@ -10,6 +10,8 @@ class Toolbar
 {
 	private $id;
 	private $filter;
+	private $beforeTitleHtml;
+	private $afterTitleHtml;
 	private $titleMinWidth;
 	private $titleMaxWidth;
 	private $favoriteStar = true;
@@ -17,7 +19,7 @@ class Toolbar
 	/**
 	 * @param Button[] $buttons
 	 */
-	private $titleRightButtons = [];
+	private $afterTitleButtons = [];
 	/**
 	 * @param Button[] $buttons
 	 */
@@ -75,7 +77,7 @@ class Toolbar
 		}
 		elseif($location === ButtonLocation::AFTER_TITLE)
 		{
-			$this->titleRightButtons[] = $button;
+			$this->afterTitleButtons[] = $button;
 		}
 		else
 		{
@@ -166,19 +168,49 @@ class Toolbar
 		return $this->filter;
 	}
 
+	public function addBeforeTitleHtml(string $html)
+	{
+		$this->beforeTitleHtml = $html;
+	}
+
+	public function getBeforeTitleHtml(): ?string
+	{
+		return $this->beforeTitleHtml;
+	}
+
+	public function addAfterTitleHtml(string $html)
+	{
+		$this->afterTitleHtml = $html;
+	}
+
+	public function getAfterTitleHtml(): ?string
+	{
+		return $this->afterTitleHtml;
+	}
+
+	public function addRightCustomHtml(string $html)
+	{
+		$this->rightCustomHtml = $html;
+	}
+
+	public function getRightCustomHtml(): ?string
+	{
+		return $this->rightCustomHtml;
+	}
+
 	/**
 	 * @return BaseButton[]
 	 */
 	public function getButtons()
 	{
-		return array_merge($this->titleRightButtons, $this->buttons, $this->filterButtons);
+		return array_merge($this->afterTitleButtons, $this->filterButtons, $this->buttons);
 	}
 
-	public function renderTitleRightButtons()
+	public function renderAfterTitleButtons()
 	{
 		return implode(array_map(function(Button $button) {
 			return self::processButtonRender($button);
-		}, $this->titleRightButtons));
+		}, $this->afterTitleButtons));
 	}
 
 	public function renderRightButtons()
@@ -217,7 +249,7 @@ class Toolbar
 			$button->addClass('ui-btn-themes');
 		}
 
-		return $button->render();
+		return $button->render(false);
 	}
 
 	public function setTitleMinWidth($width)

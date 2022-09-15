@@ -203,6 +203,10 @@ class Selector
 	 */
 	public function findSource($index)
 	{
+		if (!is_string($index) || $index === '')
+		{
+			return null;
+		}
 		$this->initSourceList();
 		return isset($this->sourceList[$index]) ? $this->sourceList[$index] : null;
 	}
@@ -916,7 +920,7 @@ class Selector
 		$request = Main\Context::getCurrent()->getRequest();
 		if ($request->isAdminSection())
 		{
-			$request['admin_section'] = 'Y';
+			$result['admin_section'] = 'Y';
 		}
 		unset($request);
 		return $result;

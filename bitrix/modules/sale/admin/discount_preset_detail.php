@@ -10,6 +10,11 @@ Main\Loader::includeModule('sale');
 
 Loc::loadMessages(__FILE__);
 
+/** @global CAdminPage $adminPage */
+global $adminPage;
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+global $adminSidePanelHelper;
+
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
 $saleModulePermissions = $APPLICATION->GetGroupRight("sale");
@@ -19,10 +24,16 @@ if ($saleModulePermissions < "W")
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !check_bitrix_sessid())
 	$APPLICATION->AuthForm(Loc::getMessage("ACCESS_DENIED"));
 
+\Bitrix\Main\UI\Extension::load(['ui.design-tokens']);
 $APPLICATION->SetAdditionalCSS("/bitrix/panel/sale/preset.css");
 
+$enableRestrictedGroupsMode = ($adminSidePanelHelper->isPublicSidePanel()
+	&& Main\Loader::includeModule('crm')
+	&& Main\Loader::includeModule('bitrix24')
+);
+
 $presetManager = \Bitrix\Sale\Discount\Preset\Manager::getInstance();
-$presetManager->enableRestrictedGroupsMode($adminSidePanelHelper->isPublicSidePanel());
+$presetManager->enableRestrictedGroupsMode($enableRestrictedGroupsMode);
 
 if(!empty($_GET['DISCOUNT_ID']))
 {

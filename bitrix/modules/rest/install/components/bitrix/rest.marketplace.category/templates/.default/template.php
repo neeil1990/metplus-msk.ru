@@ -13,9 +13,11 @@ if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
-use \Bitrix\Main\Loader;
-use \Bitrix\Main\Localization\Loc;
-use \Bitrix\Rest\Marketplace\Url;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Rest\Marketplace\Url;
+use Bitrix\Rest\Url\DevOps;
+
 $portalZoneId = (Loader::includeModule("bitrix24")) ? (CBitrix24::getPortalZone()) : "ru";
 \Bitrix\Main\Loader::includeModule("ui");
 \Bitrix\Main\UI\Extension::load(array("ui.tilegrid", "ui.buttons"));
@@ -64,12 +66,46 @@ if (is_array($arResult["ITEMS"]))
 }
 elseif (
 	is_array($arResult["NEW_ITEMS_PAID"]) || is_array($arResult["NEW_ITEMS_FREE"])
-	||is_array($arResult["TOP_ITEMS_PAID"]) || is_array($arResult["TOP_ITEMS_FREE"])
+	|| is_array($arResult["TOP_ITEMS_PAID"]) || is_array($arResult["TOP_ITEMS_FREE"])
+	|| is_array($arResult["SALE_OUT_ITEMS"]) || is_array($arResult["NEW_ITEMS_SUBSCRIPTION"])
+	|| is_array($arResult["TOP_ITEMS_SUBSCRIPTION"])
 )
 {
 	?>
 	<div class="mp<? if (isset($_REQUEST["IFRAME"]) && $_REQUEST["IFRAME"] === "Y"): ?> mp-slider<? endif; ?>">
+		<?if (is_array($arResult["SALE_OUT_ITEMS"]) && !empty($arResult["SALE_OUT_ITEMS"])):?>
+			<div class="mp-title">
+				<? if (!empty($arResult["SALE_OUT_NAME"])):?>
+					<?=GetMessage(
+						"MARKETPLACE_TITLE_SALE_OUT_WITH_NAME",
+						[
+							"#ACTION_NAME#" => $arResult["SALE_OUT_NAME"]
+						]
+					)?>
+				<? else:?>
+					<?=GetMessage("MARKETPLACE_TITLE_SALE_OUT")?>
+				<? endif;?>
+				<span
+					class="rest-marketplace-show-all-link"
+					data-role="sale-out"
+					onclick="BX.onCustomEvent('BX.Main.Filter:clickMPAllLink', [this])"
+				>
+					<?=GetMessage("MARKETPLACE_SHOW_ALL_LINK")?>
+				</span>
+			</div>
+			<div class="mp-container">
+				<div class="mp-container" id="mp-sale-out-block"></div>
+			</div>
+		<?endif?>
+
 		<div class="mp-title"><?=GetMessage("MARKETPLACE_TITLE_NEW")?></div>
+
+		<?if (is_array($arResult["NEW_ITEMS_SUBSCRIPTION"]) && !empty($arResult["NEW_ITEMS_SUBSCRIPTION"])):?>
+			<div class="mp-container">
+				<div class="mp-title"><?=GetMessage("MARKETPLACE_PRICE_SUBSCRIPTION")?></div>
+				<div class="mp-container" id="mp-new-block-subscription"></div>
+			</div>
+		<?endif?>
 
 		<?if (is_array($arResult["NEW_ITEMS_PAID"]) && !empty($arResult["NEW_ITEMS_PAID"])):?>
 			<div class="mp-container">
@@ -86,6 +122,13 @@ elseif (
 		<?endif?>
 
 		<div class="mp-title"><?=GetMessage("MARKETPLACE_TITLE_BEST")?></div>
+
+		<?if (is_array($arResult["TOP_ITEMS_SUBSCRIPTION"]) && !empty($arResult["TOP_ITEMS_SUBSCRIPTION"])):?>
+			<div class="mp-container">
+				<div class="mp-title"><?=GetMessage("MARKETPLACE_PRICE_SUBSCRIPTION")?></div>
+				<div class="mp-container" id="mp-top-block-subscription"></div>
+			</div>
+		<?endif?>
 
 		<?if (is_array($arResult["TOP_ITEMS_PAID"]) && !empty($arResult["TOP_ITEMS_PAID"])):?>
 			<div class="mp-container">
@@ -104,6 +147,35 @@ elseif (
 
 	<script>
 		BX.ready(function () {
+
+			<?if (is_array($arResult["SALE_OUT_ITEMS"]) && !empty($arResult["SALE_OUT_ITEMS"])):?>
+			var gridTileNew = new BX.TileGrid.Grid(
+				{
+					id: "mp_category_sale_out",
+					container: document.getElementById("mp-sale-out-block"),
+					items: <?=CUtil::PhpToJSObject($arResult["SALE_OUT_ITEMS"])?>,
+					itemHeight: 105,
+					itemMinWidth: 300,
+					itemType: "BX.Rest.Marketplace.TileGrid.Item"
+				}
+			);
+			gridTileNew.draw();
+			<?endif?>
+
+			<?if (is_array($arResult["NEW_ITEMS_SUBSCRIPTION"]) && !empty($arResult["NEW_ITEMS_SUBSCRIPTION"])):?>
+			var gridTileNew = new BX.TileGrid.Grid(
+				{
+					id: "mp_category_new_subscription",
+					container: document.getElementById("mp-new-block-subscription"),
+					items: <?=CUtil::PhpToJSObject($arResult["NEW_ITEMS_SUBSCRIPTION"])?>,
+					itemHeight: 105,
+					itemMinWidth: 300,
+					itemType: "BX.Rest.Marketplace.TileGrid.Item"
+				}
+			);
+			gridTileNew.draw();
+			<?endif?>
+
 			<?if (is_array($arResult["NEW_ITEMS_PAID"]) && !empty($arResult["NEW_ITEMS_PAID"])):?>
 			var gridTileNew = new BX.TileGrid.Grid(
 				{
@@ -130,6 +202,20 @@ elseif (
 				}
 			);
 			gridTileNew.draw();
+			<?endif?>
+
+			<?if (is_array($arResult["TOP_ITEMS_SUBSCRIPTION"]) && !empty($arResult["TOP_ITEMS_SUBSCRIPTION"])):?>
+			var gridTileTop = new BX.TileGrid.Grid(
+				{
+					id: "mp_category_top_subscription",
+					container: document.getElementById("mp-top-block-subscription"),
+					items: <?=CUtil::PhpToJSObject($arResult["TOP_ITEMS_SUBSCRIPTION"])?>,
+					itemHeight: 105,
+					itemMinWidth: 300,
+					itemType: "BX.Rest.Marketplace.TileGrid.Item"
+				}
+			);
+			gridTileTop.draw();
 			<?endif?>
 
 			<?if (is_array($arResult["TOP_ITEMS_PAID"]) && !empty($arResult["TOP_ITEMS_PAID"])):?>
@@ -165,6 +251,7 @@ elseif (
 }
 else
 {
+
 	/*?><?GetMessage("MARKETPLACE_EMPTY_CATEGORY");*/
 	?><iframe src="https://integrations.bitrix24.site/<?=$portalZoneId?>/"  class="app-frame" frameborder="0" style="width: 100%;height: -webkit-calc(100vh - 143px);height: calc(100vh - 143px);"><?=GetMessage("MARKETPLACE_EMPTY_CATEGORY");?></iframe><?
 }
@@ -213,7 +300,7 @@ if ($arResult["AJAX_MODE"])
 if (\CRestUtil::isAdmin())
 {
 	\Bitrix\UI\Toolbar\Facade\Toolbar::addButton([
-		"link" => Url::getApplicationAddUrl(),
+		"link" => DevOps::getInstance()->getIndexUrl(),
 		"color" => \Bitrix\UI\Buttons\Color::PRIMARY,
 		"icon" => "",
 		"text" => Loc::getMessage("MENU_MARKETPLACE_ADD"),
@@ -226,7 +313,8 @@ if (\CRestUtil::isAdmin())
 			"icon" => "",
 			"text" => Loc::getMessage("MENU_MARKETPLACE_ADD_WIDGET")
 		]);
-	}}
+	}
+}
 
 //endregion
 //region TopMenu
@@ -264,7 +352,7 @@ if (isset($arParams["TAG"]))
 			"bx-role" => "mp-left-menu-item",
 			"bx-mp-left-menu-item" => "all",
 			"bx-filter-mode" => isset($arParams["PLACEMENT"]) ? "placement" : "tag",
-			"bx-filter-value" => isset($arParams["PLACEMENT"]) ? $arParams["PLACEMENT"] : $arParams["TAG"],
+			"bx-filter-value" => preg_replace("/[^a-z0-9_-]/i", "_", isset($arParams["PLACEMENT"]) ? $arParams["PLACEMENT"] : $arParams["TAG"]),
 			"onclick" => "BX.onCustomEvent('BX.Main.Filter:clickMPMenu', [this])"
 		],
 		"NAME_HTML" => "<span class=\"ui-sidepanel-menu-link-text-item\">".Loc::getMessage("MARKETPLACE_COLLECTION")."</span>".($cnt > 0 ? " <span class=\"ui-sidepanel-menu-link-text-counter\">{$cnt}</span>" : ""),
@@ -279,9 +367,21 @@ if (!empty($arResult["CATEGORIES"]))
 	foreach ($arResult["CATEGORIES"] as $category)
 	{
 		$sum += $category["CNT"];
+
+		$name = '';
+		if (!empty($category['ICON_PATH']))
+		{
+			$name = '<img class="ui-sidepanel-menu-link-text-icon" src="' . $category['ICON_PATH'] . '" />';
+		}
+		$name .= '<span class="ui-sidepanel-menu-link-text-item">' . $category['NAME'] . '</span>';
+		if ($category['CNT'] > 0)
+		{
+			$name .= '<span class="ui-sidepanel-menu-link-text-counter">' . $category['CNT'] . '</span>';
+		}
+
 		$item = [
 			"ATTRIBUTES" => ["bx-role" => "mp-left-menu-item", "bx-mp-left-menu-item" => $category["CODE"], "onclick" => "BX.onCustomEvent('BX.Main.Filter:clickMPMenu', [this])"],
-			"NAME_HTML" => "<span class=\"ui-sidepanel-menu-link-text-item\">".$category["NAME"]."</span>".($category["CNT"] > 0 ? " <span class=\"ui-sidepanel-menu-link-text-counter\">{$category["CNT"]}</span>" : ""),
+			"NAME_HTML" => $name,
 			"ACTIVE" => in_array($category["CODE"], $activeItems),
 			"OPERATIVE" => true,
 			"CHILDREN" => []
@@ -300,37 +400,44 @@ if (!empty($arResult["CATEGORIES"]))
 		$items[] = $item;
 	}
 }
-$titleMessage = Loc::getMessage("MENU_MARKETPLACE_TITLE");
-if ($sum <= 890)
+
+if ($arResult["CATEGORIES_COUNT"] > 0)
 {
-	$title = <<<HTML
-	<div class="mp-head-status-box">
-		<span class="mp-head-status-value">{$sum}</span>
-		<span class="mp-head-status-text">{$titleMessage}</span>
-		<button class="mp-head-status-btn">&rarr;</button>
-	</div>
-HTML;
+	$sum = round($arResult["CATEGORIES_COUNT"], -1);
+}
+elseif ($sum > 890)
+{
+	$sum = 890;
 }
 else
 {
-	$title = <<<HTML
+	$sum = round($sum, -1);
+}
+
+$titleMessage = Loc::getMessage("MENU_MARKETPLACE_TITLE");
+$title = <<<HTML
 	<div class="mp-head-status-box">
 		<span class="mp-head-status-value">
-			890<span class="mp-head-status-plus">&#43;</span>
+			{$sum}<span class="mp-head-status-plus">&#43;</span>
 		</span>
 		<span class="mp-head-status-text">{$titleMessage}</span>
 		<button class="mp-head-status-btn">&rarr;</button>
 	</div>
 HTML;
-}
 
+$APPLICATION->AddViewContent("left-panel-before", $title);
 
-?><?$APPLICATION->IncludeComponent("bitrix:ui.sidepanel.wrappermenu", '', [
-	"ID" => "mp-left-menu",
-/*	"TITLE_HTML" => "<a href=\"http://apps24.bitrix24.site/{$portalZoneId}/\" data-slider-ignore-autobinding=\"Y\" target=\"_blank\">$title</a>",*/
-	"TITLE_HTML" => $title,
-	"ITEMS" => $items]);?>
-<?
+if(!empty($arResult["CATEGORIES"])):
+	?><? $APPLICATION->IncludeComponent(
+		"bitrix:ui.sidepanel.wrappermenu",
+		'',
+		[
+			"ID" => "mp-left-menu",
+			"ITEMS" => $items
+		]
+	);?>
+	<?
+endif;
 //endregion
 //region Items html block
 $this->setViewTarget("rest.marketplace.category.block");
@@ -370,6 +477,27 @@ $this->setViewTarget("rest.marketplace.category.block");
 <?
 $this->endViewTarget();
 //endregion
+if(empty($arResult["CATEGORIES"]) && empty($arResult["ITEMS"])):
+	$bodyClass = $APPLICATION->getPageProperty("BodyClass", false);
+	$bodyClass = str_replace(['no-background','no-all-paddings'],'', $bodyClass);
+	$bodyClasses = "pagetitle-toolbar-field-view  mp-slider-view";
+	$APPLICATION->setPageProperty("BodyClass", trim(sprintf("%s %s", $bodyClass, $bodyClasses)));
 
-$APPLICATION->ShowViewContent("rest.marketplace.category.block");
+	?>
+	<div class="rest-marketplace-error">
+		<div class="rest-marketplace-error-wrapper">
+			<div class="rest-marketplace-error-start-icon-main rest-marketplace-error-start-icon-main-zip">
+				<div class="rest-marketplace-error-start-icon-main rest-marketplace-error-start-icon-main-error">
+					<div class="rest-marketplace-error-start-icon-refresh"></div>
+					<div class="rest-marketplace-error-start-icon"></div>
+					<div class="rest-marketplace-error-start-icon-circle"></div>
+				</div>
+			</div>
+			<div class="rest-marketplace-error-title"><?=Loc::getMessage("REST_MARKETPLACE_ERROR_404_TITLE")?></div>
+			<div class="rest-marketplace-error-info"><?=Loc::getMessage("REST_MARKETPLACE_ERROR_404_DESCRIPTION")?></div>
+		</div>
+	</div>
+<?else:
+	$APPLICATION->ShowViewContent("rest.marketplace.category.block");
+endif;
 ?>

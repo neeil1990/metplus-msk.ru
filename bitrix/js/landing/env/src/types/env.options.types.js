@@ -88,6 +88,13 @@ interface EnvOptions
 	url: string,
 	version: string,
 	xml_id: string,
+	default_section: string,
+	specialType: string,
+	design_block: string,
+	design_block_allowed: boolean,
+	mainOptions: {
+		saveOriginalFileName: boolean,
+	},
 }
 
 export {

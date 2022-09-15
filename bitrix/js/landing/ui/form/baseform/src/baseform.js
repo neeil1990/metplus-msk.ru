@@ -1,10 +1,22 @@
+import 'ui.design-tokens';
+import 'ui.fonts.opensans';
+
 import {Type, Event, Text, Tag, Dom, Cache, Runtime} from 'main.core';
+import {EventEmitter} from 'main.core.events';
 import {Env} from 'landing.env';
 import typeof {BaseField} from 'landing.ui.field.basefield';
 import type BaseFormOptions from './internal/type';
+
 import './css/style.css';
 
-export class BaseForm extends Event.EventEmitter
+export type {
+	BaseFormOptions,
+};
+
+/**
+ * @memberOf BX.Landing.UI.Form
+ */
+export class BaseForm extends EventEmitter
 {
 	constructor(data: BaseFormOptions = {})
 	{
@@ -12,6 +24,7 @@ export class BaseForm extends Event.EventEmitter
 		this.setEventNamespace('BX.Landing.UI.Form.BaseForm');
 
 		this.data = {...data};
+		this.options = this.data;
 		this.id = Reflect.has(this.data, 'id') ? this.data.id : Text.getRandom();
 		this.selector = Reflect.has(this.data, 'selector') ? this.data.selector : '';
 		this.title = Reflect.has(this.data, 'title') ? this.data.title : '';
@@ -19,6 +32,7 @@ export class BaseForm extends Event.EventEmitter
 		this.type = Reflect.has(this.data, 'type') ? this.data.type : 'content';
 		this.code = Reflect.has(this.data, 'code') ? this.data.code : '';
 		this.descriptionText = Reflect.has(this.data, 'description') ? this.data.description : '';
+		this.serializeModifier = this.options.serializeModifier || ((value) => value);
 		this.headerCheckbox = this.data.headerCheckbox;
 		this.cache = new Cache.MemoryCache();
 
@@ -26,13 +40,18 @@ export class BaseForm extends Event.EventEmitter
 		this.cards = new BX.Landing.Collection.BaseCollection();
 
 		this.layout = BaseForm.createLayout();
-		this.description = BaseForm.createDescription();
 		this.header = BaseForm.createHeader();
 		this.body = BaseForm.createBody();
 		this.footer = BaseForm.createFooter();
 
 		Dom.append(this.header, this.layout);
-		Dom.append(this.description, this.layout);
+
+		if (this.descriptionText !== null)
+		{
+			this.description = BaseForm.createDescription();
+			Dom.append(this.description, this.layout);
+		}
+
 		Dom.append(this.body, this.layout);
 		Dom.append(this.footer, this.layout);
 
@@ -62,6 +81,21 @@ export class BaseForm extends Event.EventEmitter
 		{
 			Dom.append(this.getHeaderCheckbox(), this.header);
 		}
+
+		if (this.options.hidden === true)
+		{
+			this.hide();
+		}
+	}
+
+	show()
+	{
+		Dom.attr(this.getLayout(), 'hidden', null);
+	}
+
+	hide()
+	{
+		Dom.attr(this.getLayout(), 'hidden', true);
 	}
 
 	static createLayout(): HTMLDivElement
@@ -87,6 +121,11 @@ export class BaseForm extends Event.EventEmitter
 	static createFooter(): HTMLDivElement
 	{
 		return Tag.render`<div class="landing-ui-form-footer"></div>`;
+	}
+
+	getLayout(): HTMLDivElement
+	{
+		return this.layout;
 	}
 
 	getHeaderCheckbox(): HTMLDivElement
@@ -193,6 +232,16 @@ export class BaseForm extends Event.EventEmitter
 		this.addCard(newCard);
 	}
 
+	replaceField(oldField, newField)
+	{
+		if (Type.isObject(oldField) && Type.isObject(newField))
+		{
+			Dom.replace(oldField.getNode(), newField.getNode());
+			this.fields.remove(oldField);
+			this.fields.add(newField);
+		}
+	}
+
 	isCheckboxChecked(): boolean
 	{
 		const checkbox = this.header.querySelector('input');
@@ -222,15 +271,31 @@ export class BaseForm extends Event.EventEmitter
 
 	serialize(): {[key: string]: any}
 	{
-		return this.fields.reduce((acc, field) => {
-			acc[field.selector] = field.getValue();
-			return acc;
-		}, {});
+		return this.serializeModifier(
+			this.fields.reduce((acc, field) => {
+				if (Type.isFunction(field.getValue))
+				{
+					acc[field.selector] = field.getValue();
+				}
+
+				return acc;
+			}, {}),
+		);
 	}
 
 	removeField(field: BaseField)
 	{
 		this.fields.remove(field);
 		Dom.remove(field.layout);
+	}
+
+	disable()
+	{
+		Dom.addClass(this.getLayout(), 'landing-ui-disabled');
+	}
+
+	enable()
+	{
+		Dom.removeClass(this.getLayout(), 'landing-ui-disabled');
 	}
 }

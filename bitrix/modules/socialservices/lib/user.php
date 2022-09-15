@@ -2,8 +2,26 @@
 namespace Bitrix\Socialservices;
 
 use \Bitrix\Main\Entity;
+use Bitrix\Main\ORM\Event;
+use Bitrix\Socialservices\EncryptedToken\FieldValue;
 
 
+/**
+ * Class UserTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_User_Query query()
+ * @method static EO_User_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_User_Result getById($id)
+ * @method static EO_User_Result getList(array $parameters = array())
+ * @method static EO_User_Entity getEntity()
+ * @method static \Bitrix\Socialservices\EO_User createObject($setDefaultValues = true)
+ * @method static \Bitrix\Socialservices\EO_User_Collection createCollection()
+ * @method static \Bitrix\Socialservices\EO_User wakeUpObject($row)
+ * @method static \Bitrix\Socialservices\EO_User_Collection wakeUpCollection($rows)
+ */
 class UserTable extends Entity\DataManager
 {
 	const ALLOW = 'Y';
@@ -72,16 +90,19 @@ class UserTable extends Entity\DataManager
 				'serizalized' => true,
 			),
 			'OATOKEN' => array(
-				'data_type' => 'string',
+				'data_type' => '\\Bitrix\\Socialservices\\EncryptedToken\\CryptoField',
+				'encryption_complete' => static::cryptoEnabled('OATOKEN')
 			),
 			'OATOKEN_EXPIRES' => array(
 				'data_type' => 'integer',
 			),
 			'OASECRET' => array(
-				'data_type' => 'string',
+				'data_type' => '\\Bitrix\\Socialservices\\EncryptedToken\\CryptoField',
+				'encryption_complete' => static::cryptoEnabled('OASECRET')
 			),
 			'REFRESH_TOKEN' => array(
-				'data_type' => 'string',
+				'data_type' => '\\Bitrix\\Socialservices\\EncryptedToken\\CryptoField',
+				'encryption_complete' => static::cryptoEnabled('REFRESH_TOKEN')
 			),
 			'SEND_ACTIVITY' => array(
 				'data_type' => 'boolean',
@@ -146,7 +167,7 @@ class UserTable extends Entity\DataManager
 		return $fields;
 	}
 
-	public static function onBeforeDelete(Entity\Event $event)
+	public static function onBeforeDelete(Event $event)
 	{
 		$primary = $event->getParameter("primary");
 		$ID = $primary["ID"];
@@ -154,7 +175,7 @@ class UserTable extends Entity\DataManager
 		self::$deletedList[$ID] = $dbRes->fetch();
 	}
 
-	public static function onAfterDelete(Entity\Event $event)
+	public static function onAfterDelete(Event $event)
 	{
 		$primary = $event->getParameter("primary");
 		$ID = $primary["ID"];

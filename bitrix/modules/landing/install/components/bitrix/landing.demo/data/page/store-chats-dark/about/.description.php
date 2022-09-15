@@ -7,6 +7,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Main\Localization\Loc;
 
 return array(
+	'old_id' => 1,
 	'code' => 'store-chats-dark/about',
 	'name' => Loc::getMessage('LANDING_DEMO_STORE_CHATS_DARK-ABOUT-NAME'),
 	'description' => Loc::getMessage('LANDING_DEMO_STORE_CHATS_DARK-ABOUT-DESC'),
@@ -21,7 +22,7 @@ return array(
 			'VIEW_USE' => 'N',
 			'VIEW_TYPE' => 'no',
 			'THEME_CODE' => '3corporate',
-			'THEME_CODE_TYPO' => '3corporate',
+
 		),
 	),
 	
@@ -72,15 +73,15 @@ return array(
 					1 => 'landing-block-node-card js-animation animation-none col-md-6 col-lg-6 g-mb-40 g-mb-0--last g-px-20',
 				),
 				'.landing-block-node-card-text' => array(
-					0 => 'landing-block-node-card-text mb-0 g-color-white-opacity-0_7 g-font-size-14',
-					1 => 'landing-block-node-card-text mb-0 g-color-white-opacity-0_7 g-font-size-14',
+					0 => 'landing-block-node-card-text mb-0 g-color-white-opacity-0_8',
+					1 => 'landing-block-node-card-text mb-0 g-color-white-opacity-0_8',
 				),
 				'.landing-block-node-card-title' => array(
-					0 => 'landing-block-node-card-title h5 font-weight-bold g-color-white g-text-transform-none g-font-size-16',
-					1 => 'landing-block-node-card-title h5 font-weight-bold g-color-white g-text-transform-none g-font-size-16',
+					0 => 'landing-block-node-card-title h5 g-font-weight-700 g-color-white g-text-transform-none g-font-size-15',
+					1 => 'landing-block-node-card-title h5 g-font-weight-700 g-color-white g-text-transform-none g-font-size-15',
 				),
 				'#wrapper' => array(
-					0 => 'landing-block g-pt-20 g-pb-10 u-block-border u-block-border-margin-md g-rounded-6 g-theme-bitrix-bg-dark-v1',
+					0 => 'landing-block g-pt-20 g-pb-10 u-block-border-none g-theme-bitrix-bg-dark-v3',
 				),
 			),
 		),
@@ -103,13 +104,13 @@ return array(
 			),
 			'style' => array(
 				'.landing-block-node-title' => array(
-					0 => 'landing-block-node-title font-weight-bold mb-0 g-mb-15 g-color-white g-text-transform-none g-font-size-28',
+					0 => 'landing-block-node-title g-font-weight-700 mb-0 g-mb-15 g-color-white g-text-transform-none g-font-size-28',
 				),
 				'.landing-block-node-text-container' => array(
 					0 => 'landing-block-node-text-container js-animation animation-none col-md-6 col-lg-6 g-pb-20 g-pb-0--md',
 				),
 				'.landing-block-node-text' => array(
-					0 => 'landing-block-node-text g-color-white-opacity-0_7',
+					0 => 'landing-block-node-text g-color-white-opacity-0_8',
 				),
 				'.landing-block-node-block' => array(
 					0 => 'row landing-block-node-block align-items-center',
@@ -118,7 +119,7 @@ return array(
 					0 => 'landing-block-node-img js-animation animation-none img-fluid',
 				),
 				'#wrapper' => array(
-					0 => 'landing-block g-pt-10 g-pb-20 u-block-border u-block-border-margin-md g-rounded-6 g-theme-bitrix-bg-dark-v1',
+					0 => 'landing-block g-pt-25 g-pb-25 u-block-border-none g-bg-transparent',
 				),
 			),
 		),

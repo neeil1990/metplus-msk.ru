@@ -1,7 +1,26 @@
 <?php
-if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
-CJSCore::Init(array("popup"));
-\Bitrix\Main\UI\Extension::load("ui.buttons.icons");
+if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+\Bitrix\Main\UI\Extension::load([
+	"ui.design-tokens",
+	"popup",
+	"ui.buttons.icons",
+]);
+
+if (\Bitrix\Main\Loader::includeModule('intranet'))
+{
+	$APPLICATION->includeComponent(
+		'bitrix:intranet.binding.menu',
+		'',
+		array(
+			'SECTION_CODE' => 'crm_analytics',
+			'MENU_CODE' => 'config'
+		)
+	);
+}
 ?>
 
 <div class="analytic-board-config-control">
@@ -15,6 +34,7 @@ CJSCore::Init(array("popup"));
 	});
 	new BX.Report.Analytics.Config.Controls({
 		boardId: <?=CUtil::PhpToJSObject($arResult['BOARD_ID'])?>,
-		configurationButton: BX('analytic_board_configuration_button')
+		boardOptions: <?= \Bitrix\Main\Web\Json::encode($arResult['BOARD_OPTIONS'])?>,
+		configurationButton: BX('analytic_board_configuration_button'),
 	});
 </script>

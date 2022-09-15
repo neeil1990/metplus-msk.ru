@@ -9,6 +9,7 @@ use Bitrix\Main\Error;
 use Bitrix\Main\Type\Collection;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Sale\Internals\FacebookConversion;
 
 /**
  * @global \CUser $USER
@@ -284,6 +285,14 @@ abstract class Element extends Base
 		if ($this->checkElementId())
 		{
 			parent::processResultData();
+			$this->arResult['IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED'] = false;
+			if (Loader::includeModule('sale'))
+			{
+				$this->arResult['IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED'] = FacebookConversion::isEventEnabled(
+					'CustomizeProduct'
+				);
+			}
+
 		}
 		else
 		{
@@ -363,6 +372,11 @@ abstract class Element extends Base
 		$this->loadDisplayPropertyCodes($this->arParams['IBLOCK_ID']);
 		$this->loadBasketPropertyCodes($this->arParams['IBLOCK_ID']);
 		$this->loadOfferTreePropertyCodes($this->arParams['IBLOCK_ID']);
+	}
+
+	protected function checkProductIblock(array $product): bool
+	{
+		return ($product['PRODUCT_IBLOCK_ID'] == $this->arParams['IBLOCK_ID']);
 	}
 
 	/**
@@ -631,8 +645,8 @@ abstract class Element extends Base
 			$element['LINKED_ELEMENTS'] = array();
 
 			if (
-				strlen($this->arParams['LINK_PROPERTY_SID']) > 0
-				&& strlen($this->arParams['LINK_IBLOCK_TYPE']) > 0
+				$this->arParams['LINK_PROPERTY_SID'] <> ''
+				&& $this->arParams['LINK_IBLOCK_TYPE'] <> ''
 				&& $this->arParams['LINK_IBLOCK_ID'] > 0
 			)
 			{
@@ -1329,7 +1343,7 @@ abstract class Element extends Base
 
 	protected function editTemplateJsOffers(&$item, $offerSet)
 	{
-		$matrix = array();
+		$matrix = [];
 		$intSelected = -1;
 
 		foreach ($item['OFFERS'] as $keyOffer => $offer)
@@ -1352,17 +1366,19 @@ abstract class Element extends Base
 			$skuProps = false;
 			if (!empty($offer['DISPLAY_PROPERTIES']))
 			{
-				$skuProps = array();
+				$skuProps = [];
 				foreach ($offer['DISPLAY_PROPERTIES'] as $oneProp)
 				{
-					if ($oneProp['PROPERTY_TYPE'] === 'F')
+					if ($oneProp['PROPERTY_TYPE'] === Iblock\PropertyTable::TYPE_FILE)
+					{
 						continue;
+					}
 
-					$skuProps[] = array(
+					$skuProps[] = [
 						'CODE' => $oneProp['CODE'],
 						'NAME' => $oneProp['NAME'],
-						'VALUE' => $oneProp['DISPLAY_VALUE']
-					);
+						'VALUE' => $oneProp['DISPLAY_VALUE'],
+					];
 				}
 				unset($oneProp);
 			}
@@ -1375,12 +1391,16 @@ abstract class Element extends Base
 
 			$ratioSelectedIndex = $offer['ITEM_MEASURE_RATIO_SELECTED'];
 			$firstPhoto = reset($offer['MORE_PHOTO']);
-			$arOneRow = array(
+			$oneRow = [
 				'ID' => $offer['ID'],
 				'CODE' => $offer['CODE'],
 				'NAME' => $offer['~NAME'],
 				'TREE' => $offer['TREE'],
 				'DISPLAY_PROPERTIES' => $skuProps,
+				'PREVIEW_TEXT' => $offer['PREVIEW_TEXT'],
+				'PREVIEW_TEXT_TYPE' => $offer['PREVIEW_TEXT_TYPE'],
+				'DETAIL_TEXT' => $offer['DETAIL_TEXT'],
+				'DETAIL_TEXT_TYPE' => $offer['DETAIL_TEXT_TYPE'],
 				'ITEM_PRICE_MODE' => $offer['ITEM_PRICE_MODE'],
 				'ITEM_PRICES' => $offer['ITEM_PRICES'],
 				'ITEM_PRICE_SELECTED' => $offer['ITEM_PRICE_SELECTED'],
@@ -1400,10 +1420,10 @@ abstract class Element extends Base
 				'CATALOG_SUBSCRIBE' => $offer['PRODUCT']['SUBSCRIBE'],
 				'SLIDER' => $offer['MORE_PHOTO'],
 				'SLIDER_COUNT' => $offer['MORE_PHOTO_COUNT'],
-			);
+			];
 			unset($ratioSelectedIndex);
 
-			$matrix[$keyOffer] = $arOneRow;
+			$matrix[$keyOffer] = $oneRow;
 		}
 
 		if ($intSelected == -1)

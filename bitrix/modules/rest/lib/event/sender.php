@@ -11,6 +11,7 @@ use Bitrix\Rest\OAuth\Auth;
 use Bitrix\Rest\OAuthService;
 use Bitrix\Rest\Sqs;
 use Bitrix\Rest\UsageStatTable;
+use Bitrix\Rest\Tools\Diagnostics\LoggerManager;
 
 /**
  * Class Sender
@@ -154,6 +155,19 @@ class Sender
 		global $USER;
 
 		$offlineEvents = array();
+		$logger = LoggerManager::getInstance()->getLogger();
+		if ($logger)
+		{
+			$logger->debug(
+				"\n{delimiter}\n"
+				. "{date} - {host}\n{delimiter}\n"
+				. " Sender::call() starts.\n"
+				. "{handlersList}\n{delimiter} ",
+				[
+					'handlersList' => $handlersList,
+				]
+			);
+		}
 
 		foreach($handlersList as $handlerInfo)
 		{
@@ -172,6 +186,18 @@ class Sender
 			$session = Session::get();
 			if(!$session)
 			{
+				if ($logger)
+				{
+					$logger->debug(
+						"\n{delimiter}\n"
+						. "{date} - {host}\n{delimiter}\n"
+						. "Session ttl exceeded {session}.\n",
+						[
+							'session' => $session,
+						]
+					);
+				}
+
 				// ttl exceeded, kill session
 				return;
 			}
@@ -201,7 +227,7 @@ class Sender
 					);
 				}
 
-				if(strlen($handler['EVENT_HANDLER']) > 0)
+				if($handler['EVENT_HANDLER'] <> '')
 				{
 					UsageStatTable::logEvent($application['CLIENT_ID'], $handler['EVENT_NAME']);
 				}
@@ -219,7 +245,7 @@ class Sender
 
 			if($authData)
 			{
-				if(strlen($handler['EVENT_HANDLER']) > 0)
+				if($handler['EVENT_HANDLER'] <> '')
 				{
 					self::$queryData[] = Sqs::queryItem(
 						$application['CLIENT_ID'],
@@ -245,21 +271,41 @@ class Sender
 			}
 		}
 
-		if(count($offlineEvents) > 0)
+		if (count($offlineEvents) > 0)
 		{
+			if ($logger)
+			{
+				$logger->debug(
+					"\n{delimiter}\n"
+					. "{date} - {host}\n{delimiter}\n"
+					. "Event count: {eventCount}\n{delimiter}"
+					. "Offline event list:\n"
+					. "{offlineEvents}",
+					[
+						'eventCount' => count($offlineEvents),
+						'offlineEvents' => $offlineEvents,
+					]
+				);
+			}
 			static::getProviderOffline()->send($offlineEvents);
 		}
 
-		if(count(static::$queryData) > 0 && !static::$forkSet)
+		if (count(static::$queryData) > 0 && !static::$forkSet)
 		{
-			if(\CMain::forkActions(array(__CLASS__, "send"), array()))
+			if ($logger)
 			{
-				static::$forkSet = true;
+				$logger->debug(
+					"\n{delimiter}\n"
+					. "{date} - {host}\n{delimiter}\n"
+					. "Registers send event background job.\n"
+					. "count: {eventCount}",
+					[
+						'eventCount' => count(static::$queryData),
+					]
+				);
 			}
-			else
-			{
-				static::send();
-			}
+			\Bitrix\Main\Application::getInstance()->addBackgroundJob(array(__CLASS__, "send"));
+			static::$forkSet = true;
 		}
 	}
 
@@ -268,7 +314,23 @@ class Sender
 	 */
 	public static function send()
 	{
-		if(count(self::$queryData) > 0)
+		$logger = LoggerManager::getInstance()->getLogger();
+		if ($logger)
+		{
+			$logger->debug(
+				"\n{delimiter}\n"
+				. "{date} - {host}\n{delimiter}\n"
+				. "Starts method Sender::send()\n"
+				. "count: {eventCount}"
+				. "Event list:\n"
+				. "{eventList}",
+				[
+					'eventCount' => count(static::$queryData),
+					'eventList' => static::$queryData,
+				]
+			);
+		}
+		if (count(self::$queryData) > 0)
 		{
 			UsageStatTable::finalize();
 			static::getProvider()->send(self::$queryData);
@@ -346,7 +408,7 @@ class Sender
 	protected static function getHandlerName($moduleId, $eventName)
 	{
 		// \Bitrix\Rest\EventTable::on
-		if(strpos($eventName, '::') >= 0)
+		if(mb_strpos($eventName, '::') >= 0)
 		{
 			$handlerName = $moduleId.'__'.ToUpper(str_replace(array("\\", '::'), array('_0_', '_1_'), $eventName));
 		}

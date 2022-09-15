@@ -3,6 +3,7 @@
 namespace Bitrix\Sale\PaySystem;
 
 use Bitrix\Main;
+use Bitrix\Rest;
 use Bitrix\Rest\AccessException;
 use Bitrix\Rest\RestException;
 use Bitrix\Sale\BusinessValue;
@@ -30,13 +31,68 @@ class RestService extends \IRestService
 	const ERROR_HANDLER_ALREADY_EXIST = 'ERROR_HANDLER_ALREADY_EXIST';
 	const ERROR_HANDLER_NOT_FOUND = 'ERROR_HANDLER_NOT_FOUND';
 	const ERROR_PERSON_TYPE_NOT_FOUND = 'ERROR_PERSON_TYPE_NOT_FOUND';
-	const ERROR_PAY_SYSTEM_ADD = 'ERROR_PAY_SYSTEM_ADD';
 	const ERROR_PAY_SYSTEM_NOT_FOUND = 'ERROR_PAY_SYSTEM_NOT_FOUND';
+
+	private const ERROR_HANDLER_ADD = 'ERROR_HANDLER_ADD';
+	private const ERROR_HANDLER_UPDATE = 'ERROR_HANDLER_UPDATE';
+	private const ERROR_HANDLER_DELETE = 'ERROR_HANDLER_DELETE';
+
+	const ERROR_PAY_SYSTEM_ADD = 'ERROR_PAY_SYSTEM_ADD';
+	const ERROR_PAY_SYSTEM_UPDATE = 'ERROR_PAY_SYSTEM_UPDATE';
 	const ERROR_PAY_SYSTEM_DELETE = 'ERROR_PAY_SYSTEM_DELETE';
+
 	const ERROR_INTERNAL_INVOICE_NOT_FOUND = 'ERROR_INTERNAL_INVOICE_NOT_FOUND';
 	const ERROR_INTERNAL_ORDER_NOT_FOUND = 'ERROR_INTERNAL_ORDER_NOT_FOUND';
 	const ERROR_PROCESS_REQUEST_RESULT = 'ERROR_PROCESS_REQUEST_RESULT';
 	const ERROR_PAY_INVOICE_NOT_SUPPORTED = 'ERROR_INVOICE_NO_SUPPORTED';
+
+	private const ALLOWED_PAYSYSTEM_FIELDS = [
+		'ID', 'PERSON_TYPE_ID', 'NAME', 'PSA_NAME', 'SORT', 'DESCRIPTION', 'ACTION_FILE', 'RESULT_FILE',
+		'NEW_WINDOW', 'TARIF', 'PS_MODE', 'HAVE_PAYMENT', 'HAVE_ACTION', 'HAVE_RESULT', 'HAVE_PREPAY',
+		'HAVE_PRICE', 'HAVE_RESULT_RECEIVE', 'ENCODING', 'LOGOTIP', 'ACTIVE', 'ALLOW_EDIT_PAYMENT',
+		'IS_CASH', 'AUTO_CHANGE_1C', 'CAN_PRINT_CHECK', 'ENTITY_REGISTRY_TYPE', 'XML_ID'
+	];
+
+	public static function onRestAppDelete(array $fields): void
+	{
+		if (!Main\Loader::includeModule('rest'))
+		{
+			return;
+		}
+
+		if (empty($fields['APP_ID']) || empty($fields['CLEAN']) || $fields['CLEAN'] !== true)
+		{
+			return;
+		}
+
+		$app = Rest\AppTable::getByClientId($fields['APP_ID']);
+		if (!$app)
+		{
+			return;
+		}
+
+		$restHandlerResult = Internals\PaySystemRestHandlersTable::getList([
+			'select' => ['ID', 'CODE'],
+			'filter' => [
+				'=APP_ID' => $app['CLIENT_ID'],
+			],
+		]);
+		while ($restHandler = $restHandlerResult->fetch())
+		{
+			$paySystemResult = Manager::getList([
+				'select' => ['ID'],
+				'filter' => [
+					'=ACTION_FILE' => $restHandler['CODE'],
+				],
+			]);
+			while ($paySystem = $paySystemResult->fetch())
+			{
+				Manager::delete($paySystem['ID']);
+			}
+
+			Internals\PaySystemRestHandlersTable::delete($restHandler['ID']);
+		}
+	}
 
 	/**
 	 * @return array
@@ -54,10 +110,13 @@ class RestService extends \IRestService
 				'sale.paysystem.update' => [__CLASS__, 'updatePaySystem'],
 				'sale.paysystem.delete' => [__CLASS__, 'deletePaySystem'],
 				'sale.paysystem.list' => [__CLASS__, 'getPaySystemList'],
+
 				'sale.paysystem.settings.get' => [__CLASS__, 'getSettings'],
 				'sale.paysystem.settings.update' => [__CLASS__, 'updateSettings'],
+
 				'sale.paysystem.settings.invoice.get' => [__CLASS__, 'getSettingsByInvoice'],
 				'sale.paysystem.settings.payment.get' => [__CLASS__, 'getSettingsByPayment'],
+
 				'sale.paysystem.pay.invoice' => [__CLASS__, 'payInvoice'],
 				'sale.paysystem.pay.payment' => [__CLASS__, 'payPayment'],
 			]
@@ -66,22 +125,16 @@ class RestService extends \IRestService
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return array|int
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\IO\FileNotFoundException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
-	public static function addPaySystem(array $params)
+	public static function addPaySystem(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
 		if (!isset($params['ENTITY_REGISTRY_TYPE']))
 		{
@@ -100,6 +153,7 @@ class RestService extends \IRestService
 		$fields = [
 			'NAME' => $params['NAME'],
 			'PSA_NAME' => $params['NAME'],
+			'NEW_WINDOW' => $params['NEW_WINDOW'] ?: 'N',
 			'ACTIVE' => $params['ACTIVE'] ?: 'N',
 			'PERSON_TYPE_ID' => $params['PERSON_TYPE_ID'],
 			'ACTION_FILE' => $params['BX_REST_HANDLER'],
@@ -109,7 +163,14 @@ class RestService extends \IRestService
 			'HAVE_PAYMENT' => 'N',
 			'HAVE_RESULT_RECEIVE' => 'Y',
 			'ENTITY_REGISTRY_TYPE' => $params['ENTITY_REGISTRY_TYPE'],
+			'DESCRIPTION' => $params['DESCRIPTION'],
+			'XML_ID' => $params['XML_ID'],
 		];
+
+		if (isset($params['LOGOTIP']))
+		{
+			$fields['LOGOTIP'] = self::saveFile($params['LOGOTIP']);
+		}
 
 		$result = Manager::add($fields);
 		if ($result->isSuccess())
@@ -135,6 +196,13 @@ class RestService extends \IRestService
 				static::savePersonTypeId($id, $params['PERSON_TYPE_ID']);
 			}
 
+			static::logAnalytics(
+				'addPaySystem' . $params['ENTITY_REGISTRY_TYPE'],
+				$params['BX_REST_HANDLER'],
+				$params['PERSON_TYPE_ID'],
+				$server
+			);
+
 			return $id;
 		}
 
@@ -144,20 +212,25 @@ class RestService extends \IRestService
 
 	/**
 	 * @param $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\IO\FileNotFoundException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
+	 * @throws AccessException
 	 */
 	protected static function checkParamsBeforePaySystemAdd($params)
 	{
-		$handlerList = Manager::getHandlerList();
-		if (!isset($handlerList['USER'][$params['BX_REST_HANDLER']]) && !isset($handlerList['SYSTEM'][$params['BX_REST_HANDLER']]))
+		if (empty($params['BX_REST_HANDLER']))
+		{
+			throw new RestException('Parameter BX_REST_HANDLER is not defined', self::ERROR_CHECK_FAILURE);
+		}
+
+		$handlerData = self::getHandlerData($params['BX_REST_HANDLER']);
+		if (!$handlerData)
 		{
 			throw new RestException('Handler not found', self::ERROR_HANDLER_NOT_FOUND);
+		}
+
+		if ($params['APP_ID'] && !empty($handlerData['APP_ID']) && $handlerData['APP_ID'] !== $params['APP_ID'])
+		{
+			throw new AccessException();
 		}
 
 		$dbRes = Internals\PersonTypeTable::getList([
@@ -175,7 +248,6 @@ class RestService extends \IRestService
 	/**
 	 * @param $serviceId
 	 * @param $personTypeId
-	 * @throws \Exception
 	 */
 	private static function savePersonTypeId($serviceId, $personTypeId)
 	{
@@ -209,22 +281,15 @@ class RestService extends \IRestService
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\IO\FileNotFoundException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 * @throws RestException
 	 */
-	public static function updatePaySystem(array $params)
+	public static function updatePaySystem(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
 		static::checkParamsBeforePaySystemUpdate($params);
 
@@ -232,6 +297,11 @@ class RestService extends \IRestService
 		if (isset($params['FIELDS']['NAME']))
 		{
 			$fields['NAME'] = $params['FIELDS']['NAME'];
+		}
+
+		if (isset($params['FIELDS']['NEW_WINDOW']))
+		{
+			$fields['NEW_WINDOW'] = $params['FIELDS']['NEW_WINDOW'];
 		}
 
 		if (isset($params['FIELDS']['ACTIVE']))
@@ -249,6 +319,11 @@ class RestService extends \IRestService
 			$fields['ACTION_FILE'] = $params['FIELDS']['BX_REST_HANDLER'];
 		}
 
+		if (isset($params['FIELDS']['LOGOTIP']))
+		{
+			$fields['LOGOTIP'] = self::saveFile($params['FIELDS']['LOGOTIP']);
+		}
+
 		$result = Manager::update($params['ID'], $fields);
 
 		if ($fields['PERSON_TYPE_ID'] > 0)
@@ -261,13 +336,8 @@ class RestService extends \IRestService
 
 	/**
 	 * @param $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\ArgumentOutOfRangeException
-	 * @throws Main\IO\FileNotFoundException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
+	 * @throws AccessException
 	 */
 	protected static function checkParamsBeforePaySystemUpdate($params)
 	{
@@ -291,6 +361,11 @@ class RestService extends \IRestService
 			throw new RestException('Pay system not found', self::ERROR_PAY_SYSTEM_NOT_FOUND);
 		}
 
+		if (!self::hasAccessToPaySystem($data, $params['APP_ID']))
+		{
+			throw new AccessException();
+		}
+
 		$dbRes = Internals\PersonTypeTable::getList([
 			'filter' => [
 				'=ID' => $params['FIELDS']['PERSON_TYPE_ID'],
@@ -304,17 +379,17 @@ class RestService extends \IRestService
 	}
 
 	/**
-	 * @param $params
+	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\LoaderException
 	 * @throws RestException
 	 */
-	public static function updateSettings($params)
+	public static function updateSettings(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
 		static::checkParamsBeforeSettingsUpdate($params);
 
@@ -360,21 +435,24 @@ class RestService extends \IRestService
 		{
 			throw new RestException('Parameter SETTINGS is not defined or empty', self::ERROR_HANDLER_NOT_FOUND);
 		}
+
+		if (!self::hasAccessToPaySystem($item, $params['APP_ID']))
+		{
+			throw new AccessException();
+		}
 	}
 
 	/**
-	 * @param $params
+	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return array
-	 * @throws AccessException
-	 * @throws Main\LoaderException
-	 * @throws Main\SystemException
-	 * @throws RestException
 	 */
-	public static function getSettings($params)
+	public static function getSettings(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
 		static::checkParamsBeforeSettingsGet($params);
 
@@ -403,6 +481,7 @@ class RestService extends \IRestService
 	/**
 	 * @param $params
 	 * @throws RestException
+	 * @throws AccessException
 	 */
 	protected static function checkParamsBeforeSettingsGet($params)
 	{
@@ -421,23 +500,22 @@ class RestService extends \IRestService
 		{
 			throw new RestException('Pay system not found', static::ERROR_CHECK_FAILURE);
 		}
+
+		if (!self::hasAccessToPaySystem($item, $params['APP_ID']))
+		{
+			throw new AccessException();
+		}
 	}
 
 	/**
 	 * @param array $params
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 * @throws RestException
 	 */
-	public static function deletePaySystem(array $params)
+	public static function deletePaySystem(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
 		static::checkParamsBeforePaySystemDelete($params);
 
@@ -448,6 +526,7 @@ class RestService extends \IRestService
 
 	/**
 	 * @param $params
+	 * @throws AccessException
 	 * @throws RestException
 	 */
 	protected static function checkParamsBeforePaySystemDelete($params)
@@ -457,45 +536,48 @@ class RestService extends \IRestService
 		{
 			throw new RestException('Pay system not found', self::ERROR_PAY_SYSTEM_NOT_FOUND);
 		}
+
+		if (!self::hasAccessToPaySystem($data, $params['APP_ID']))
+		{
+			throw new AccessException();
+		}
 	}
 
 	/**
 	 * @param array $params
-	 * @return array|bool|int
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
+	 * @param $n
+	 * @param \CRestServer $server
+	 * @return array|int
 	 * @throws RestException
 	 */
-	public static function addHandler(array $params)
+	public static function addHandler(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::prepareHandlerParams($params, $server);
 
 		self::checkParamsOnAddHandler($params);
 
-		$result = Internals\PaySystemRestHandlersTable::add([
+		$data = [
 			'NAME' => $params['NAME'],
 			'CODE' => $params['CODE'],
 			'SORT' => $params['SORT'] ?: 100,
 			'SETTINGS' => $params['SETTINGS'],
-		]);
+			'APP_ID' => $params['APP_ID'],
+		];
+
+		$result = Internals\PaySystemRestHandlersTable::add($data);
 		if ($result->isSuccess())
 		{
 			return $result->getId();
 		}
 
-		return false;
+		$error = implode("\n", $result->getErrorMessages());
+		throw new RestException($error, self::ERROR_HANDLER_ADD);
 	}
 
 	/**
 	 * @param array $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
 	private static function checkParamsOnAddHandler(array $params)
@@ -520,13 +602,56 @@ class RestService extends \IRestService
 			throw new RestException('Parameter SETTINGS[CODES] is not defined', self::ERROR_CHECK_FAILURE);
 		}
 
+		if (
+			empty($params['SETTINGS']['FORM_DATA'])
+			&& empty($params['SETTINGS']['CHECKOUT_DATA'])
+			&& empty($params['SETTINGS']['IFRAME_DATA'])
+		)
+		{
+			throw new RestException(
+				'Parameter SETTINGS[FORM_DATA] or SETTINGS[CHECKOUT_DATA] or SETTINGS[IFRAME_DATA] is not defined',
+				self::ERROR_CHECK_FAILURE
+			);
+		}
+
+		if (
+			!empty($params['SETTINGS']['FORM_DATA'])
+			&& empty($params['SETTINGS']['FORM_DATA']['ACTION_URI'])
+		)
+		{
+			throw new RestException('Parameter SETTINGS[FORM_DATA][ACTION_URI] is not defined', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (
+			!empty($params['SETTINGS']['CHECKOUT_DATA'])
+			&& empty($params['SETTINGS']['CHECKOUT_DATA']['ACTION_URI'])
+		)
+		{
+			throw new RestException('Parameter SETTINGS[IFRAME_DATA][ACTION_URI] is not defined', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (
+			!empty($params['SETTINGS']['IFRAME_DATA'])
+			&& empty($params['SETTINGS']['IFRAME_DATA']['ACTION_URI'])
+		)
+		{
+			throw new RestException('Parameter SETTINGS[IFRAME_DATA][ACTION_URI] is not defined', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (
+			isset($params['SETTINGS']['CLIENT_TYPE'])
+			&& !ClientType::isValid((string)$params['SETTINGS']['CLIENT_TYPE'])
+		)
+		{
+			throw new RestException('Parameter value SETTINGS[CLIENT_TYPE] is invalid', self::ERROR_CHECK_FAILURE);
+		}
 
 		$dbRes = Internals\PaySystemRestHandlersTable::getList([
 			'filter' => [
 				'=CODE' => $params['CODE']
 			]
 		]);
-		if ($data = $dbRes->fetch())
+		if ($dbRes->fetch())
 		{
 			throw new RestException('Handler already exists!', self::ERROR_HANDLER_ALREADY_EXIST);
 		}
@@ -534,67 +659,96 @@ class RestService extends \IRestService
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
-	public static function updateHandler(array $params)
+	public static function updateHandler(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::prepareHandlerParams($params, $server);
 
 		self::checkParamsOnUpdateHandler($params);
 
 		$result = Internals\PaySystemRestHandlersTable::update($params['ID'], $params['FIELDS']);
-		return $result->isSuccess();
+		if ($result->isSuccess())
+		{
+			return true;
+		}
+
+		$error = implode("\n", $result->getErrorMessages());
+		throw new RestException($error, self::ERROR_HANDLER_UPDATE);
 	}
 
 	/**
 	 * @param array $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
+	 * @throws AccessException
 	 */
 	private static function checkParamsOnUpdateHandler(array $params)
 	{
-		$dbRes = Internals\PaySystemRestHandlersTable::getList(array(
-			'filter' => array(
-				'ID' => $params['ID']
-			)
-		));
-		if (!$dbRes->fetch())
-		{
-			throw new RestException('Handler not found', self::ERROR_HANDLER_NOT_FOUND);
-		}
-
 		if (!isset($params['FIELDS']))
 		{
 			throw new RestException('Parameter FIELDS is not defined', self::ERROR_CHECK_FAILURE);
 		}
+
+		if (
+			isset($params['SETTINGS']['CLIENT_TYPE'])
+			&& !ClientType::isValid((string)$params['SETTINGS']['CLIENT_TYPE'])
+		)
+		{
+			throw new RestException('Parameter value SETTINGS[CLIENT_TYPE] is invalid', self::ERROR_CHECK_FAILURE);
+		}
+
+		$paySystemRestHandlers = Internals\PaySystemRestHandlersTable::getList(array(
+			'filter' => array(
+				'ID' => $params['ID']
+			)
+		))->fetch();
+		if (!$paySystemRestHandlers)
+		{
+			throw new RestException('Handler not found', self::ERROR_HANDLER_NOT_FOUND);
+		}
+
+		if ($params['APP_ID'] && !empty($paySystemRestHandlers['APP_ID']) && $paySystemRestHandlers['APP_ID'] !== $params['APP_ID'])
+		{
+			throw new AccessException();
+		}
 	}
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
-	public static function deleteHandler(array $params)
+	public static function deleteHandler(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::prepareHandlerParams($params, $server);
 
+		self::checkParamsOnDeleteHandler($params);
+
+		$result = Internals\PaySystemRestHandlersTable::delete($params['ID']);
+		if ($result->isSuccess())
+		{
+			return true;
+		}
+
+		$error = implode("\n", $result->getErrorMessages());
+		throw new RestException($error, self::ERROR_HANDLER_DELETE);
+	}
+
+	/**
+	 * @param $params
+	 * @throws RestException
+	 */
+	private static function checkParamsOnDeleteHandler($params): void
+	{
 		$dbRes = Internals\PaySystemRestHandlersTable::getList(array(
 			'filter' => array(
 				'ID' => $params['ID']
@@ -606,63 +760,34 @@ class RestService extends \IRestService
 			throw new RestException('Handler not found', self::ERROR_HANDLER_NOT_FOUND);
 		}
 
+		if ($params['APP_ID'] && !empty($data['APP_ID']) && $data['APP_ID'] !== $params['APP_ID'])
+		{
+			throw new AccessException();
+		}
+
 		$dbRes = Manager::getList(array('filter' => array('ACTION_FILE' => $data['CODE'])));
 		if ($dbRes->fetch())
 		{
 			throw new RestException('Pay system with handler '.ToUpper($data['CODE']).' exists!', self::ERROR_PAY_SYSTEM_DELETE);
 		}
-
-		$result = Internals\PaySystemRestHandlersTable::delete($params['ID']);
-		return $result->isSuccess();
-	}
-
-	/**
-	 * @return array
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
-	 */
-	public static function getHandlerList()
-	{
-		static::checkPaySystemPermission();
-
-		$result = array();
-		$dbRes = Internals\PaySystemRestHandlersTable::getList();
-		while ($item = $dbRes->fetch())
-			$result[] = $item;
-
-		return $result;
 	}
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return array
-	 * @throws AccessException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\LoaderException
 	 */
-	public static function getPaySystemList(array $params=[])
+	public static function getHandlerList(array $params, $n, \CRestServer $server)
 	{
 		static::checkPaySystemPermission();
 
-		$select = isset($params['select']) && is_array($params['select']) ? $params['select']:['*'];
-		$filter = isset($params['filter']) && is_array($params['filter']) ? self::prepareParams($params['filter']):[];
-		$order = isset($params['order']) && is_array($params['order']) ? self::prepareParams($params['order']):[];
-
 		$result = array();
-		$dbRes = Manager::getList(
-			[
-				'select'=>$select,
-				'filter'=>$filter,
-				'order'=>$order
-			]
-		);
+		$dbRes = Internals\PaySystemRestHandlersTable::getList([
+			'select' => ['ID', 'NAME', 'CODE', 'SORT', 'SETTINGS'],
+		]);
 		while ($item = $dbRes->fetch())
 		{
-			unset($item['PAY_SYSTEM_ID']);
-			unset($item['PARAMS']);
 			$result[] = $item;
 		}
 
@@ -671,22 +796,123 @@ class RestService extends \IRestService
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return array
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\ArgumentNullException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
+	 */
+	public static function getPaySystemList(array $params, $n, \CRestServer $server)
+	{
+		static::checkPaySystemPermission();
+		$params = self::prepareIncomingParams($params);
+		self::checkParamsBeforePaySystemListGet($params);
+
+		$select =
+			isset($params['SELECT']) && is_array($params['SELECT'])
+				? array_flip(self::prepareIncomingParams(array_flip($params['SELECT'])))
+				: self::ALLOWED_PAYSYSTEM_FIELDS
+		;
+
+		$filter = [];
+		$filterFromParams = isset($params['FILTER']) && is_array($params['FILTER']) ? $params['FILTER'] : [];
+		if ($filterFromParams)
+		{
+			$incomingFieldsMap = self::getIncomingFieldsMap();
+			foreach ($filterFromParams as $rawName => $value)
+			{
+				$filterField = \CSqlUtil::GetFilterOperation($rawName);
+				$fieldName = $incomingFieldsMap[$filterField['FIELD']] ?? $filterField['FIELD'];
+				$filter[$filterField['OPERATION'] . $fieldName] = $value;
+			}
+		}
+
+		$order =
+			isset($params['ORDER']) && is_array($params['ORDER'])
+				? self::prepareIncomingParams($params['ORDER'])
+				: []
+		;
+
+		$result = array();
+		$dbRes = Manager::getList([
+			'select' => $select,
+			'filter' => $filter,
+			'order' => $order,
+		]);
+		while ($item = $dbRes->fetch())
+		{
+			$result[] = self::prepareOutcomingFields($item);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * @param array $params
 	 * @throws RestException
 	 */
-	public static function getSettingsByInvoice(array $params)
+	private static function checkParamsBeforePaySystemListGet(array $params)
+	{
+		$select = isset($params['SELECT']) && is_array($params['SELECT']) ? $params['SELECT'] : [];
+		if ($select)
+		{
+			$select = array_flip(self::prepareIncomingParams(array_flip($select)));
+			$diffSelect = array_diff($select, self::ALLOWED_PAYSYSTEM_FIELDS);
+
+			if ($diffSelect)
+			{
+				throw new RestException(implode(', ', $diffSelect) . ' not allowed for select');
+			}
+		}
+
+		$filter = isset($params['FILTER']) && is_array($params['FILTER']) ? $params['FILTER'] : [];
+		if ($filter)
+		{
+			$filterFields = [];
+			foreach ($filter as $rawName => $value)
+			{
+				$filterField = \CSqlUtil::GetFilterOperation($rawName);
+				if (isset($filterField['FIELD']))
+				{
+					$filterFields[] = $filterField['FIELD'];
+				}
+			}
+
+			$filterFields = array_flip(self::prepareIncomingParams(array_flip($filterFields)));
+			$diffFilter = array_diff($filterFields, self::ALLOWED_PAYSYSTEM_FIELDS);
+			if ($diffFilter)
+			{
+				throw new RestException(implode(', ', $diffFilter) . ' not allowed for filter');
+			}
+		}
+
+		$order =
+			isset($params['ORDER']) && is_array($params['ORDER'])
+				? self::prepareIncomingParams($params['ORDER'])
+				: []
+		;
+		if ($order)
+		{
+			$diffOrder = array_diff(array_keys($order), self::ALLOWED_PAYSYSTEM_FIELDS);
+			if ($diffOrder)
+			{
+				throw new RestException(implode(', ', $diffOrder) . ' not allowed for order');
+			}
+		}
+	}
+
+	/**
+	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
+	 * @return array
+	 * @throws RestException
+	 */
+	public static function getSettingsByInvoice(array $params, $n, \CRestServer $server)
 	{
 		static::checkOrderPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
-		self::checkParamsForInvoice($params);
+		self::checkParamsBeforeSettingsByInvoiceGet($params);
 
 		if (isset($params['PAY_SYSTEM_ID']))
 		{
@@ -726,20 +952,18 @@ class RestService extends \IRestService
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return array
-	 * @throws AccessException
 	 * @throws RestException
-	 * @throws \Bitrix\Main\ArgumentException
-	 * @throws \Bitrix\Main\ArgumentNullException
-	 * @throws \Bitrix\Main\LoaderException
 	 */
-	public static function getSettingsByPayment(array $params)
+	public static function getSettingsByPayment(array $params, $n, \CRestServer $server)
 	{
 		static::checkOrderPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::preparePaySystemParams($params, $server);
 
-		self::checkParamsForPayment($params);
+		self::checkParamsBeforeSettingsByPaymentGet($params);
 
 		list($orderId, $paymentId) = Manager::getIdsByPayment($params['PAYMENT_ID']);
 
@@ -765,24 +989,21 @@ class RestService extends \IRestService
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
-	public static function payInvoice(array $params)
+	public static function payInvoice(array $params, $n, \CRestServer $server)
 	{
 		if (!Main\Loader::includeModule('crm'))
 		{
 			throw new RestException('Pay invoice is not supported!', self::ERROR_PAY_INVOICE_NOT_SUPPORTED);
 		}
-		
+
 		static::checkOrderPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::prepareIncomingParams($params);
 
 		self::checkParamsForInvoice($params);
 
@@ -827,34 +1048,33 @@ class RestService extends \IRestService
 
 		$params['PAY_SYSTEM_ID'] = $item['ID'];
 
-		return self::payPaymentInternal($params);
+		return self::payPaymentInternal($params, $server);
 	}
 
 	/**
 	 * @param array $params
+	 * @param $n
+	 * @param \CRestServer $server
 	 * @return bool
-	 * @throws AccessException
-	 * @throws Main\ArgumentException
-	 * @throws Main\LoaderException
-	 * @throws RestException
 	 */
-	public static function payPayment(array $params)
+	public static function payPayment(array $params, $n, \CRestServer $server)
 	{
 		static::checkOrderPermission();
 
-		$params = self::prepareParams($params);
+		$params = self::prepareIncomingParams($params);
 
 		self::checkParamsForPayment($params);
 
-		return self::payPaymentInternal($params);
+		return self::payPaymentInternal($params, $server);
 	}
 
 	/**
 	 * @param array $params
+	 * @param \CRestServer $restServer
 	 * @return bool
 	 * @throws RestException
 	 */
-	private static function payPaymentInternal(array $params)
+	private static function payPaymentInternal(array $params, \CRestServer $restServer)
 	{
 		$context = Main\Context::getCurrent();
 		$server = $context->getServer();
@@ -870,23 +1090,64 @@ class RestService extends \IRestService
 			throw new RestException($error, static::ERROR_PROCESS_REQUEST_RESULT);
 		}
 
+		static::logAnalytics(
+			'payPayment' . $service->getField('ENTITY_REGISTRY_TYPE'),
+			$service->getField('ACTION_FILE'),
+			$service->getField('PERSON_TYPE_ID'),
+			$restServer
+		);
+
 		return true;
+	}
+
+	/**
+	 * @param array $data
+	 * @param int $case
+	 * @return array
+	 */
+	private static function arrayChangeKeyCaseRecursive(array $data, $case = CASE_UPPER)
+	{
+		return array_map(static function ($item) use ($case) {
+			if (is_array($item))
+			{
+				$item = self::arrayChangeKeyCaseRecursive($item, $case);
+			}
+			return $item;
+		}, array_change_key_case($data, $case));
 	}
 
 	/**
 	 * @param array $data
 	 * @return array
 	 */
-	private static function prepareParams(array $data)
+	private static function prepareIncomingParams(array $data): array
 	{
-		return array_change_key_case($data, CASE_UPPER);
+		return self::replaceIncomingKeys(self::arrayChangeKeyCaseRecursive($data));
+	}
+
+	/**
+	 * @param array $data
+	 * @param \CRestServer $server
+	 * @return array
+	 */
+	private static function prepareHandlerParams(array $data, \CRestServer $server): array
+	{
+		$data = self::replaceIncomingKeys(array_change_key_case($data, CASE_UPPER));
+		$data['APP_ID'] = $server->getClientId();
+
+		return $data;
+	}
+
+	private static function preparePaySystemParams(array $data, \CRestServer $server): array
+	{
+		$data = self::prepareIncomingParams($data);
+		$data['APP_ID'] = $server->getClientId();
+
+		return $data;
 	}
 
 	/**
 	 * @param array $params
-	 * @throws Main\ArgumentException
-	 * @throws Main\ObjectPropertyException
-	 * @throws Main\SystemException
 	 * @throws RestException
 	 */
 	private static function checkParamsForInvoice(array $params)
@@ -921,6 +1182,58 @@ class RestService extends \IRestService
 		if (empty($params['INVOICE_ID']))
 		{
 			throw new RestException('Empty field INVOICE_ID!', self::ERROR_CHECK_FAILURE);
+		}
+	}
+
+	/**
+	 * @param array $params
+	 * @throws RestException
+	 * @throws AccessException
+	 */
+	private static function checkParamsBeforeSettingsByInvoiceGet(array $params)
+	{
+		if (!isset($params['BX_REST_HANDLER']) && !isset($params['PAY_SYSTEM_ID']))
+		{
+			throw new RestException('Empty field BX_REST_HANDLER and PAY_SYSTEM_ID', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (empty($params['INVOICE_ID']))
+		{
+			throw new RestException('Empty field INVOICE_ID', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (isset($params['PAY_SYSTEM_ID']))
+		{
+			$data = Manager::getById($params['PAY_SYSTEM_ID']);
+			if (!$data)
+			{
+				throw new RestException('Pay system with ID='.$params['PAY_SYSTEM_ID'].' not found', static::ERROR_CHECK_FAILURE);
+			}
+
+			if (!self::hasAccessToPaySystem($data, $params['APP_ID']))
+			{
+				throw new AccessException();
+			}
+		}
+
+		if (isset($params['BX_REST_HANDLER']))
+		{
+			$dbRes = Internals\PaySystemRestHandlersTable::getList(array(
+				'filter' => array(
+					'=CODE' => $params['BX_REST_HANDLER']
+				)
+			));
+
+			$handlerData = $dbRes->fetch();
+			if (!$handlerData)
+			{
+				throw new RestException('Incorrect rest handler code', static::ERROR_CHECK_FAILURE);
+			}
+
+			if ($params['APP_ID'] && !empty($handlerData['APP_ID']) && $handlerData['APP_ID'] !== $params['APP_ID'])
+			{
+				throw new AccessException();
+			}
 		}
 	}
 
@@ -962,9 +1275,61 @@ class RestService extends \IRestService
 		if (!$dbRes->fetch())
 		{
 			throw new RestException(
-				'Payment with ID='.$params['PAYMENT_ID'].
-				' and PAY_SYSTEM_ID='.$params['PAY_SYSTEM_ID'].
-				' not found', self::ERROR_CHECK_FAILURE
+				'Payment with ID='
+				. $params['PAYMENT_ID']
+				. ' and PAY_SYSTEM_ID='.$params['PAY_SYSTEM_ID']
+				. ' not found', self::ERROR_CHECK_FAILURE
+			);
+		}
+	}
+
+	/**
+	 * @param array $params
+	 * @throws Main\ArgumentException
+	 * @throws RestException
+	 */
+	private static function checkParamsBeforeSettingsByPaymentGet(array $params)
+	{
+		if (empty($params['PAY_SYSTEM_ID']))
+		{
+			throw new RestException('Empty field PAY_SYSTEM_ID!', self::ERROR_CHECK_FAILURE);
+		}
+
+		if (empty($params['PAYMENT_ID']))
+		{
+			throw new RestException('Empty field PAYMENT_ID', self::ERROR_CHECK_FAILURE);
+		}
+
+		$item = Manager::getById($params['PAY_SYSTEM_ID']);
+		if (!$item)
+		{
+			throw new RestException('Pay system not found', static::ERROR_CHECK_FAILURE);
+		}
+
+		if (!self::hasAccessToPaySystem($item, $params['APP_ID']))
+		{
+			throw new AccessException();
+		}
+
+		$registry = Registry::getInstance(Registry::REGISTRY_TYPE_ORDER);
+
+		/** @var Payment $paymentClassName */
+		$paymentClassName = $registry->getPaymentClassName();
+		$dbRes = $paymentClassName::getList([
+			'select' => ['ID', 'PAY_SYSTEM_ID'],
+			'filter' => [
+				'=ID' => $params['PAYMENT_ID'],
+				'=PAY_SYSTEM_ID' => $params['PAY_SYSTEM_ID']
+			]
+		]);
+
+		if (!$dbRes->fetch())
+		{
+			throw new RestException(
+				'Payment with ID='
+				. $params['PAYMENT_ID']
+				. ' and PAY_SYSTEM_ID='.$params['PAY_SYSTEM_ID']
+				. ' not found', self::ERROR_CHECK_FAILURE
 			);
 		}
 	}
@@ -1004,23 +1369,184 @@ class RestService extends \IRestService
 	 */
 	protected static function checkPaySystemPermission()
 	{
-		global $APPLICATION, $USER;
+		\Bitrix\Sale\Helpers\Rest\AccessChecker::checkAccessPermission();
+	}
 
-		if (IsModuleInstalled('intranet') && Main\Loader::includeModule('crm'))
+	/**
+	 * @param $fileContent
+	 * @return false|int|string|null
+	 */
+	private static function saveFile($fileContent)
+	{
+		$file = \CRestUtil::saveFile($fileContent);
+		if ($file)
 		{
-			$CrmPerms = new \CCrmPerms($USER->GetID());
-			if (!$CrmPerms->HavePerm('CONFIG', BX_CRM_PERM_CONFIG, 'WRITE'))
+			$file['MODULE_ID'] = 'sale';
+			return \CFile::SaveFile($file, 'sale');
+		}
+
+		return null;
+	}
+
+	/**
+	 * @return string[]
+	 */
+	private static function getIncomingFieldsMap(): array
+	{
+		return [
+			'LOGOTYPE' => 'LOGOTIP',
+			'TARIFF' => 'TARIF',
+		];
+	}
+
+	/**
+	 * @return string[]
+	 */
+	private static function getOutcomingFieldsMap(): array
+	{
+		return [
+			'LOGOTIP' => 'LOGOTYPE',
+			'TARIF' => 'TARIFF',
+		];
+	}
+
+	/**
+	 * @param array $data
+	 * @return array
+	 */
+	private static function prepareOutcomingFields(array $data): array
+	{
+		return self::replaceOutcomingKeys($data);
+	}
+
+	/**
+	 * @param array $data
+	 * @return array
+	 */
+	private static function replaceIncomingKeys(array $data): array
+	{
+		return self::replaceKeys($data, self::getIncomingFieldsMap());
+	}
+
+	/**
+	 * @param array $data
+	 * @return array
+	 */
+	private static function replaceOutcomingKeys(array $data): array
+	{
+		return self::replaceKeys($data, self::getOutcomingFieldsMap());
+	}
+
+	/**
+	 * @param array $data
+	 * @param array $map
+	 * @return array
+	 */
+	private static function replaceKeys(array $data, array $map): array
+	{
+		foreach ($map as $key => $newKey)
+		{
+			if (array_key_exists($key, $data))
 			{
-				throw new AccessException();
+				$data[$newKey] = $data[$key];
+				unset($data[$key]);
+			}
+
+			if (isset($data['FIELDS']) && array_key_exists($key, $data['FIELDS']))
+			{
+				$data['FIELDS'][$newKey] = $data['FIELDS'][$key];
+				unset($data['FIELDS'][$key]);
+			}
+		}
+
+		return $data;
+	}
+
+	private static function logAnalytics($action, $handler, $personType, \CRestServer $restServer) : bool
+	{
+		$code = '';
+		$type = '';
+		if ($restServer->getAuthType() === \Bitrix\Rest\OAuth\Auth::AUTH_TYPE)
+		{
+			$app = \Bitrix\Rest\AppTable::getByClientId($restServer->getClientId());
+			if ($app['CODE'])
+			{
+				$code = $app['CODE'];
+				$type = 'appCode';
 			}
 		}
 		else
 		{
-			$saleModulePermissions = $APPLICATION->GetGroupRight("sale");
-			if ($saleModulePermissions < "W")
+			$code = $restServer->getPasswordId();
+			$type = 'webHook';
+		}
+
+		if ($code !== '')
+		{
+			$tag = uniqid($code, true);
+			AddEventToStatFile(
+				'sale',
+				$action,
+				$tag,
+				$code,
+				$type
+			);
+			AddEventToStatFile(
+				'sale',
+				$action,
+				$tag,
+				$handler,
+				'handler'
+			);
+			AddEventToStatFile(
+				'sale',
+				$action,
+				$tag,
+				$personType,
+				'personType'
+			);
+		}
+
+		return true;
+	}
+
+	private static function hasAccessToPaySystem(array $paySystemData, string $appId = null): bool
+	{
+		$handlerCode = $paySystemData['ACTION_FILE'];
+		if (Manager::isRestHandler($handlerCode))
+		{
+			$handlerData = self::getHandlerData($handlerCode);
+			if ($appId && !empty($handlerData['APP_ID']) && $handlerData['APP_ID'] !== $appId)
 			{
-				throw new AccessException();
+				return false;
 			}
 		}
+		else
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	private static function getHandlerData(string $code): ?array
+	{
+		static $result = [];
+
+		if (!empty($result[$code]))
+		{
+			return $result[$code];
+		}
+
+		$handlerData = Internals\PaySystemRestHandlersTable::getList([
+			'filter' => ['CODE' => $code],
+			'limit' => 1,
+		])->fetch();
+		if (is_array($handlerData))
+		{
+			$result[$code] = $handlerData;
+		}
+
+		return $result[$code] ?? null;
 	}
 }

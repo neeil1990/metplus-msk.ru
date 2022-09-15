@@ -1,6 +1,7 @@
 <?php
 use Bitrix\Main\Loader;
 use Bitrix\Main\ModuleManager;
+use Bitrix\Main\Security;
 
 IncludeModuleLangFile(__FILE__);
 
@@ -10,7 +11,7 @@ class CRestUtil
 	const EVENTS = '_events';
 	const PLACEMENTS = '_placements';
 
-	const HANDLER_SESSION_TTL = 3;
+	const HANDLER_SESSION_TTL = 7;
 
 	const BATCH_MAX_LENGTH = 50;
 
@@ -20,6 +21,8 @@ class CRestUtil
 	const TOKEN_DELIMITER = "|";
 
 	const BITRIX_1C_APP_CODE = 'bitrix.1c';
+
+	const PLACEMENT_APP_URI = 'REST_APP_URI';
 
 	public static function sendHeaders()
 	{
@@ -87,7 +90,7 @@ class CRestUtil
 
 				default:
 
-					if(strlen($rawPostData) > 0)
+					if($rawPostData <> '')
 					{
 						parse_str($rawPostData, $postData);
 					}
@@ -125,6 +128,20 @@ class CRestUtil
 		if(static::isAdmin())
 		{
 			return true;
+		}
+
+		if (
+			is_array($appInfo)
+			&& $appInfo['TYPE'] === \Bitrix\Rest\AppTable::TYPE_CONFIGURATION
+			&& !empty($appInfo['MANIFEST']['CODE'])
+		)
+		{
+			$access = \Bitrix\Rest\Configuration\Manifest::checkAccess(
+				\Bitrix\Rest\Configuration\Manifest::ACCESS_TYPE_IMPORT,
+				$appInfo['MANIFEST']['CODE']
+			);
+
+			return $access['result'];
 		}
 
 		$hasAccess = $USER->CanAccess(static::getInstallAccessList());
@@ -201,7 +218,7 @@ class CRestUtil
 
 	public static function signLicenseRequest(array $request, $licenseKey)
 	{
-		if(Loader::includeModule('bitrix24'))
+		if(Loader::includeModule('bitrix24') && defined('BX24_HOST_NAME'))
 		{
 			$request['BX_TYPE'] = 'B24';
 			$request['BX_LICENCE'] = BX24_HOST_NAME;
@@ -320,7 +337,7 @@ class CRestUtil
 			$bMult = true;
 		}
 
-		if(strlen($fileId) > 0)
+		if($fileId <> '')
 		{
 			$files = \CFile::GetList(array(), array('@ID' => $fileId));
 			while($file = $files->Fetch())
@@ -566,14 +583,14 @@ class CRestUtil
 			list($fileName, $fileContent) = array_values($fileContent);
 		}
 
-		if(strlen($fileContent) > 0 && $fileContent !== 'false') // let it be >0
+		if($fileContent <> '' && $fileContent !== 'false') // let it be >0
 		{
 			$fileContent = base64_decode($fileContent);
-			if($fileContent !== false && strlen($fileContent) > 0)
+			if($fileContent !== false && $fileContent <> '')
 			{
-				if(strlen($fileName) <= 0)
+				if($fileName == '')
 				{
-					$fileName = md5(mt_rand());
+					$fileName = Security\Random::getString(32);
 				}
 				else
 				{
@@ -646,6 +663,7 @@ class CRestUtil
 			try
 			{
 				\Bitrix\Rest\OAuthService::register();
+				\Bitrix\Rest\OAuthService::getEngine()->getClient()->getApplicationList();
 			}
 			catch(\Bitrix\Main\SystemException $e)
 			{
@@ -667,6 +685,7 @@ class CRestUtil
 				$queryFields = array(
 					'CLIENT_ID' => $appDetailInfo['APP_CODE'],
 					'VERSION' => $appDetailInfo['VER'],
+					'BY_SUBSCRIPTION' => $appDetailInfo['BY_SUBSCRIPTION'] === 'Y' ? 'Y' : 'N',
 				);
 
 				$installResult = \Bitrix\Rest\OAuthService::getEngine()
@@ -783,33 +802,12 @@ class CRestUtil
 		CUserOptions::DeleteOption("app_options", "params_".$arApp['APP_ID']."_".$arApp['VERSION']);
 	}
 
+	/**
+	 * @deprecated
+	 */
 	public static function getScopeList(array $description = null)
 	{
-		if($description == null)
-		{
-			$provider = new \CRestProvider();
-			$description = $provider->getDescription();
-		}
-
-		unset($description[\CRestUtil::GLOBAL_SCOPE]);
-
-		$scopeList = array_keys($description);
-
-		$installedModuleList = ModuleManager::getInstalledModules();
-		foreach($installedModuleList as $moduleId => $moduleDescription)
-		{
-			if(!isset($description[$moduleId]))
-			{
-				$controllersConfig = \Bitrix\Main\Config\Configuration::getInstance($moduleId);
-
-				if(!empty($controllersConfig['controllers']['restIntegration']['enabled']))
-				{
-					$scopeList[] = \Bitrix\Rest\Engine\RestManager::getModuleScopeAlias($moduleId);
-				}
-			}
-		}
-
-		return array_unique($scopeList);
+		return \Bitrix\Rest\Engine\ScopeManager::getInstance()->listScope();
 	}
 
 	public static function getEventList(array $description = null)
@@ -999,12 +997,12 @@ class CRestUtil
 			$type = 'ID';
 		}
 
-		$url = '';
 		if(
 			empty($appInfo['MENU_NAME'])
 			&& empty($appInfo['MENU_NAME_DEFAULT'])
 			&& empty($appInfo['MENU_NAME_LICENSE'])
 			|| $appInfo['ACTIVE'] === \Bitrix\Rest\AppTable::INACTIVE
+			|| $appInfo['TYPE'] === \Bitrix\Rest\AppTable::TYPE_CONFIGURATION
 		)
 		{
 			$url = \Bitrix\Rest\Marketplace\Url::getApplicationDetailUrl(urlencode($appInfo['CODE']));

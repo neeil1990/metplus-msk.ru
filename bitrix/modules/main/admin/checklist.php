@@ -62,21 +62,21 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 			if ($_POST["COMMENTS"] == "Y")//update only comments
 			{
 				$arPointFields["COMMENTS"] = $arPoints[$arTestID]["STATE"]["COMMENTS"];
-				if ($_POST["perfomer_comment"] && strlen(trim($_POST["perfomer_comment"]))>1)
+				if ($_POST["perfomer_comment"] && mb_strlen(trim($_POST["perfomer_comment"])) > 1)
 				$arPointFields["COMMENTS"]["PERFOMER"] = $_POST["perfomer_comment"];
 				else
 					unset($arPointFields["COMMENTS"]["PERFOMER"]);
-				if ($_POST["custom_comment"] && strlen(trim($_POST["custom_comment"]))>1)
+				if ($_POST["custom_comment"] && mb_strlen(trim($_POST["custom_comment"])) > 1)
 					$arPointFields["COMMENTS"]["CUSTOMER"] = $_POST["custom_comment"];
 				else
 					unset($arPointFields["COMMENTS"]["CUSTOMER"]);
 
-				if (ToUpper(SITE_CHARSET) != "UTF-8" && $arPointFields["COMMENTS"])
+				if (strtoupper(SITE_CHARSET) != "UTF-8" && $arPointFields["COMMENTS"])
 				{
 					if ($arPointFields["COMMENTS"]["PERFOMER"])
-						$arPointFields["COMMENTS"]["PERFOMER"] = $APPLICATION->ConvertCharsetArray($arPointFields["COMMENTS"]["PERFOMER"],"UTF-8",SITE_CHARSET);
+						$arPointFields["COMMENTS"]["PERFOMER"] = \Bitrix\Main\Text\Encoding::convertEncoding($arPointFields["COMMENTS"]["PERFOMER"],"UTF-8",SITE_CHARSET);
 					if($arPointFields["COMMENTS"]["CUSTOMER"])
-						$arPointFields["COMMENTS"]["CUSTOMER"] = $APPLICATION->ConvertCharsetArray($arPointFields["COMMENTS"]["CUSTOMER"],"UTF-8",SITE_CHARSET);
+						$arPointFields["COMMENTS"]["CUSTOMER"] = \Bitrix\Main\Text\Encoding::convertEncoding($arPointFields["COMMENTS"]["CUSTOMER"],"UTF-8",SITE_CHARSET);
 				}
 
 				$arPointFields["STATUS"] = $arPoints[$arTestID]["STATE"]["STATUS"];
@@ -338,8 +338,8 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 					<span class="checklist-testlist-level3-cont">
 						<span class="checklist-testlist-level3-cont-nom"><?=$num++.". ";?></span>
 						<span class="checklist-testlist-level3-cont-right">
-							<span class="checklist-testlist-level3-cont-border" onclick="ShowPopupWindow('<?=$pkey;?>', '<?=addslashes($pFields["NAME"]);?>');"><?=$pFields["NAME"];?></span>
-							<span id="comments_<?=$pkey;?>" onclick="ShowPopupWindow('<?=$pkey;?>','<?=addslashes($pFields["NAME"]);?>');" class="checklist-testlist-comments" ><?=(is_array($pFields["STATE"]["COMMENTS"])? count($pFields["STATE"]["COMMENTS"]) : 0);?></span>
+							<span class="checklist-testlist-level3-cont-border" onclick="ShowPopupWindow('<?=$pkey;?>', '<?=htmlspecialcharsbx(CUtil::JSEscape($pFields["NAME"]));?>');"><?=$pFields["NAME"];?></span>
+							<span id="comments_<?=$pkey;?>" onclick="ShowPopupWindow('<?=$pkey;?>','<?=htmlspecialcharsbx(CUtil::JSEscape($pFields["NAME"]));?>');" class="checklist-testlist-comments" ><?=(is_array($pFields["STATE"]["COMMENTS"])? count($pFields["STATE"]["COMMENTS"]) : 0);?></span>
 						</span>
 					</span>
 					<span id="mark_<?=$pkey;?>"></span>
@@ -356,8 +356,8 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 									<span class="checklist-testlist-level3-cont">
 										<span class="checklist-testlist-level3-cont-nom"><?=$num++.". ";?></span>
 										<span class="checklist-testlist-level3-cont-right">
-											<span class="checklist-testlist-level3-cont-border" onclick="ShowPopupWindow('<?=$pkey;?>','<?=addslashes($pFields["NAME"]);?>');"><?=$pFields["NAME"];?></span>
-											<span id="comments_<?=$pkey;?>" class="checklist-testlist-comments" onclick="ShowPopupWindow('<?=$pkey;?>','<?=addslashes($pFields["NAME"]);?>');"><?=(is_array($pFields["STATE"]["COMMENTS"])? count($pFields["STATE"]["COMMENTS"]) : 0);?></span>
+											<span class="checklist-testlist-level3-cont-border" onclick="ShowPopupWindow('<?=$pkey;?>','<?=htmlspecialcharsbx(CUtil::JSEscape($pFields["NAME"]));?>');"><?=$pFields["NAME"];?></span>
+											<span id="comments_<?=$pkey;?>" class="checklist-testlist-comments" onclick="ShowPopupWindow('<?=$pkey;?>','<?=htmlspecialcharsbx(CUtil::JSEscape($pFields["NAME"]));?>');"><?=(is_array($pFields["STATE"]["COMMENTS"])? count($pFields["STATE"]["COMMENTS"]) : 0);?></span>
 										</span>
 									</span>
 									<span id="mark_<?=$pkey;?>"></span>
@@ -957,7 +957,7 @@ if ((($res = CCheckListResult::GetList(Array(),Array("REPORT"=>"N"))->Fetch()) |
 	else
 	{
 		$allowedDomains = array($_SERVER['HTTP_HOST']);
-		$langs = CLang::GetList($by, $order, Array());
+		$langs = CLang::GetList('', '', Array());
 		while ($arLang = $langs->Fetch())
 		{
 			$domains = trim($arLang['DOMAINS']);
@@ -1288,7 +1288,7 @@ function SendReportToBitrix ($arFields)
 	$arFields['LICENSE_KEY'] = md5(trim(LICENSE_KEY));
 ?>
 	<?=GetMessage('CL_SENDING_QC_REPORT')?>
-	<form id="bx_project_tests_send" style="display:none;" action="http://partners.1c-bitrix.ru/personal/send_quality_control.php" method="POST">
+	<form id="bx_project_tests_send" style="display:none;" action="https://partners.1c-bitrix.ru/personal/send_quality_control.php" method="POST">
 		<input type="hidden" name="charset" value="<?=htmlspecialcharsbx(LANG_CHARSET)?>" />
 		<?foreach ($arFields as $key=>$val)
 		{

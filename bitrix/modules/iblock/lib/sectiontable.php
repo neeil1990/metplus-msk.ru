@@ -1,8 +1,10 @@
 <?php
 namespace Bitrix\Iblock;
 
-use Bitrix\Main\Entity;
+use Bitrix\Main\ORM;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Event;
+
 Loc::loadMessages(__FILE__);
 
 /**
@@ -40,9 +42,22 @@ Loc::loadMessages(__FILE__);
  * </ul>
  *
  * @package Bitrix\Iblock
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Section_Query query()
+ * @method static EO_Section_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Section_Result getById($id)
+ * @method static EO_Section_Result getList(array $parameters = array())
+ * @method static EO_Section_Entity getEntity()
+ * @method static \Bitrix\Iblock\EO_Section createObject($setDefaultValues = true)
+ * @method static \Bitrix\Iblock\EO_Section_Collection createCollection()
+ * @method static \Bitrix\Iblock\EO_Section wakeUpObject($row)
+ * @method static \Bitrix\Iblock\EO_Section_Collection wakeUpCollection($rows)
+ */
 
-class SectionTable extends Entity\DataManager
+class SectionTable extends ORM\Data\DataManager
 {
 	/**
 	 * Returns DB table name for entity
@@ -196,7 +211,7 @@ class SectionTable extends Entity\DataManager
 	public static function validateName()
 	{
 		return array(
-			new Entity\Validator\Length(null, 255),
+			new ORM\Fields\Validators\LengthValidator(null, 255),
 		);
 	}
 
@@ -208,7 +223,7 @@ class SectionTable extends Entity\DataManager
 	public static function validateCode()
 	{
 		return array(
-			new Entity\Validator\Length(null, 255),
+			new ORM\Fields\Validators\LengthValidator(null, 255),
 		);
 	}
 
@@ -220,7 +235,7 @@ class SectionTable extends Entity\DataManager
 	public static function validateXmlId()
 	{
 		return array(
-			new Entity\Validator\Length(null, 255),
+			new ORM\Fields\Validators\LengthValidator(null, 255),
 		);
 	}
 
@@ -232,7 +247,63 @@ class SectionTable extends Entity\DataManager
 	public static function validateTmpId()
 	{
 		return array(
-			new Entity\Validator\Length(null, 40),
+			new ORM\Fields\Validators\LengthValidator(null, 40),
 		);
+	}
+
+	public static function onAfterAdd(Event $event)
+	{
+		/** @var EO_Section $section */
+		$section = $event->getParameter('object');
+		$section->fill(['IBLOCK_ID', 'IBLOCK_SECTION_ID', 'NAME', 'SORT']);
+
+		// clear tag cache
+		\CIBlock::clearIblockTagCache($section->getIblockId());
+
+		// recount tree
+		\CIBlockSection::recountTreeAfterAdd($section->collectValues());
+	}
+
+	public static function onUpdate(Event $event)
+	{
+		/** @var EO_Section $section */
+		$section = $event->getParameter('object');
+
+		// save old fields
+		$oldValues = \CIBlockSection::GetList([], ["ID" => $section->getId(), "CHECK_PERMISSIONS" => "N"]);
+		$section->customData->set('RECOUNT_TREE_OLD_VALUES', $oldValues);
+	}
+
+	public static function onAfterUpdate(Event $event)
+	{
+		/** @var EO_Section $section */
+		$section = $event->getParameter('object');
+		$section->fill(['IBLOCK_ID', 'IBLOCK_SECTION_ID', 'NAME', 'SORT', 'ACTIVE']);
+
+		// clear tag cache
+		\CIBlock::clearIblockTagCache($section->getIblockId());
+
+		// recount tree
+		\CIBlockSection::recountTreeAfterUpdate($section->collectValues(), $section->customData->get('RECOUNT_TREE_OLD_VALUES'));
+	}
+
+	public static function onDelete(Event $event)
+	{
+		$section = static::wakeUpObject($event->getParameter('id'));
+		$section->fill(['IBLOCK_ID']);
+
+		// clear tag cache
+		\CIBlock::clearIblockTagCache($section->getIblockId());
+	}
+
+	public static function onAfterDelete(Event $event)
+	{
+		// recount tree
+		$primary = $event->getParameter('id');
+		if (!is_array($primary))
+		{
+			$primary = ['ID' => $primary];
+		}
+		\CIBlockSection::recountTreeOnDelete($primary);
 	}
 }

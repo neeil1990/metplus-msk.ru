@@ -12,6 +12,11 @@ require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/sale/prolog.php');
 
 Loc::loadMessages(__FILE__);
 
+/** @global CAdminPage $adminPage */
+global $adminPage;
+/** @global CAdminSidePanelHelper $adminSidePanelHelper */
+global $adminSidePanelHelper;
+
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
@@ -40,7 +45,7 @@ $request = Main\Context::getCurrent()->getRequest();
 
 $adminListTableID = 'tbl_sale_discount_coupons';
 
-$adminSort = new CAdminSorting($adminListTableID, 'ID', 'ASC');
+$adminSort = new CAdminUiSorting($adminListTableID, 'ID', 'ASC');
 $adminList = new CAdminUiList($adminListTableID, $adminSort);
 
 $discountIterator = Internals\DiscountTable::getList(array(

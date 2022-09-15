@@ -1,10 +1,11 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Retargeting;
 
 use Bitrix\Main\Loader;
-use Bitrix\Main\Web\Uri;
 use Bitrix\Main\SystemException;
+use Bitrix\Main\Web\Uri;
+use Bitrix\Seo\BusinessSuite\Utils\QueueRemoveEventHandler;
 use Bitrix\Seo\Service;
 use Bitrix\Seo\Service as SeoService;
 
@@ -12,12 +13,16 @@ class AuthAdapter
 {
 	/** @var  IService $service */
 	protected $service;
+
+	/**@var string $type*/
 	protected $type;
+
 	/* @var \CSocServOAuthTransport|\CFacebookInterface */
 	protected $transport;
+
 	protected $requestCodeParamName;
 	protected $data;
-	
+
 	/** @var array $parameters Parameters. */
 	protected $parameters = ['URL_PARAMETERS' => []];
 
@@ -26,6 +31,10 @@ class AuthAdapter
 		$this->type = $type;
 	}
 
+	/**
+	 * @throws \Bitrix\Main\LoaderException
+	 * @throws SystemException
+	 */
 	public static function create($type, IService $service = null)
 	{
 		if (!Loader::includeModule('socialservices'))
@@ -41,15 +50,25 @@ class AuthAdapter
 		return $instance;
 	}
 
+	/**
+	 * @param IService $service
+	 * @return $this
+	 */
 	public function setService(IService $service)
 	{
 		$this->service = $service;
+
 		return $this;
 	}
 
+	/**
+	 * @param array $parameters
+	 * @return $this
+	 */
 	public function setParameters(array $parameters = [])
 	{
 		$this->parameters = $parameters + $this->parameters;
+
 		return $this;
 	}
 
@@ -60,16 +79,19 @@ class AuthAdapter
 			SeoService::register();
 		}
 
-		$authorizeUrl = SeoService::getAuthorizeLink();
-		$authorizeData = SeoService::getAuthorizeData($this->getEngineCode(),
-			$this->canUseMultipleClients() ? Service::CLIENT_TYPE_MULTIPLE : Service::CLIENT_TYPE_SINGLE);
-		$uri = new Uri($authorizeUrl);
+		$authorizeData = SeoService::getAuthorizeData(
+			$this->getEngineCode(),
+			$this->canUseMultipleClients() ? Service::CLIENT_TYPE_MULTIPLE : Service::CLIENT_TYPE_SINGLE
+		);
+
 		if (!empty($this->parameters['URL_PARAMETERS']))
 		{
 			$authorizeData['urlParameters'] = $this->parameters['URL_PARAMETERS'];
 		}
-		$uri->addParams($authorizeData);
-		return $uri->getLocator();
+
+		$uri = new Uri(SeoService::getAuthorizeLink());
+
+		return $uri->addParams($authorizeData)->getLocator();
 	}
 
 	protected function getAuthData($isUseCache = true)
@@ -93,36 +115,44 @@ class AuthAdapter
 		return $this->data;
 	}
 
+	/**
+	 * @throws SystemException
+	 * @return void
+	 */
 	public function removeAuth()
 	{
 		$this->data = array();
 
 		if ($existedAuthData = $this->getAuthData(false))
 		{
-			if ($this->canUseMultipleClients())
-			{
-				SeoService::clearAuthForClient($existedAuthData);
-			}
-			else
-			{
-				SeoService::clearAuth($this->getEngineCode());
-			}
+			QueueRemoveEventHandler::handleEvent(
+				$existedAuthData['proxy_client_id'],
+				$existedAuthData['engine_code']
+			);
+			$this->canUseMultipleClients()
+				? SeoService::clearAuthForClient($existedAuthData)
+				: SeoService::clearAuth($this->getEngineCode());
 
 		}
 	}
 
+	/**
+	 * @return string
+	 */
 	protected function getEngineCode()
 	{
 		if ($this->service)
 		{
-			return $this->service->getEngineCode($this->type);
+
+			return $this->service::getEngineCode($this->type);
 		}
-		else
-		{
-			return Service::getEngineCode($this->type);
-		}
+
+		return Service::getEngineCode($this->type);
 	}
 
+	/**
+	 * @return string
+	 */
 	public function getType()
 	{
 		return $this->type;
@@ -130,21 +160,41 @@ class AuthAdapter
 
 	public function getToken()
 	{
-		$data = $this->getAuthData();
-		return $data ? $data['access_token'] : null;
+		return is_array($data = $this->getAuthData(false)) ? $data['access_token'] : null;
 	}
 
+	/**
+	 * @return bool
+	 */
 	public function hasAuth()
 	{
-		return $this->canUseMultipleClients() ? count($this->getAuthorizedClientsList()) > 0 : strlen($this->getToken()) > 0;
+		return $this->canUseMultipleClients()
+			? count($this->getAuthorizedClientsList()) > 0
+			: $this->getToken() <> "";
 	}
 
+	/**
+	 * @return bool
+	 */
 	public function canUseMultipleClients()
 	{
-		return ($this->service && ($this->service instanceof IMultiClientService) && $this->service::canUseMultipleClients())
-			|| (!$this->service && Service::canUseMultipleClients());
+		if (!$this->service)
+		{
+			return Service::canUseMultipleClients();
+		}
+
+		if ($this->service instanceof IMultiClientService)
+		{
+			return $this->service::canUseMultipleClients();
+		}
+
+		return false;
 	}
 
+	/**
+	 * @return array|null
+	 * @throws SystemException
+	 */
 	public function getClientList()
 	{
 		return $this->canUseMultipleClients() ? SeoService::getClientList($this->getEngineCode()) : [];
@@ -163,11 +213,18 @@ class AuthAdapter
 		return null;
 	}
 
+	/**
+	 * @return array|null
+	 * @throws SystemException
+	 */
 	public function getAuthorizedClientsList()
 	{
-		return array_filter($this->getClientList(), function ($item) {
-			return strlen($item['access_token']) > 0;
-		});
+		return array_filter(
+			$this->getClientList(),
+			static function ($item) : bool {
+				return $item['access_token'] <> '';
+			}
+		);
 	}
 
 	public function getClientId()

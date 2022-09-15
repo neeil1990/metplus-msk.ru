@@ -10,15 +10,17 @@ namespace Bitrix\Sender\Integration\Bitrix24;
 
 use Bitrix\Bitrix24\Feature;
 use Bitrix\Main\Config\Option;
+use Bitrix\Main\IO\File;
 use Bitrix\Main\Loader;
+use Bitrix\Main\Context;
 use Bitrix\Main\ModuleManager;
-
-use Bitrix\Sender\Internals\Model;
+use Bitrix\Main\SiteTable;
 use Bitrix\Sender\Dispatch\Semantics;
-use Bitrix\Sender\Message\Tracker;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\Message;
 use Bitrix\Sender\Integration\Seo;
+use Bitrix\Sender\Internals\Model;
+use Bitrix\Sender\Message;
+use Bitrix\Sender\Message\Tracker;
 
 /**
  * Class Service
@@ -44,14 +46,18 @@ class Service
 	public static function isAvailable()
 	{
 		return
+			self::isRcAvailable()
+			||
 			self::isMailingsAvailable()
 			||
 			self::isAdAvailable()
 			||
-			self::isRcAvailable()
-			||
 			self::isEmailAvailable()
-			;
+			||
+			self::isTolokaAvailable()
+			||
+			self::isFbAdAvailable()
+		;
 	}
 
 	/**
@@ -65,6 +71,26 @@ class Service
 	}
 
 	/**
+	 * Return true if Fb Ad is available.
+	 *
+	 * @return bool
+	 */
+	public static function isFbAdAvailable()
+	{
+		return !self::isCloud() || Feature::isFeatureEnabled('sender_fb_ads');
+	}
+
+	/**
+	 * Return true if Toloka is available.
+	 *
+	 * @return bool
+	 */
+	public static function isTolokaAvailable()
+	{
+		return !self::isCloud() || Feature::isFeatureEnabled('sender_toloka');
+	}
+
+	/**
 	 * Return true if Rc is available.
 	 *
 	 * @return bool
@@ -72,6 +98,16 @@ class Service
 	public static function isRcAvailable()
 	{
 		return !self::isCloud() || Feature::isFeatureEnabled('sender_rc');
+	}
+
+	/**
+	 * Return true if Security is available.
+	 *
+	 * @return bool
+	 */
+	public static function isPermissionEnabled()
+	{
+		return !self::isCloud() || Feature::isFeatureEnabled('sender_security');
 	}
 
 	/**
@@ -85,13 +121,47 @@ class Service
 	}
 
 	/**
+	 * Return true if region of portal is Russian.
+	 *
+	 * @param bool $onlyRu Check only ru region.
+	 * @return bool
+	 */
+	public static function isRegionRussian(bool $onlyRu = false): bool
+	{
+		$regions = $onlyRu ? ['ru'] : ['ru', 'kz', 'by'];
+
+		$region = \Bitrix\Main\Application::getInstance()->getLicense()->getRegion() ?: 'ru';
+		return in_array($region, $regions);
+	}
+
+	/**
+	 * Return true if region of cloud portal is Russian.
+	 *
+	 * @param bool $onlyRu Check only ru region.
+	 * @return bool
+	 */
+	public static function isCloudRegionRussian(bool $onlyRu = false): bool
+	{
+		$regions = $onlyRu ? ['ru'] : ['ru', 'kz', 'by'];
+		return self::isCloud() && in_array(\CBitrix24::getPortalZone(), $regions);
+	}
+
+	/**
 	 * Return true if region of cloud portal is Russian.
 	 *
 	 * @return bool
 	 */
-	public static function isCloudRegionRussian()
+	public static function isCloudRegionMayTrackMails()
 	{
-		return self::isCloud() && in_array(\CBitrix24::getPortalZone(), array('ru', 'kz', 'by'));
+		return self::isCloud() && in_array(
+			\CBitrix24::getPortalZone(), [
+					'de',
+					'eu',
+					'it',
+					'pl',
+					'fr',
+				]
+			);
 	}
 
 	/**
@@ -102,17 +172,63 @@ class Service
 	 */
 	public static function isAdVisibleInRegion($code)
 	{
-		if (!self::isCloud())
+		if (in_array(
+			$code,
+			[
+				Seo\Ads\MessageBase::CODE_ADS_VK,
+				Seo\Ads\MessageBase::CODE_ADS_YA,
+				Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_VK
+			]
+		))
 		{
+			if (self::isCloud())
+			{
+				return self::isCloudRegionRussian();
+			}
+			elseif (Loader::includeModule('intranet'))
+			{
+				return in_array(\CIntranetUtils::getPortalZone(), ['ru', 'kz', 'by']);
+			}
+
 			return true;
 		}
 
-		if (!in_array($code, array(Seo\Ads\MessageBase::CODE_ADS_VK, Seo\Ads\MessageBase::CODE_ADS_YA)))
+		if (in_array(
+			$code,
+			[
+				Seo\Ads\MessageBase::CODE_ADS_FB,
+				Seo\Ads\MessageBase::CODE_ADS_LOOKALIKE_FB,
+				Message\iMarketing::CODE_FACEBOOK,
+				Message\iMarketing::CODE_INSTAGRAM,
+			]
+		))
 		{
-			return true;
+			return !self::isRegionRussian(true);
 		}
 
-		return self::isCloudRegionRussian();
+		return true;
+	}
+	
+	/**
+	 * Return true if toloka is available.
+	 *
+	 * @return bool
+	 * @throws \Bitrix\Main\LoaderException
+	 */
+	public static function isTolokaVisibleInRegion(): bool
+	{
+		$isLanguageAcceptable = (LANGUAGE_ID ?? 'ru') === 'ru';
+
+		if (self::isCloud())
+		{
+			return self::isCloudRegionRussian() && $isLanguageAcceptable ;
+		}
+		elseif (Loader::includeModule('intranet'))
+		{
+			return in_array(\CIntranetUtils::getPortalZone(), ['ru', 'kz', 'by']) && $isLanguageAcceptable;
+		}
+
+		return $isLanguageAcceptable;
 	}
 
 	/**
@@ -182,9 +298,11 @@ class Service
 	 * Return tracking uri.
 	 *
 	 * @param int $type Tracker type.
-	 * @return bool
+	 * @param null|string $siteId Site id.
+	 * @return string|null
+	 * @throws \Bitrix\Main\LoaderException
 	 */
-	public static function getTrackingUri($type)
+	public static function getTrackingUri(int $type, ?string $siteId = null): ?string
 	{
 		switch ($type)
 		{
@@ -203,8 +321,15 @@ class Service
 		}
 
 		$uri = "/pub/mail/$code.php";
+		if ($siteId)
+		{
+			if (!File::isFileExists(SiteTable::getDocumentRoot($siteId) . DIRECTORY_SEPARATOR . $uri))
+			{
+				return null;
+			}
+		}
 
-		if (self::isCloud() && !in_array(substr(BX24_HOST_NAME, -7), ['.com.br', '.com.de'])) // exclude com.br & com.de domains
+		if (self::isCloud() && !in_array(mb_substr(BX24_HOST_NAME, -7), ['.com.br', '.com.de'])) // exclude com.br & com.de domains
 		{
 			Loader::includeModule('bitrix24');
 			$domain = BX24_HOST_NAME;

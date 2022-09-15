@@ -56,15 +56,6 @@ class MetaYandexVerification extends \Bitrix\Landing\Hook\Page
 	}
 
 	/**
-	 * Exec or not hook in intranet mode.
-	 * @return boolean
-	 */
-	public function enabledInIntranetMode()
-	{
-		return false;
-	}
-
-	/**
 	 * Exec hook.
 	 * @return void
 	 */

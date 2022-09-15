@@ -12,6 +12,22 @@ use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class OrderTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Order_Query query()
+ * @method static EO_Order_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Order_Result getById($id)
+ * @method static EO_Order_Result getList(array $parameters = array())
+ * @method static EO_Order_Entity getEntity()
+ * @method static \Bitrix\Sale\Internals\EO_Order createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sale\Internals\EO_Order_Collection createCollection()
+ * @method static \Bitrix\Sale\Internals\EO_Order wakeUpObject($row)
+ * @method static \Bitrix\Sale\Internals\EO_Order_Collection wakeUpCollection($rows)
+ */
 class OrderTable extends Main\Entity\DataManager
 {
 	/**
@@ -39,20 +55,6 @@ class OrderTable extends Main\Entity\DataManager
 
 		$connection = Main\Application::getConnection();
 		$helper = $connection->getSqlHelper();
-
-		$lockStatusExpression = '';
-		if ($DB->type == 'MYSQL')
-		{
-			$lockStatusExpression = "if(DATE_LOCK is null, 'green', if(DATE_ADD(DATE_LOCK, interval ".$maxLock." MINUTE)<now(), 'green', if(LOCKED_BY=".$userID.", 'yellow', 'red')))";
-		}
-		elseif ($DB->type == 'MSSQL')
-		{
-			$lockStatusExpression = "case when DATE_LOCK is null then 'green' else case when dateadd(minute, ".$maxLock.", DATE_LOCK)<getdate() then 'green' else case when LOCKED_BY=".$userID." then 'yellow' else 'red' end end end";
-		}
-		elseif ($DB->type == 'ORACLE')
-		{
-			$lockStatusExpression = "DECODE(DATE_LOCK, NULL, 'green', DECODE(SIGN(1440*(SYSDATE-DATE_LOCK)-".$maxLock."), 1, 'green', decode(LOCKED_BY,".$userID.",'yellow','red')))";
-		}
 
 		return array(
 			new Main\Entity\IntegerField('ID',
@@ -127,6 +129,14 @@ class OrderTable extends Main\Entity\DataManager
 
 			new Main\Entity\BooleanField(
 				'PAYED',
+				array(
+					'values' => array('N', 'Y'),
+					'default_value' => 'N'
+				)
+			),
+
+			new Main\Entity\BooleanField(
+				'IS_SYNC_B24',
 				array(
 					'values' => array('N', 'Y'),
 					'default_value' => 'N'
@@ -345,7 +355,7 @@ class OrderTable extends Main\Entity\DataManager
 
 			new Main\Entity\ExpressionField(
 				'LOCK_STATUS',
-				$lockStatusExpression
+				"if(DATE_LOCK is null, 'green', if(DATE_ADD(DATE_LOCK, interval ".$maxLock." MINUTE)<now(), 'green', if(LOCKED_BY=".$userID.", 'yellow', 'red')))"
 			),
 
 			new Main\Entity\ReferenceField(
@@ -506,6 +516,15 @@ class OrderTable extends Main\Entity\DataManager
 				array(
 					'=ref.ORDER_ID' => 'this.ID',
 					'=ref.ENTITY_TYPE' => new Main\DB\SqlExpression('?', OrderDiscountDataTable::ENTITY_TYPE_ORDER)
+				),
+				array('join_type' => 'LEFT')
+			),
+
+			new Main\Entity\ReferenceField(
+				'ORDER_DISCOUNT_RULES',
+				'Bitrix\Sale\Internals\OrderRules',
+				array(
+					'=ref.ORDER_ID' => 'this.ID',
 				),
 				array('join_type' => 'LEFT')
 			),

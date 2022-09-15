@@ -4,17 +4,23 @@
  * @var array $arResult
  * @var CAllMain $APPLICATION
  */
-if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
+{
+	die();
+}
+
+\Bitrix\Main\UI\Extension::load('ui.design-tokens');
 \Bitrix\Main\Page\Asset::getInstance()->addCss('/bitrix/css/main/table/style.css');
 
 use Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
 
-CUtil::InitJSCore(Array('access'));
-?>
+\Bitrix\Main\UI\Extension::load([
+	'access',
+	'ui.design-tokens'
+]);
 
-<?
 if (!$arResult['CAN_EDIT'])
 {
 	?>
@@ -40,6 +46,7 @@ if (!$arResult['CAN_EDIT'])
 						<td class="table-blue-td-title">&nbsp;</td>
 						<td class="table-blue-td-title">&nbsp;</td>
 						<td class="table-blue-td-title"><?=Loc::getMessage('SENDER_CONFIG_ROLE_LIST_ROLE')?></td>
+						<td class="table-blue-td-title"><?=Loc::getMessage('SENDER_CONFIG_ROLE_LIST_AVAILABLE_CATEGORY')?></td>
 						<td class="table-blue-td-title"></td>
 					</tr>
 					<?foreach ($arResult['ROLE_ACCESS_CODES'] as $roleAccessCode):?>
@@ -94,7 +101,6 @@ if (!$arResult['CAN_EDIT'])
 			</td>
 		</tr>
 	</table>
-
 	<?
 	$APPLICATION->IncludeComponent(
 		"bitrix:sender.ui.button.panel",

@@ -72,6 +72,7 @@ final class MimeType
 		'jpeg' => 'image/jpeg',
 		'jpe' => 'image/jpeg',
 		'png' => 'image/png',
+		'webp' => 'image/webp',
 		'gif' => 'image/gif',
 		'bmp' => 'image/bmp',
 		'tiff' => 'image/tiff',
@@ -146,7 +147,6 @@ final class MimeType
 		'cdr' => 'application/cdr',
 		'wma' => 'audio/x-ms-wma',
 		'jar' => 'application/java-archive',
-
 		'sketch' => 'application/octet-stream',
 		'vsd' => 'application/vnd.ms-visio',
 		'vsdx' => 'application/vnd.ms-visio.drawing',
@@ -186,6 +186,43 @@ final class MimeType
 		'eot' => 'application/vnd.ms-fontobject',
 		'woff' => 'application/font-woff',
 		'pfa' => 'application/x-font-type1',
+		'xla' => "application/vnd.ms-excel",
+		'xlb' => 'application/vnd.ms-excel',
+		'xlc' => 'application/vnd.ms-excel',
+		'xll' => 'application/vnd.ms-excel',
+		'xlm' => 'application/vnd.ms-excel',
+		'xlt' => 'application/vnd.ms-excel',
+		'xlw' => 'application/vnd.ms-excel',
+		'dbf' => 'application/vnd.ms-excel',
+		'm1v' => 'video/mpeg',
+		'm2v' => 'video/mpeg',
+		'jpgv' => 'video/jpeg',
+		'dvb' => 'video/vnd.dvb.file',
+		'fvt' => 'video/vnd.fvt',
+		'mxu' => 'video/vnd.mpegurl',
+		'pyv' => 'video/vnd.ms-playready.media.pyv',
+		'uvu' => 'video/vnd.uvvu.mp4',
+		'uvvu' => 'video/vnd.uvvu.mp4',
+		'viv' => 'video/vnd.vivo',
+		'fli' => 'video/x-fli',
+		'mk3d' => 'video/x-matroska',
+		'mks' => 'video/x-matroska',
+		'mng' => 'video/x-mng',
+		'asf' => 'video/x-ms-asf',
+		'asx' => 'video/x-ms-asf',
+		'vob' => 'video/x-ms-vob',
+		'wm' => 'video/x-ms-wm',
+		'wmx' => 'video/x-ms-wmx',
+		'wvx' => 'video/x-ms-wvx',
+		'smv' => 'video/x-smv',
+		'mp2a' => 'audio/mpeg',
+		'm2a' => 'audio/mpeg',
+		'm3a' => 'audio/mpeg',
+		'oga' => 'audio/ogg',
+		'spx' => 'audio/ogg',
+		'weba' => 'audio/webm',
+		'm3u8' => 'application/vnd.apple.mpegurl',
+		'ts' => 'video/MP2T',
 	];
 
 	public static function getMimeTypeList()
@@ -222,5 +259,27 @@ final class MimeType
 		$mimeType = $fileInfo->buffer($content);
 
 		return $mimeType?: 'application/octet-stream';
+	}
+
+	public static function isImage($mime)
+	{
+		return preg_match('#^image/[a-z0-9.-]+$#i', $mime);
+	}
+
+	public static function normalize($contentType)
+	{
+		$ct = strtolower($contentType);
+		$ct = str_replace(array("\r", "\n", "\0"), "", $ct);
+
+		if (strpos($ct, "excel") !== false)
+		{
+			$ct = "application/vnd.ms-excel";
+		}
+		elseif (strpos($ct, "word") !== false && strpos($ct, "vnd.openxmlformats") === false)
+		{
+			$ct = "application/msword";
+		}
+
+		return $ct;
 	}
 }

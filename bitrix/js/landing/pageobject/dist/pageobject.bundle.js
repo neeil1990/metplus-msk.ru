@@ -2,9 +2,11 @@ this.BX = this.BX || {};
 (function (exports,main_core) {
 	'use strict';
 
-	var PageObject =
-	/*#__PURE__*/
-	function () {
+	/**
+	 * @memberOf BX.Landing
+	 */
+
+	var PageObject = /*#__PURE__*/function () {
 	  function PageObject() {
 	    babelHelpers.classCallCheck(this, PageObject);
 	    babelHelpers.defineProperty(this, "store", {});
@@ -154,6 +156,24 @@ this.BX = this.BX || {};
 
 	      return this.cache.remember('topPanel', function () {
 	        return _this4.getRootWindow().document.querySelector('.landing-ui-panel-top');
+	      });
+	    }
+	  }, {
+	    key: "getEditPanelContent",
+	    value: function getEditPanelContent() {
+	      var _this5 = this;
+
+	      return this.cache.remember('editPanel', function () {
+	        return _this5.getRootWindow().document.querySelector('.landing-ui-panel-content.landing-ui-panel-content-edit .landing-ui-panel-content-body-content');
+	      });
+	    }
+	  }, {
+	    key: "getStylePanelContent",
+	    value: function getStylePanelContent() {
+	      var _this6 = this;
+
+	      return this.cache.remember('stylePanel', function () {
+	        return _this6.getRootWindow().document.querySelector('.landing-ui-panel-content.landing-ui-panel-style .landing-ui-panel-content-body-content');
 	      });
 	    }
 	  }, {

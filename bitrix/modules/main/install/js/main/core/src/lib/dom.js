@@ -4,6 +4,9 @@ import encodeAttributeValue from '../internal/encode-attribute-value';
 import decodeAttributeValue from '../internal/decode-attribute-value';
 import getPageScroll from '../internal/get-page-scroll';
 
+/**
+ * @memberOf BX
+ */
 export default class Dom
 {
 	/**
@@ -466,7 +469,7 @@ export default class Dom
 
 					if (Type.isString(item))
 					{
-						element.innerHTML += item;
+						element.insertAdjacentHTML('beforeend', item);
 					}
 				});
 

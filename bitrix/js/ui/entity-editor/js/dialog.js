@@ -154,10 +154,10 @@ if(typeof BX.UI.EditorAuxiliaryDialog === "undefined")
 				{
 					autoHide: false,
 					draggable: false,
-					closeByEsc: true,
 					offsetLeft: 0,
 					offsetTop: 0,
 					zIndex: BX.prop.getInteger(this._settings, "zIndex", 0),
+					overlay: BX.prop.getBoolean(this._settings, "overlay", {opacity: 20}),
 					bindOptions: { forceBindPosition: true },
 					titleBar: BX.prop.getString(this._settings, "title", "No title"),
 					content: BX.prop.getString(this._settings, "content", ""),
@@ -171,6 +171,11 @@ if(typeof BX.UI.EditorAuxiliaryDialog === "undefined")
 				}
 			);
 			this._popup.show();
+
+			window.setTimeout(function()
+			{
+				this._popup.setClosingByEsc(true);
+			}.bind(this), 150);
 		},
 		close: function()
 		{
@@ -259,6 +264,10 @@ if(typeof BX.UI.EditorAuxiliaryDialog === "undefined")
 			}
 		}
 		return false;
+	};
+	BX.UI.EditorAuxiliaryDialog.getById = function(id)
+	{
+		return this.items.hasOwnProperty(id) ? this.items[id] : null;
 	};
 	BX.UI.EditorAuxiliaryDialog.create = function(id, settings)
 	{

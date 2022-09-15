@@ -3,48 +3,74 @@ namespace Bitrix\Landing\Connector;
 
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Landing\Binding;
+use \Bitrix\Intranet\Binding\Menu;
 
 Loc::loadMessages(__FILE__);
 
 class Intranet
 {
 	/**
-	 * Site type, binding for menu.
+	 * Service component paths.
 	 */
-	const SITE_TYPE = 'KNOWLEDGE';
+	const PATH_SERVICE_LIST = 'kb/binding/menu/';
 
 	/**
-	 * Returns one service menu item for binding entity.
+	 * Returns one service menu item for bind entity.
 	 * @param string $bindCode Binding code.
 	 * @return array
 	 */
-	protected static function getMenuForBind($bindCode)
+	protected static function getMenuItemBind(string $bindCode): array
 	{
 		return [
-			'text' => Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_TITLE'),
-			'href' => '#',
-			'onclick' => 'BX.SidePanel.Instance.open(\'/kb/wiki/edit/0/?binding=' . $bindCode . '\', {allowChangeHistory: false});'
+			[
+				'id' => 'landing_bind',
+				'system' => true,
+				'text' => Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_BIND_TITLE'),
+				'onclick' => 'BX.SidePanel.Instance.open(\'' . SITE_DIR . self::PATH_SERVICE_LIST .
+							 '?menuId=' . $bindCode . '\', {allowChangeHistory: false});'
+			],
+			[
+				'id' => 'landing_create',
+				'system' => true,
+				'text' => Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_BIND_CREATE_TITLE'),
+				'onclick' => 'BX.SidePanel.Instance.open(\'' . SITE_DIR . self::PATH_SERVICE_LIST .
+							 '?menuId=' . $bindCode . '&create=Y\', {allowChangeHistory: false});'
+			]
+		];
+	}
+
+	/**
+	 * Returns one service menu item for unbind entity.
+	 * @param string $bindCode Binding code.
+	 * @param string $entityId Entity id.
+	 * @param string $title Custom title.
+	 * @return array
+	 */
+	protected static function getMenuItemUnbind(string $bindCode, string $entityId, string $title): array
+	{
+		return [
+			'id' => 'landing_unbind_' . $entityId,
+			'system' => true,
+			'text' => $title,
+			'onclick' => 'BX.Landing.Connector.Intranet.unbindMenuItem("' . $bindCode . '", "' . $entityId . '", "' . \CUtil::JSEscape($title) . '");'
 		];
 	}
 
 	/**
 	 * Returns menu items for different binding places in Intranet.
-	 * @param \Bitrix\Main\Event $event
+	 * @param \Bitrix\Main\Event $event Event instance.
 	 * @return array
 	 */
-	public static function onBuildBindingMenu(\Bitrix\Main\Event $event)
+	public static function onBuildBindingMenu(\Bitrix\Main\Event $event): array
 	{
 		\CJSCore::init('sidepanel');
-	//	\Bitrix\Landing\Site\Type::setScope(self::SITE_TYPE);
+		\Bitrix\Landing\Site\Type::setScope(
+			\Bitrix\Landing\Site\Type::SCOPE_CODE_KNOWLEDGE
+		);
 
 		$bindings = Binding\Menu::getList(null);
-		$bindings = [];
-		if (!$bindings)
-		{
-			\Bitrix\Landing\Site\Type::clearScope();
-			return [];
-		}
 
+		// associate different bindings
 		$bindingsAssoc = [];
 		foreach ($bindings as $binding)
 		{
@@ -57,15 +83,9 @@ class Intranet
 		$bindings = $bindingsAssoc;
 		unset($bindingsAssoc);
 
-		// start vars
+		// init vars
 		$items = [];
-		$bindingMap = \Bitrix\Intranet\Binding\Menu::getMap();
-		$menuUnbind = [
-			'text' => Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_UNBIND_TITLE'),
-			'href' => '#unbind'
-		];
-
-		//Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_TITLE')
+		$bindingMap = Menu::getMap();
 
 		// build binding map
 		foreach ($bindingMap as $sectionCode => $bindingSection)
@@ -73,26 +93,37 @@ class Intranet
 			foreach ($bindingSection['items'] as $itemCode => $foo)
 			{
 				$menuItems = [];
-				$additionalItems = [
-					[
-						'text' => 1111,
-						'href' => '#123'
-					]
-				];
+				$unbindItems = [];
 				$bindingCode = $sectionCode . ':' . $itemCode;
 				if (isset($bindings[$bindingCode]))
 				{
 					foreach ($bindings[$bindingCode] as $bindingItem)
 					{
 						$menuItems[] = [
-						  'text' => $bindingItem['TITLE'],
-						  'href' => $bindingItem['PUBLIC_URL']
+							'id' => 'landing_' . $bindingItem['ENTITY_TYPE'] . $bindingItem['ENTITY_ID'],
+				  			'text' => \htmlspecialcharsbx($bindingItem['TITLE']),
+				  			'href' => $bindingItem['PUBLIC_URL'],
+				  			'sectionCode' => Menu::SECTIONS['knowledge']
 						];
+						$unbindItems[] = self::getMenuItemUnbind(
+							$bindingCode,
+							$bindingItem['ENTITY_TYPE'] . '_' . $bindingItem['ENTITY_ID'],
+							$bindingItem['TITLE']
+						);
 					}
 				}
-				else
+				$menuItems = array_merge(
+					$menuItems,
+					self::getMenuItemBind($bindingCode)
+				);
+				if (isset($bindings[$bindingCode]))
 				{
-					$menuItems[] = self::getMenuForBind($bindingCode);
+					$menuItems[] = [
+						'id' => 'landing_unbind',
+						'extension' => 'landing.connector.intranet',
+						'text' => Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_HIDE_TITLE'),
+						'items' => $unbindItems
+					];
 				}
 				$items[] = [
 					'bindings' => [
@@ -102,8 +133,7 @@ class Intranet
 							]
 						]
 					],
-					'items' => $menuItems,
-					'additionalItems' => $additionalItems
+					'items' => $menuItems
 				];
 			}
 		}
@@ -113,27 +143,3 @@ class Intranet
 		return $items;
 	}
 }
-
-/*[
-						[
-							'text' => Loc::getMessage('LANDING_CONNECTOR_INTRANET_MENU_TITLE'),
-							'items' => isset($bindings[$bindingCode])
-									? array_merge(
-										[
-											[
-												'text' => $bindings[$bindingCode]['TITLE'],
-												'href' => $bindings[$bindingCode]['PUBLIC_URL']
-											]
-										],
-										[
-											[
-												'delimiter' => true
-											]
-										],
-										[
-											$menuUnbind
-										]
-
-									)
-									: self::getMenuForBind($bindingCode)
-						]*/

@@ -98,7 +98,7 @@ abstract class Field
 	 */
 	public function __construct($name, $parameters = array())
 	{
-		if (!strlen($name))
+		if ($name == '')
 		{
 			throw new SystemException('Field name required');
 		}
@@ -640,7 +640,7 @@ abstract class Field
 
 	public function unserialize($value)
 	{
-		return unserialize($value);
+		return unserialize((string)$value);
 	}
 
 	/**

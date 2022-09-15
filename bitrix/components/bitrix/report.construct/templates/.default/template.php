@@ -4,7 +4,7 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 $APPLICATION->SetTitle(GetMessage('REPORT_CONSTRUCT'));
 
-CJSCore::Init(array('report', 'socnetlogdest'));
+CJSCore::Init(['ui.design-tokens', 'ui.fonts.opensans', 'report', 'socnetlogdest',]);
 
 $jsClass = 'ReportConstructClass_'.$arResult['randomString'];
 
@@ -195,17 +195,17 @@ initReportControls();
 				BX('reports-add_col-popup-cont'),
 				{tag:'input', attr:{type:'checkbox', name:'<?=CUtil::JSEscape($selElem['name'])?>'}}, true
 			),
-			'<?=strlen($selElem['aggr']) ? CUtil::JSEscape($selElem['aggr']) : ''?>',
-			'<?=strlen($selElem['alias']) ? CUtil::JSEscape($selElem['alias']) : ''?>',
+			'<?=$selElem['aggr'] <> ''? CUtil::JSEscape($selElem['aggr']) : ''?>',
+			'<?=$selElem['alias'] <> ''? CUtil::JSEscape($selElem['alias']) : ''?>',
 			<?=$num?>,
 			<?=($selElem['grouping']) ? 'true' : 'false'?>,
 			<?=($selElem['grouping_subtotal']) ? 'true' : 'false'?>);
 		<? endforeach; ?>
 
 		<? foreach ($arResult['preSettings']['select'] as $num => $selElem): ?>
-			<? if (strlen($selElem['prcnt'])): ?>
-				setPrcntView(<?=$num?>, '<?=CUtil::JSEscape($selElem['prcnt'])?>');
-			<? endif; ?>
+			<? if ($selElem['prcnt'] <> ''): ?>
+		setPrcntView(<?=$num?>, '<?=CUtil::JSEscape($selElem['prcnt'])?>');
+		<? endif; ?>
 		<? endforeach; ?>
 
 		<? if (array_key_exists("sort", $arResult["preSettings"])): ?>
@@ -290,7 +290,7 @@ initReportControls();
 		$helperClassName = isset($arParams['REPORT_HELPER_CLASS']) ? $arParams['REPORT_HELPER_CLASS'] : '';
 		if ($helperClassName != '')
 		{
-			$classNamePrefix = substr($helperClassName, 0, 7);
+			$classNamePrefix = mb_substr($helperClassName, 0, 7);
 			if ($classNamePrefix === 'CTasksR' || $classNamePrefix === 'CCrmRep')
 				$bShowRedNegValsOption = false;
 		}
@@ -388,7 +388,7 @@ initReportControls();
 		#report-chart-display-checkbox {vertical-align: middle;}
 		#report-chart-switch label {vertical-align: middle;}
 
-		.webform-additional-fields { margin-bottom: 5px; }
+		.webform-additional-fields { margin-bottom: 15px; }
 		#report-chart-params { padding-top: 19px; }
 		.chart-config-label {
 			color: #303030/*#555555*/;
@@ -823,9 +823,7 @@ initReportControls();
 <div class="reports-preview-table-report" id="reports-preview-table-report">
 	<span class="reports-prev-table-title"><?=GetMessage('REPORT_SCHEME_PREVIEW')?></span>
 
-	<div class="reports-list">
-		<div class="reports-list-left-corner"></div>
-		<div class="reports-list-right-corner"></div>
+	<div class="reports-list-preview">
 		<table cellspacing="0" class="reports-list-table">
 			<tr>
 				<th></th>

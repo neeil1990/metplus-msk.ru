@@ -1,9 +1,17 @@
-<?
+<?php
 $MESS["LANDING_ALERT_CONTENT_RELOADED"] = "Sie haben die Änderungen nicht gespeichert. Das Formular wird neu geladen.";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_ADMIN"] = "Voller Zugriff";
 $MESS["LANDING_TPL_ADDITIONAL_ACTION_CREATE"] = "Erstellen";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_HINT_ADMIN"] = "Voller Zugriff inkl. Bearbeitung der Mitarbeiterrollen und Zugriffsberechtigungen";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_HINT_KNOWLEDGE_ADMIN"] = "Voller Zugriff inkl. Bearbeitung der Mitarbeiterrollen und Zugriffsberechtigungen";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_HINT_KNOWLEDGE_UNEXPORTABLE"] = "Berechtigung für Websiteexport zur weiteren unbegrenzten Nutzung";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_HINT_UNEXPORTABLE"] = "Berechtigung für Websiteexport zur weiteren unbegrenzten Nutzung";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_KNOWLEDGE_ADMIN"] = "Voller Zugriff";
 $MESS["LANDING_TPL_ADDITIONAL_ACTION_KNOWLEDGE_CREATE"] = "Erstellen";
 $MESS["LANDING_TPL_ADDITIONAL_ACTION_KNOWLEDGE_MENU24"] = "Anzeigen";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_KNOWLEDGE_UNEXPORTABLE"] = "Export";
 $MESS["LANDING_TPL_ADDITIONAL_ACTION_MENU24"] = "Anzeigen";
+$MESS["LANDING_TPL_ADDITIONAL_ACTION_UNEXPORTABLE"] = "Export";
 $MESS["LANDING_TPL_ADDITIONAL_ENTITY_CREATE"] = "Websites";
 $MESS["LANDING_TPL_ADDITIONAL_ENTITY_KNOWLEDGE_CREATE"] = "Wissensbasen";
 $MESS["LANDING_TPL_ADDITIONAL_ENTITY_KNOWLEDGE_MENU24"] = "Bereich \"Wissensbasis\"";
@@ -24,4 +32,3 @@ $MESS["LANDING_TPL_RIGHT_ENTITY"] = "Element";
 $MESS["LANDING_TPL_RIGHT_SELECT"] = "Berechtigung";
 $MESS["LANDING_TPL_RIGHT_TITLE"] = "Aktion";
 $MESS["LANDING_TPL_TITLE_EDIT"] = "Rolle bearbeiten";
-?>

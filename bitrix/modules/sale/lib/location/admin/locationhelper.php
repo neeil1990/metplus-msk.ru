@@ -37,7 +37,7 @@ final class LocationHelper extends NameHelper
 	* Function returns instructions from where and which columns we take to show in UI
 	* @return string Entity class name
 	*/
-	public function getEntityRoadMap()
+	public static function getEntityRoadMap()
 	{
 		return array(
 			'main' => array(
@@ -190,7 +190,7 @@ final class LocationHelper extends NameHelper
 		{
 			foreach($externals as $eId => $external)
 			{
-				if(!strlen($external['XML_ID']))
+				if($external['XML_ID'] == '')
 					unset($externals[$eId]);
 			}
 		}
@@ -324,6 +324,30 @@ final class LocationHelper extends NameHelper
 	}
 
 	/**
+	 * @return int
+	 */
+	public static function getYandexMarketExternalServiceId(): int
+	{
+		static $result;
+
+		if ($result === null)
+		{
+			$result = 0;
+
+			$yandexMarketEs = Location\ExternalServiceTable::getList([
+				'filter' => ['=CODE' => \CSaleYMLocation::EXTERNAL_SERVICE_CODE]
+			])->fetch();
+
+			if ($yandexMarketEs)
+			{
+				$result = (int)$yandexMarketEs['ID'];
+			}
+		}
+
+		return $result;
+	}
+
+	/**
 	 * @deprecated
 	 * 
 	 * Use TypeHelper::getTypes() instead
@@ -352,7 +376,7 @@ final class LocationHelper extends NameHelper
 
 	public static function checkRequestIsMenuRequest()
 	{
-		return strpos($_REQUEST['admin_mnu_menu_id'], self::MENU_ITEMS_QUERY_STRING_TAG) !== false;
+		return mb_strpos(($_REQUEST['admin_mnu_menu_id'] ?? ''), self::MENU_ITEMS_QUERY_STRING_TAG) !== false;
 	}
 
 	public static function getLocationSubMenu()
@@ -476,12 +500,12 @@ final class LocationHelper extends NameHelper
 
 	public static function unPackItemsQueryString()
 	{
-		$path = explode(self::MENU_ITEMS_QUERY_STRING_DELIMITER, $_REQUEST['admin_mnu_menu_id']);
+		$path = explode(self::MENU_ITEMS_QUERY_STRING_DELIMITER, ($_REQUEST['admin_mnu_menu_id'] ?? ''));
 
 		return array(
-			'ID' => intval($path[1]) ? intval($path[1]) : false,
-			'LIMIT' => intval($path[2]),
-			'SHOW_CHECKBOX' => !!$path[3]
+			'ID' => (isset($path[1]) && intval($path[1])) ? intval($path[1]) : false,
+			'LIMIT' => isset($path[2]) ? intval($path[2]) : 0,
+			'SHOW_CHECKBOX' => isset($path[3]) ? (!!$path[3]) : false,
 		);
 	}
 
@@ -637,7 +661,7 @@ final class LocationHelper extends NameHelper
 
 	public static function getZipByLocation($locationCode, $parameters = array())
 	{
-		if(strlen($locationCode) <= 0)
+		if($locationCode == '')
 			return new \Bitrix\Main\DB\ArrayResult(array());
 
 		if(!is_array($parameters))
@@ -701,7 +725,7 @@ final class LocationHelper extends NameHelper
 	 */
 	public static function getLocationPathDisplay($primary)
 	{
-		if(!strlen($primary))
+		if($primary == '')
 			return '';
 
 		if((string) $primary === (string) intval($primary))

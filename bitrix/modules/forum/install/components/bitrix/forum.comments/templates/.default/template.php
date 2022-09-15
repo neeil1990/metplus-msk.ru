@@ -1,17 +1,24 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+<?php
+
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
+{
+	die();
+}
+
 /**
  * @var CMain $APPLICATION
  * @var array $arParams
  * @var array $arResult
  */
 CUtil::InitJSCore(array('ajax'));
+
 $request = \Bitrix\Main\Context::getCurrent()->getRequest();
 // ************************* Input params***************************************************************
 ?>
 <div class="feed-wrap">
 <div class="feed-comments-block">
 	<a name="comments"></a>
-<?
+	<?php
 // *************************/Input params***************************************************************
 
 $url = (new \Bitrix\Main\Web\Uri($arParams["URL"]))
@@ -34,6 +41,9 @@ else
 			: "Y"
 	);
 }
+
+$canCreateTask = ($arResult['POST_CONTENT_TYPE_ID'] && !$arParams['PUBLIC_MODE']);
+
 $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 	"bitrix:main.post.list",
 	"",
@@ -49,14 +59,20 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 		"RIGHTS" => array(
 			"MODERATE" =>  $arResult["PANELS"]["MODERATE"],
 			"EDIT" => $editRight,
-			"DELETE" => $editRight
+			"DELETE" => $editRight,
+			'CREATETASK' => ($arResult['POST_CONTENT_TYPE_ID'] && !$arParams['PUBLIC_MODE'] ? 'Y' : 'N'),
+			'CREATESUBTASK' => ($canCreateTask && $arParams['ENTITY_TYPE'] === 'TK' ? 'Y' : 'N')
 		),
-		"VISIBLE_RECORDS_COUNT" => 3,
+		'POST_CONTENT_TYPE_ID' => $arResult['POST_CONTENT_TYPE_ID'],
+		'COMMENT_CONTENT_TYPE_ID' => 'FORUM_POST',
+
+		"VISIBLE_RECORDS_COUNT" => $arResult["VISIBLE_RECORDS_COUNT"],
 
 		"ERROR_MESSAGE" => $arResult["ERROR_MESSAGE"],
 		"OK_MESSAGE" => $arResult["OK_MESSAGE"],
 		"RESULT" => ($arResult["RESULT"] ?: $request->getQuery("MID")),
 		"PUSH&PULL" => $arResult["PUSH&PULL"],
+		"MODE" => $arResult["MODE"],
 		"VIEW_URL" => ($arParams["SHOW_LINK_TO_MESSAGE"] == "Y" && !(isset($arParams["PUBLIC_MODE"]) && $arParams["PUBLIC_MODE"]) ? $link : ""),
 		"EDIT_URL" => ForumAddPageParams($link, array("ACTION" => "GET"), false, false),
 		"MODERATE_URL" => ForumAddPageParams($link, array("ACTION" => "#ACTION#"), false, false),
@@ -84,7 +100,7 @@ $arResult["OUTPUT_LIST"] = $APPLICATION->IncludeComponent(
 	),
 	$this->__component
 );
-?><?=$arResult["OUTPUT_LIST"]["HTML"]?><?
+?><?=$arResult["OUTPUT_LIST"]["HTML"]?><?php
 if ($arResult["SHOW_POST_FORM"] == "Y")
 {
 	include(__DIR__."/form.php");

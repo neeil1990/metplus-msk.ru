@@ -10,7 +10,7 @@ return array(
 	'block' => array(
 		'name' => Loc::getMessage('LANDING_BLOCK_9_THREE_COLS_TEXTS_BLOCKS_SLIDER_NAME'),
 		'section' => array('feedback'),
-		'type' => ['page', 'store'],
+		'type' => ['page', 'store', 'smn'],
 	),
 	'cards' => array(
 		'.landing-block-card-slider-element' => array(
@@ -64,6 +64,12 @@ return array(
 				'name' => Loc::getMessage('LANDING_BLOCK_9_THREE_COLS_TEXTS_BLOCKS_SLIDER_CARDS_LANDINGBLOCKCARDSLIDERELEMENT'),
 				'type' => 'align-self',
 			),
+			'.landing-block-slider' => [
+				'additional' => [
+					'name' => Loc::getMessage('LANDING_BLOCK_9_THREE_COLS_TEXTS_BLOCKS_SLIDER_STYLE_SLIDER'),
+					'attrsType' => ['autoplay', 'autoplay-speed', 'animation', 'pause-hover', 'slides-show', 'dots'],
+				]
+			],
 		),
 	),
 	'assets' => array(

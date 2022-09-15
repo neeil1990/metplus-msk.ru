@@ -73,10 +73,13 @@ foreach ($requiredModules as $requiredModule)
 	}
 }
 
-if (!isset($arParams['REPORT_HELPER_CLASS'])
-	|| strlen($arParams['REPORT_HELPER_CLASS']) < 1
-	|| !class_exists($arParams['REPORT_HELPER_CLASS'])
-	|| !is_subclass_of($arParams['REPORT_HELPER_CLASS'], 'CReportHelper'))
+$helperClassName = $arResult['HELPER_CLASS'] = ($arParams['REPORT_HELPER_CLASS'] ?? '');
+if (
+	!is_string($helperClassName)
+	|| mb_strlen($helperClassName) < 1
+	|| !class_exists($helperClassName)
+	|| !is_subclass_of($helperClassName, 'CReportHelper')
+)
 {
 	$errorMessage = GetMessage("REPORT_HELPER_NOT_DEFINED");
 	if ($isStExport)
@@ -88,6 +91,17 @@ if (!isset($arParams['REPORT_HELPER_CLASS'])
 		ShowError($errorMessage);
 		return 0;
 	}
+}
+
+$arResult['IS_RESTRICTED'] = false;
+if (
+	\Bitrix\Main\Loader::includeModule('bitrix24')
+	&& !\Bitrix\Bitrix24\Feature::isFeatureEnabled('report')
+)
+{
+	$arResult['IS_RESTRICTED'] = true;
+	$this->IncludeComponentTemplate('restrict');
+	return 1;
 }
 
 // Suppress the timezone, while report works in server time
@@ -139,7 +153,7 @@ if (!$isStExport)
 	$strReportViewParams = CReport::getViewParams($arParams['REPORT_ID'], $this->GetTemplateName());
 	if (isset($uriParams['set_filter']))
 	{
-		if (substr($_SERVER['QUERY_STRING'], 0, 6) !== 'EXCEL=' || array_key_exists("publicSidePanel", $_REQUEST))
+		if (mb_substr($_SERVER['QUERY_STRING'], 0, 6) !== 'EXCEL=' || array_key_exists("publicSidePanel", $_REQUEST))
 		{
 			if ($_SERVER['QUERY_STRING'] !== $strReportViewParams)
 			{
@@ -153,10 +167,10 @@ if (!$isStExport)
 		{
 			if (!is_set($uriParams['sort_id']) && !array_key_exists("publicSidePanel", $_REQUEST))
 			{
-				$len = strpos($arParams['PATH_TO_REPORT_VIEW'], '?');
+				$len = mb_strpos($arParams['PATH_TO_REPORT_VIEW'], '?');
 
 				if ($len === false) $redirectUrl = $arParams['PATH_TO_REPORT_VIEW'];
-				else $redirectUrl = substr($arParams['PATH_TO_REPORT_VIEW'], 0, $len);
+				else $redirectUrl = mb_substr($arParams['PATH_TO_REPORT_VIEW'], 0, $len);
 				$redirectUrl = CComponentEngine::makePathFromTemplate(
 					$redirectUrl,
 					array('report_id' => $arParams['REPORT_ID'])
@@ -211,7 +225,24 @@ try
 	$arResult['SHOW_EDIT_BUTTON'] = is_bool($arParams['SHOW_EDIT_BUTTON']) ? $arParams['SHOW_EDIT_BUTTON'] : true;
 
 	// action
-	$settings = unserialize($report['SETTINGS']);
+	$settings = unserialize($report['SETTINGS'], ['allowed_classes' => false]);
+
+	if (!is_array($settings))
+	{
+		$settings = [];
+	}
+	if (!is_array($settings['select']))
+	{
+		$settings['select'] = [];
+	}
+	if (!is_array($settings['filter']))
+	{
+		$settings['filter'] = [];
+	}
+	if (!is_array($settings['period']))
+	{
+		$settings['period'] = ['type' => 'days', 'value' => 1, 'hidden' => 'N'];
+	}
 
 	// prevent percent from percent
 	$prcntSelect = [];
@@ -671,7 +702,7 @@ try
 			'humanTitle' => empty($elem['alias']) ? $alias : $elem['alias'],
 			'defaultSort' => $defaultSort,
 			'aggr' => empty($elem['aggr']) ? '' : $elem['aggr'],
-			'prcnt' => strlen($elem['prcnt']) ? $elem['prcnt'] : '',
+			'prcnt' => $elem['prcnt'] <> ''? $elem['prcnt'] : '',
 			'href' => empty($elem['href']) ? '' : $elem['href'],
 			'grouping' => ($elem['grouping'] === true) ? true : false,
 			'grouping_subtotal' => ($elem['grouping_subtotal'] === true) ? true : false,
@@ -686,8 +717,8 @@ try
 		//if (!in_array($elem['name'], $grcFields, true) && !empty($elem['aggr']))
 		if ($elem['aggr'] != 'GROUP_CONCAT' && !empty($elem['aggr']))
 		{
-			$preDef = substr($elem['name'], 0, strrpos($elem['name'], '.'));
-			$preDef = strlen($preDef) ? $preDef.'.' : '';
+			$preDef = mb_substr($elem['name'], 0, mb_strrpos($elem['name'], '.'));
+			$preDef = $preDef <> ''? $preDef.'.' : '';
 
 			$aggr_bl[$preDef] = true;
 		}
@@ -701,8 +732,8 @@ try
 		{
 			$primary = $viewColumns[$num]['field']->getEntity()->getPrimaryArray();
 
-			$preDef = substr($elem['name'], 0, strrpos($elem['name'], '.'));
-			$preDef = strlen($preDef) ? $preDef.'.' : '';
+			$preDef = mb_substr($elem['name'], 0, mb_strrpos($elem['name'], '.'));
+			$preDef = $preDef <> ''? $preDef.'.' : '';
 
 			if (array_key_exists($preDef, $aggr_bl))
 			{
@@ -997,17 +1028,27 @@ try
 				$dataType = call_user_func(array($arParams['REPORT_HELPER_CLASS'], 'getFieldDataType'), $field);
 
 				// rewrite date <=> {today, yesterday, tomorrow, etc}
-				if ($dataType === 'datetime'
-					&& !CheckDateTime($fElem['value'], CSite::GetDateFormat('SHORT'))
-				)
+				if ($dataType === 'datetime')
 				{
-					$fElem['value'] = ConvertTimeStamp(strtotime($fElem['value']), 'SHORT');
-
-					// ignore datetime filter with incorrect value
-					if (!CheckDateTime($fElem['value'], CSite::GetDateFormat('SHORT')))
+					$dateFormat = CSite::GetDateFormat('SHORT');
+					if (CheckDateTime($fElem['value'], $dateFormat))
 					{
-						unset($fInfo[$k]);
-						continue;
+						$dateArray = ParseDateTime($fElem['value'], $dateFormat);
+						$fElem['value'] = ConvertTimeStamp(
+							mktime(0, 0, 0, $dateArray["MM"], $dateArray["DD"], $dateArray["YYYY"]),
+							'SHORT'
+						);
+					}
+					else
+					{
+						$fElem['value'] = ConvertTimeStamp(strtotime($fElem['value']), 'SHORT');
+
+						// ignore datetime filter with incorrect value
+						if (!CheckDateTime($fElem['value'], CSite::GetDateFormat('SHORT')))
+						{
+							unset($fInfo[$k]);
+							continue;
+						}
 					}
 				}
 
@@ -1766,7 +1807,7 @@ try
 			$grc_field = $grcChain->getLastElement()->getValue();
 			if (is_array($grc_field)) $grc_field = end($grc_field);
 			$grc_primary = end($grc_field->getEntity()->getPrimaryArray());
-			$grc_marker = substr($elem['name'], 0, strrpos($elem['name'], '.')) . '.' . $grc_primary;
+			$grc_marker = mb_substr($elem['name'], 0, mb_strrpos($elem['name'], '.')).'.' . $grc_primary;
 			$grc_marker_alias = Entity\QueryChain::getAliasByDefinition($entity, $grc_marker);
 
 			$grcSelect[$grc_marker_alias] = $grc_marker;
@@ -1821,7 +1862,7 @@ try
 						$data[$dataIndex][$alias] = array();
 					}
 
-					if (!empty($elem['href']) && strlen($row[$alias]))
+					if (!empty($elem['href']) && mb_strlen($row[$alias]))
 					{
 						$url = CReport::generateValueUrl($elem, $row, $entity);
 						$row['__HREF_'.$alias] = $url;

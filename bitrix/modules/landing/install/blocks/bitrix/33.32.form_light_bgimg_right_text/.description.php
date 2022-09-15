@@ -12,7 +12,6 @@ return array(
 		'section' => array('forms'),
 		'dynamic' => false,
 		'subtype' => 'form',
-		'type' => ['page', 'store'],
 	),
 	'cards' => array(),
 	'nodes' => array(
@@ -35,8 +34,10 @@ return array(
 		'.landing-block-node-bgimg' => array(
 			'name' => Loc::getMessage('LANDING_BLOCK_33.32.FORM_LIGHT_BGIMG_RIGHT_TEXT_NODES_LANDINGBLOCKNODE_BGIMG'),
 			'type' => 'img',
-			'dimensions' => array('width' => 1920, 'height' => 1080),
+			'editInStyle' => true,
 			'allowInlineEdit' => false,
+			'dimensions' => array('width' => 1920, 'height' => 1080),
+			'create2xByDefault' => false,
 		),
 	),
 	'style' => array(
@@ -46,7 +47,7 @@ return array(
 		'nodes' => array(
 			'.landing-block-node-title' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_33.32.FORM_LIGHT_BGIMG_RIGHT_TEXT_NODES_LANDINGBLOCKNODETITLE'),
-				'type' => array('typo', 'animation'),
+				'type' => ['typo', 'animation', 'heading'],
 			),
 			'.landing-block-node-subtitle' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_33.32.FORM_LIGHT_BGIMG_RIGHT_TEXT_NODES_LANDINGBLOCKNODESUBTITLE'),
@@ -62,11 +63,11 @@ return array(
 			),
 			'.landing-block-node-bgimg' => array(
 				'name' => Loc::getMessage('LANDING_BLOCK_33.32.FORM_LIGHT_BGIMG_RIGHT_TEXT_NODES_LANDINGBLOCKNODE_BGIMG'),
-				'type' => array('background-overlay', 'background-attachment'),
+				'type' => ['background', 'background-attachment'],
 			),
-			'.landing-block-node-form' => array(
-				'name' => Loc::getMessage('LANDING_BLOCK_33.32.FORM_LIGHT_BGIMG_RIGHT_TEXT_NODES_LANDINGBLOCKNODE_FORM'),
-				'type' => 'animation',
+			'.landing-block-node-row' => array(
+				'name' => Loc::getMessage('LANDING_BLOCK_33_32_FORM_LIGHT_BGIMG_RIGHT_TEXT_NODES_BLOCK'),
+				'type' => array('align-items'),
 			),
 		),
 	),

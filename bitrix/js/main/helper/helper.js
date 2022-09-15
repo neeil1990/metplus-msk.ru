@@ -84,11 +84,11 @@ BX.Helper =
 
 			if(event.data.action === "getMenuStructure")
 			{
-				if (BX.getClass("BX.Bitrix24.LeftMenuClass"))
+				if (BX.getClass("BX.Intranet.LeftMenu"))
 				{
-					if (typeof BX.Bitrix24.LeftMenuClass.getStructureForHelper === "function")
+					if (typeof BX.Intranet.LeftMenu.getStructureForHelper === "function")
 					{
-						var structure = BX.Bitrix24.LeftMenuClass.getStructureForHelper();
+						var structure = BX.Intranet.LeftMenu.getStructureForHelper();
 						this.frameNode.contentWindow.postMessage({action: 'throwMenu', menu: structure}, '*');
 					}
 				}
@@ -119,11 +119,16 @@ BX.Helper =
 		}
 	},
 
-	show: function(additionalParam)
+	show: function(additionalParam, sliderOptions)
 	{
 		if (this.isOpen())
 		{
 			return;
+		}
+
+		if (!BX.Type.isPlainObject(sliderOptions))
+		{
+			sliderOptions = {};
 		}
 
 		var url = this.frameOpenUrl + ((this.frameOpenUrl.indexOf("?") < 0) ? "?" : "&") +
@@ -142,6 +147,7 @@ BX.Helper =
 			}.bind(this),
 			width: 860,
 			cacheable: false,
+			zIndex: sliderOptions.zIndex || null,
 			events: {
 				onCloseComplete: function() {
 					BX.Helper.close();

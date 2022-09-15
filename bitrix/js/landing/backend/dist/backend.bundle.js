@@ -2,9 +2,12 @@ this.BX = this.BX || {};
 (function (exports,main_core,landing_env) {
 	'use strict';
 
-	var Backend =
-	/*#__PURE__*/
-	function () {
+	var additionalRequestCompleted = true;
+	/**
+	 * @memberOf BX.Landing
+	 */
+
+	var Backend = /*#__PURE__*/function () {
 	  function Backend() {
 	    babelHelpers.classCallCheck(this, Backend);
 	    babelHelpers.defineProperty(this, "cache", new main_core.Cache.MemoryCache());
@@ -67,7 +70,11 @@ this.BX = this.BX || {};
 	      var data = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 	      var queryParams = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
 	      var uploadParams = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
-	      queryParams.site_id = this.getSiteId();
+
+	      if (!queryParams.site_id) {
+	        queryParams.site_id = this.getSiteId();
+	      }
+
 	      var requestBody = {
 	        sessid: main_core.Loc.getMessage('bitrix_sessid'),
 	        action: uploadParams.action || _action.replace('Landing\\Block', 'Block'),
@@ -89,18 +96,27 @@ this.BX = this.BX || {};
 	          BX.Landing.UI.Panel.StatusPanel.getInstance().update();
 	        }
 
+	        BX.onCustomEvent(BX.Landing.PageObject.getRootWindow(), 'BX.Landing.Backend:action', [_action, data]);
+	        /*if (!response.result) {
+	        	BX.Landing.ErrorManager.getInstance().add({
+	        		type: 'error'
+	        	});
+	        }*/
+
 	        return response.result;
 	      }).catch(function (err) {
-	        if (requestBody.action !== 'Block::getById') {
-	          var error = main_core.Type.isString(err) ? {
-	            type: 'error'
-	          } : err;
-	          err.action = requestBody.action; // eslint-disable-next-line
+	        if (requestBody.action !== 'Landing::downBlock' && requestBody.action !== 'Landing::upBlock') {
+	          if (requestBody.action !== 'Block::getById' && requestBody.action !== 'Block::publication' && requestBody.action !== 'Landing::move' && requestBody.action !== 'Landing::copy' && requestBody.action !== 'Landing::publication' && requestBody.action !== 'Site::publication' && requestBody.action !== 'Site::moveFolder' && requestBody.action !== 'Site::markDelete') {
+	            var error = main_core.Type.isString(err) ? {
+	              type: 'error'
+	            } : err;
+	            err.action = requestBody.action; // eslint-disable-next-line
 
-	          BX.Landing.ErrorManager.getInstance().add(error);
+	            BX.Landing.ErrorManager.getInstance().add(error);
+	          }
+
+	          return Promise.reject(err);
 	        }
-
-	        return Promise.reject(err);
 	      });
 	    }
 	  }, {
@@ -127,18 +143,27 @@ this.BX = this.BX || {};
 	      }).then(function (response) {
 	        // eslint-disable-next-line
 	        BX.Landing.UI.Panel.StatusPanel.getInstance().update();
+	        BX.onCustomEvent(BX.Landing.PageObject.getRootWindow(), 'BX.Landing.Backend:batch', [action, data]);
+	        /*if (!response.result) {
+	        	BX.Landing.ErrorManager.getInstance().add({
+	        		type: 'error'
+	        	});
+	        }*/
+
 	        return response;
 	      }).catch(function (err) {
-	        if (requestBody.action !== 'Block::getById') {
-	          var error = main_core.Type.isString(err) ? {
-	            type: 'error'
-	          } : err;
-	          error.action = requestBody.action; // eslint-disable-next-line
+	        if (requestBody.action !== 'Landing::downBlock' && requestBody.action !== 'Landing::upBlock') {
+	          if (requestBody.action !== 'Block::getById') {
+	            var error = main_core.Type.isString(err) ? {
+	              type: 'error'
+	            } : err;
+	            error.action = requestBody.action; // eslint-disable-next-line
 
-	          BX.Landing.ErrorManager.getInstance().add(error);
+	            BX.Landing.ErrorManager.getInstance().add(error);
+	          }
+
+	          return Promise.reject(err);
 	        }
-
-	        return Promise.reject(err);
 	      });
 	    }
 	  }, {
@@ -162,6 +187,10 @@ this.BX = this.BX || {};
 	      if ('id' in uploadParams) {
 	        formData.set('action', 'Site::uploadFile');
 	        formData.append('data[id]', uploadParams.id);
+	      }
+
+	      if ('temp' in uploadParams) {
+	        formData.append('data[temp]', true);
 	      }
 
 	      var uri = new main_core.Uri(this.getControllerUrl());
@@ -201,12 +230,10 @@ this.BX = this.BX || {};
 	      return this.cache.remember("sites+".concat(JSON.stringify(filter)), function () {
 	        return _this2.action('Site::getList', {
 	          params: {
+	            filter: filter,
 	            order: {
 	              ID: 'DESC'
-	            },
-	            filter: babelHelpers.objectSpread({
-	              TYPE: _this2.getSitesType()
-	            }, filter)
+	            }
 	          }
 	        }).then(function (response) {
 	          return response;
@@ -222,16 +249,33 @@ this.BX = this.BX || {};
 	          _ref2$siteId = _ref2.siteId,
 	          siteId = _ref2$siteId === void 0 ? [] : _ref2$siteId;
 
+	      var filter = arguments.length > 1 ? arguments[1] : undefined;
+	      var skipFilter = false;
+
+	      if (!BX.Type.isPlainObject(filter)) {
+	        filter = {};
+	        skipFilter = true;
+	      }
+
 	      var ids = main_core.Type.isArray(siteId) ? siteId : [siteId];
+	      filter.SITE_ID = ids;
 
 	      var getBathItem = function getBathItem(id) {
 	        return {
 	          action: 'Landing::getList',
 	          data: {
 	            params: {
-	              filter: {
-	                SITE_ID: id
-	              },
+	              filter: function () {
+	                if (skipFilter) {
+	                  return {
+	                    SITE_ID: id,
+	                    DELETED: 'N',
+	                    FOLDER: 'N'
+	                  };
+	                }
+
+	                return filter;
+	              }(),
 	              order: {
 	                ID: 'DESC'
 	              },
@@ -363,10 +407,11 @@ this.BX = this.BX || {};
 	    value: function getDynamicTemplates() {
 	      var _this8 = this;
 
-	      return this.cache.remember('dynamicTemplates', function () {
+	      var sourceId = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : '';
+	      return this.cache.remember("dynamicTemplates:".concat(sourceId), function () {
 	        return _this8.getTemplates({
 	          filter: {
-	            section: 'dynamic'
+	            section: "dynamic".concat(sourceId ? ":".concat(sourceId) : '')
 	          }
 	        });
 	      });
@@ -375,27 +420,49 @@ this.BX = this.BX || {};
 	    key: "createPage",
 	    value: function createPage() {
 	      var options = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+	      var envOptions = landing_env.Env.getInstance().getOptions();
 	      var title = options.title,
 	          _options$siteId = options.siteId,
-	          siteId = _options$siteId === void 0 ? landing_env.Env.getInstance().getOptions().site_id : _options$siteId,
+	          siteId = _options$siteId === void 0 ? envOptions.site_id : _options$siteId,
+	          _options$siteType = options.siteType,
+	          siteType = _options$siteType === void 0 ? envOptions.params.type : _options$siteType,
 	          _options$code = options.code,
 	          code = _options$code === void 0 ? main_core.Text.getRandom(16) : _options$code,
 	          blockId = options.blockId,
-	          menuCode = options.menuCode;
-	      var fields = {
-	        TITLE: title,
-	        SITE_ID: siteId,
-	        CODE: code
+	          menuCode = options.menuCode,
+	          folderId = options.folderId;
+
+	      var templateCode = function () {
+	        var theme = envOptions.theme;
+
+	        if (main_core.Type.isPlainObject(theme) && main_core.Type.isArray(theme.newPageTemplate) && main_core.Type.isStringFilled(theme.newPageTemplate[0])) {
+	          return theme.newPageTemplate[0];
+	        }
+
+	        return 'empty';
+	      }();
+
+	      var requestBody = {
+	        siteId: siteId,
+	        code: templateCode,
+	        fields: {
+	          TITLE: title,
+	          CODE: code,
+	          //@todo: refactor
+	          ADD_IN_MENU: siteType === 'KNOWLEDGE' || siteType === 'GROUP' ? 'Y' : 'N'
+	        }
 	      };
 
 	      if (main_core.Type.isNumber(blockId) && main_core.Type.isString(menuCode)) {
-	        fields.BLOCK_ID = blockId;
-	        fields.MENU_CODE = menuCode;
+	        requestBody.fields.BLOCK_ID = blockId;
+	        requestBody.fields.MENU_CODE = menuCode;
 	      }
 
-	      return this.action('Landing::add', {
-	        fields: fields
-	      });
+	      if (main_core.Type.isNumber(folderId)) {
+	        requestBody.fields.FOLDER_ID = folderId;
+	      }
+
+	      return this.action('Landing::addByTemplate', requestBody);
 	    }
 	  }], [{
 	    key: "getInstance",
@@ -405,6 +472,45 @@ this.BX = this.BX || {};
 	      }
 
 	      return Backend.instance;
+	    }
+	  }, {
+	    key: "makeResponse",
+	    value: function makeResponse(xhr) {
+	      var sourceResponse = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+
+	      var type = function () {
+	        if (main_core.Type.isStringFilled(sourceResponse.type)) {
+	          return sourceResponse.type;
+	        }
+
+	        if (main_core.Type.isPlainObject(sourceResponse) && Object.values(sourceResponse).length > 0) {
+	          var allSuccess = Object.values(sourceResponse).every(function (item) {
+	            return item.type === 'success';
+	          });
+
+	          if (allSuccess) {
+	            return 'success';
+	          }
+	        }
+
+	        if (main_core.Type.isArray(sourceResponse)) {
+	          return 'other';
+	        }
+
+	        return 'error';
+	      }();
+
+	      if (type === 'other') {
+	        return sourceResponse;
+	      }
+
+	      return babelHelpers.objectSpread({
+	        result: null,
+	        type: type
+	      }, sourceResponse, {
+	        status: xhr.status,
+	        authorized: xhr.getResponseHeader('X-Bitrix-Ajax-Status') !== 'Authorize'
+	      });
 	    }
 	  }, {
 	    key: "request",
@@ -420,15 +526,47 @@ this.BX = this.BX || {};
 	          data: fd,
 	          start: false,
 	          preparePost: false,
-	          onsuccess: function onsuccess(response) {
-	            if (main_core.Type.isPlainObject(response) && response.type === 'error') {
+	          onsuccess: function onsuccess(sourceResponse) {
+	            var response = Backend.makeResponse(xhr, sourceResponse);
+
+	            if (main_core.Type.isStringFilled(response.sessid) && main_core.Loc.getMessage('bitrix_sessid') !== response.sessid && additionalRequestCompleted) {
+	              main_core.Loc.setMessage('bitrix_sessid', response.sessid);
+	              additionalRequestCompleted = false;
+	              var newData = babelHelpers.objectSpread({}, data, {
+	                sessid: main_core.Loc.getMessage('bitrix_sessid')
+	              });
+	              Backend.request({
+	                url: url,
+	                data: newData
+	              }).then(function (newResponse) {
+	                additionalRequestCompleted = true;
+	                resolve(newResponse);
+	              }).catch(function (newResponse) {
+	                additionalRequestCompleted = true;
+	                reject(newResponse);
+	              });
+	              return;
+	            }
+
+	            if (!main_core.Type.isPlainObject(response)) {
+	              resolve(response);
+	              return;
+	            }
+
+	            if (response.type === 'error' || response.authorized === false) {
 	              reject(response);
 	              return;
 	            }
 
 	            resolve(response);
 	          },
-	          onfailure: reject
+	          onfailure: function onfailure(sourceResponse) {
+	            if (sourceResponse === 'auth') {
+	              reject(Backend.makeResponse(xhr));
+	            } else {
+	              reject(Backend.makeResponse(xhr, sourceResponse));
+	            }
+	          }
 	        });
 	        xhr.send(fd);
 	      });
@@ -436,6 +574,7 @@ this.BX = this.BX || {};
 	  }]);
 	  return Backend;
 	}();
+	babelHelpers.defineProperty(Backend, "instance", null);
 
 	exports.Backend = Backend;
 

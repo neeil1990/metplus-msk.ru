@@ -15,6 +15,8 @@
 	<?
 	}
 
+	\Bitrix\Main\UI\Extension::load(['ui.design-tokens', 'ui.fonts.opensans']);
+
 	$GLOBALS['APPLICATION']->SetAdditionalCSS('/bitrix/js/report/css/report.css');
 	$GLOBALS['APPLICATION']->AddHeadScript('/bitrix/js/report/construct.js');
 
@@ -374,17 +376,17 @@ AAAAElFTkSuQmCC") no-repeat scroll 0 0 transparent;
 						BX('reports-add_col-popup-cont'),
 						{tag:'input', attr:{type:'checkbox', name:'<?=CUtil::JSEscape($selElem['name'])?>'}}, true
 					),
-					'<?=strlen($selElem['aggr']) ? CUtil::JSEscape($selElem['aggr']) : ''?>',
-					'<?=strlen($selElem['alias']) ? CUtil::JSEscape($selElem['alias']) : ''?>',
+					'<?=$selElem['aggr'] <> ''? CUtil::JSEscape($selElem['aggr']) : ''?>',
+					'<?=$selElem['alias'] <> ''? CUtil::JSEscape($selElem['alias']) : ''?>',
 					<?=$num?>,
 					<?=($selElem['grouping']) ? 'true' : 'false'?>,
 					<?=($selElem['grouping_subtotal']) ? 'true' : 'false'?>);
 				<? endforeach; ?>
 
 		<? foreach ($arResult['preSettings']['select'] as $num => $selElem): ?>
-				<? if (strlen($selElem['prcnt'])): ?>
-					setPrcntView(<?=$num?>, '<?=CUtil::JSEscape($selElem['prcnt'])?>');
-					<? endif; ?>
+				<? if ($selElem['prcnt'] <> ''): ?>
+			setPrcntView(<?=$num?>, '<?=CUtil::JSEscape($selElem['prcnt'])?>');
+			<? endif; ?>
 				<? endforeach; ?>
 
 		<? if (array_key_exists("sort", $arResult["preSettings"])): ?>
@@ -497,9 +499,7 @@ AAAAElFTkSuQmCC") no-repeat scroll 0 0 transparent;
 <div class="reports-preview-table-report" id="reports-preview-table-report">
 	<span class="reports-prev-table-title"><?=GetMessage('REPORT_SCHEME_PREVIEW')?></span>
 
-	<div class="reports-list">
-		<div class="reports-list-left-corner"></div>
-		<div class="reports-list-right-corner"></div>
+	<div class="reports-list-preview">
 		<table cellspacing="0" class="report-list-table">
 			<tr>
 				<th></th>

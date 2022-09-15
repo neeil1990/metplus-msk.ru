@@ -1,0 +1,15 @@
+<?php
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_ADD_PRODUCT"] = "Zeile hinzufügen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_ADD_PRODUCT_TITLE"] = "Suchen oder ein neues Produkt erstellen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_BARCODE_SETTING_PRODUCT"] = "Einstellungen beim Einscannen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_BARCODE_SETTING_PRODUCT_TITLE"] = "Einstellungen beim Einscannen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_COPY_ACTION"] = "Kopieren";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_CREATE_PRODUCT"] = "Produkt erstellen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_CREATE_PRODUCT_TITLE"] = "Einen neuen Produktkatalog erstellen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_DELETE_ACTION"] = "Löschen";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_INVALID_AMOUNT"] = "Geben Sie die Menge der im Lager eingetroffenen Waren an, damit der Wareneingang funktioniert";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_IS_EMPTY"] = "Geben Sie mindestens ein Produkt ein";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_NEGATIVE_PRICE_NOTICE"] = "Preis kann nicht negativ sein.";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_SETTING_DISABLED"] = "Parameter \"#NAME#\" deaktiviert.";
+$MESS["CATALOG_DOCUMENT_PRODUCT_LIST_SETTING_ENABLED"] = "Parameter \"#NAME#\" aktiviert";
+$MESS["CATALOG_PRODUCT_SUM_TOTAL"] = "Betrag gesamt";

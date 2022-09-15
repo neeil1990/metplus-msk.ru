@@ -119,7 +119,7 @@ abstract class OrderBase extends Internals\Entity
 			"STAT_GID", "RECURRING_ID", "LOCKED_BY", "IS_RECURRING",
 			"DATE_LOCK", "RECOUNT_FLAG", "AFFILIATE_ID", "DELIVERY_DOC_NUM", "DELIVERY_DOC_DATE", "UPDATED_1C",
 			"STORE_ID", "ORDER_TOPIC", "RESPONSIBLE_ID", "DATE_BILL", "DATE_PAY_BEFORE", "ACCOUNT_NUMBER",
-			"XML_ID", "ID_1C", "VERSION_1C", "VERSION", "EXTERNAL_ORDER", "COMPANY_ID",
+			"XML_ID", "ID_1C", "VERSION_1C", "VERSION", "EXTERNAL_ORDER", "COMPANY_ID", "IS_SYNC_B24"
 		);
 
 		return array_merge($result, static::getCalculatedFields());
@@ -252,7 +252,7 @@ abstract class OrderBase extends Internals\Entity
 	 */
 	public static function load($id)
 	{
-		if (intval($id) <= 0)
+		if ((int)$id <= 0)
 		{
 			throw new Main\ArgumentNullException("id");
 		}
@@ -438,7 +438,7 @@ abstract class OrderBase extends Internals\Entity
 	 */
 	protected function loadBasket()
 	{
-		if ((int)$this->getId() > 0)
+		if ($this->getId() > 0)
 		{
 			$registry = Registry::getInstance(static::getRegistryType());
 			/** @var BasketBase $basketClassName */
@@ -637,13 +637,13 @@ abstract class OrderBase extends Internals\Entity
 	 * @internal
 	 *
 	 * @param string $action Action.
-	 * @param PropertyValueBase $property Property.
+	 * @param EntityPropertyValue $property Property.
 	 * @param null|string $name Field name.
 	 * @param null|string|int|float $oldValue Old value.
 	 * @param null|string|int|float $value New value.
 	 * @return Result
 	 */
-	public function onPropertyValueCollectionModify($action, PropertyValueBase $property, $name = null, $oldValue = null, $value = null)
+	public function onPropertyValueCollectionModify($action, EntityPropertyValue $property, $name = null, $oldValue = null, $value = null)
 	{
 		return new Result();
 	}
@@ -714,16 +714,6 @@ abstract class OrderBase extends Internals\Entity
 	}
 
 	/**
-	 * Return order id
-	 *
-	 * @return int
-	 */
-	public function getId()
-	{
-		return (int)$this->getField('ID');
-	}
-
-	/**
 	 * Return person type id of order
 	 *
 	 * @return int
@@ -753,6 +743,19 @@ abstract class OrderBase extends Internals\Entity
 	public function getPrice()
 	{
 		return floatval($this->getField('PRICE'));
+	}
+
+	/**
+	 * Returns order price without discounts.
+	 *
+	 * @return float
+	 */
+	public function getBasePrice(): float
+	{
+		$basket = $this->getBasket();
+		$taxPrice = !$this->isUsedVat() ? $this->getField('TAX_PRICE') : 0;
+
+		return $basket->getBasePrice() + $taxPrice;
 	}
 
 	/**
@@ -815,6 +818,38 @@ abstract class OrderBase extends Internals\Entity
 	public function getCurrency()
 	{
 		return $this->getField('CURRENCY');
+	}
+
+	/**
+	 * Change order currency.
+	 *
+	 * @param string $currency
+	 *
+	 * @return Main\Result
+	 */
+	public function changeCurrency(string $currency): Main\Result
+	{
+		$result = new Main\Result();
+
+		if ($this->getCurrency() === $currency)
+		{
+			return $result;
+		}
+
+		$this->setFieldNoDemand('CURRENCY', $currency);
+
+		foreach ($this->getBasket() as $basketItem)
+		{
+			/**
+			 * @var BasketItem $basketItem
+			 */
+
+			$result->addErrors(
+				$basketItem->changeCurrency($currency)->getErrors()
+			);
+		}
+
+		return $result;
 	}
 
 	/**
@@ -1196,14 +1231,13 @@ abstract class OrderBase extends Internals\Entity
 	 * @return Result
 	 * @throws Main\ArgumentOutOfRangeException
 	 * @throws Main\NotImplementedException
-	 * @throws Main\ObjectException
 	 */
 	protected function completeSaving($needUpdateDateInsert)
 	{
 		$result = new Result();
 
 		$currentDateTime = new Type\DateTime();
-		$updateFields = array('RUNNING' => 'N');
+		$updateFields = ['RUNNING' => 'N'];
 
 		$changedFields = $this->fields->getChangedValues();
 		if ($this->isNew
@@ -1237,7 +1271,6 @@ abstract class OrderBase extends Internals\Entity
 	 * @throws Main\ArgumentNullException
 	 * @throws Main\ArgumentOutOfRangeException
 	 * @throws Main\NotImplementedException
-	 * @throws Main\ObjectException
 	 * @throws Main\SystemException
 	 */
 	protected function add()
@@ -1266,9 +1299,9 @@ abstract class OrderBase extends Internals\Entity
 			$this->setFieldNoDemand('CREATED_BY', $fields['CREATED_BY']);
 		}
 
-		if (array_key_exists('REASON_MARKED', $fields) && strlen($fields['REASON_MARKED']) > 255)
+		if (array_key_exists('REASON_MARKED', $fields) && mb_strlen($fields['REASON_MARKED']) > 255)
 		{
-			$fields['REASON_MARKED'] = substr($fields['REASON_MARKED'], 0, 255);
+			$fields['REASON_MARKED'] = mb_substr($fields['REASON_MARKED'], 0, 255);
 		}
 
 		$fields['RUNNING'] = 'Y';
@@ -1314,9 +1347,9 @@ abstract class OrderBase extends Internals\Entity
 			$fields['VERSION'] = intval($this->getField('VERSION')) + 1;
 			$this->setFieldNoDemand('VERSION', $fields['VERSION']);
 
-			if (array_key_exists('REASON_MARKED', $fields) && strlen($fields['REASON_MARKED']) > 255)
+			if (array_key_exists('REASON_MARKED', $fields) && mb_strlen($fields['REASON_MARKED']) > 255)
 			{
-				$fields['REASON_MARKED'] = substr($fields['REASON_MARKED'], 0, 255);
+				$fields['REASON_MARKED'] = mb_substr($fields['REASON_MARKED'], 0, 255);
 			}
 
 			$r = static::updateInternal($this->getId(), $fields);
@@ -1434,37 +1467,23 @@ abstract class OrderBase extends Internals\Entity
 	{
 		$result = new Result();
 
-		/** @var BasketBase $basket */
-		$basket = $this->getBasket();
-
-		/** @var Result $r */
-		$r = $basket->save();
+		$r = $this->getBasket()->save();
 		if (!$r->isSuccess())
 		{
 			$result->addWarnings($r->getErrors());
 		}
 
-		/** @var Tax $tax */
-		$tax = $this->getTax();
-
-		/** @var Result $r */
-		$r = $tax->save();
+		$r = $this->getTax()->save();
 		if (!$r->isSuccess())
 		{
 			$result->addWarnings($r->getErrors());
 		}
 
-		/** @var PropertyValueCollectionBase $propertyCollection */
-		$propertyCollection = $this->getPropertyCollection();
-
-		/** @var Result $r */
-		$r = $propertyCollection->save();
+		$r = $this->getPropertyCollection()->save();
 		if (!$r->isSuccess())
 		{
 			$result->addWarnings($r->getErrors());
 		}
-
-
 
 		return $result;
 	}
@@ -1637,7 +1656,7 @@ abstract class OrderBase extends Internals\Entity
 			{
 				$this->setField('DATE_MARKED', new Type\DateTime());
 
-				if ($USER->isAuthorized())
+				if (is_object($USER) && $USER->isAuthorized())
 				{
 					$this->setField('EMP_MARKED_ID', $USER->getID());
 				}
@@ -1922,7 +1941,7 @@ abstract class OrderBase extends Internals\Entity
 	 */
 	public function isPaid()
 	{
-		return $this->getField('PAYED') === "Y";
+		return $this->getField('PAYED') === 'Y';
 	}
 
 	/**
@@ -1932,7 +1951,17 @@ abstract class OrderBase extends Internals\Entity
 	 */
 	public function isAllowDelivery()
 	{
-		return $this->getField('ALLOW_DELIVERY') === "Y";
+		return $this->getField('ALLOW_DELIVERY') === 'Y';
+	}
+
+	/**
+	 * Return TRUE, if order is deducted. Else return FALSE
+	 *
+	 * @return bool
+	 */
+	public function isDeducted()
+	{
+		return $this->getField('DEDUCTED') === 'Y';
 	}
 
 	/**
@@ -1942,7 +1971,7 @@ abstract class OrderBase extends Internals\Entity
 	 */
 	public function isCanceled()
 	{
-		return $this->getField('CANCELED') === "Y";
+		return $this->getField('CANCELED') === 'Y';
 	}
 
 	/**
@@ -2026,9 +2055,8 @@ abstract class OrderBase extends Internals\Entity
 	 */
 	public function getTaxLocation()
 	{
-		if (strval(($this->getField('TAX_LOCATION')) == ""))
+		if ((string)$this->getField('TAX_LOCATION') === "")
 		{
-			/** @var PropertyValueCollectionBase $propertyCollection */
 			$propertyCollection = $this->getPropertyCollection();
 
 			if ($property = $propertyCollection->getTaxLocation())
@@ -2652,12 +2680,12 @@ abstract class OrderBase extends Internals\Entity
 	{
 		if (in_array('PRICE', $select))
 		{
-			$this->setFieldNoDemand('PRICE', 0);
+			$this->setField('PRICE', 0);
 		}
 
 		if (in_array('PRICE_DELIVERY', $select))
 		{
-			$this->setFieldNoDemand('PRICE_DELIVERY', 0);
+			$this->setField('PRICE_DELIVERY', 0);
 		}
 	}
 
@@ -2803,7 +2831,7 @@ abstract class OrderBase extends Internals\Entity
 	/**
 	 * @deprecated Use \Bitrix\Sale\OrderBase::getAvailableFields instead
 	 *
-	 * @return array
+	 * @returns array
 	 */
 	public static function getSettableFields()
 	{
@@ -2811,12 +2839,22 @@ abstract class OrderBase extends Internals\Entity
 	}
 
 	/**
-	 * @return null|string
 	 * @internal
 	 *
+	 * @return string
 	 */
 	public static function getEntityEventName()
 	{
 		return 'SaleOrder';
+	}
+
+	public function toArray() : array
+	{
+		$result = parent::toArray();
+
+		$result['BASKET_ITEMS'] = $this->getBasket()->toArray();
+		$result['PROPERTIES'] = $this->getPropertyCollection()->toArray();
+
+		return $result;
 	}
 }

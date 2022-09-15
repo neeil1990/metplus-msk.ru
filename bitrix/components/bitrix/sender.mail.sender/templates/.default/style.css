@@ -4,7 +4,7 @@
 	color: #555;
 	display: inline-block;
 	font-size: 12px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font-family: var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	margin: 0 7px 6px 0;
 	height: 30px;
 	min-width: 108px;
@@ -17,7 +17,7 @@
 	display: inline-block;
 	margin: 7px 7px 5px 18px;
 	border-bottom: 1px solid transparent;
-	font: bold 13px/17px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: var(--ui-font-weight-bold) 13px/17px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #2067b0;
 	vertical-align: top;
 	transition: border-bottom-color .2s linear;
@@ -77,7 +77,7 @@
 	display: inline-block;
 	margin: 1px 0 0 0;
 	border-bottom: 1px solid transparent;
-	font: bold 13px/17px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: var(--ui-font-weight-bold) 13px/17px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #2067b0;
 	vertical-align: top;
 	transition: border-bottom-color .2s linear;
@@ -112,7 +112,7 @@
 	padding: 7px 100px 1px 7px;
 	min-height: 36px !important;
 	border: 1px solid #e4e4e4;
-	border-radius: 1px;
+	border-radius: var(--ui-field-border-radius, 1px);
 	background: #fff;
 	overflow: hidden;
 }
@@ -132,8 +132,8 @@
 	margin: 0 6px 6px 0;
 	padding: 0 30px 0 13px;
 	height: 30px;
-	border-radius: 1px;
-	font: bold 13px/29px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	border-radius: var(--sender-ui-tile-item-border-radius, var(--ui-border-radius-2xs, 1px));
+	font: var(--ui-font-weight-bold) 13px/29px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	overflow: hidden;
 	vertical-align: middle;
 	z-index: 2;
@@ -173,7 +173,7 @@
 	display: block;
 	margin: 0 0 7px 0;
 	/*padding: 0 11px;*/
-	font: 11px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: 11px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #80868E;
 }
 
@@ -211,7 +211,7 @@
 	padding: 0 11px;
 	margin: 0 16px 0 0;
 	height: 34px;
-	font: bold 13px/34px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: var(--ui-font-weight-bold) 13px/34px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #0063C6;
 	transition: background .3s;
 	overflow: hidden;
@@ -239,7 +239,7 @@
 .sender-ui-tile-searcher-sidebar-item {
 	display: block;
 	height: 30px;
-	font: 13px/29px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: 13px/29px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #80868e;
 	padding: 0 5px;
 	position: relative;
@@ -342,16 +342,12 @@
 	margin: 0 9px 0 0;
 	width: 28px;
 	height: 28px;
-	border-radius: 100%;
-	background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20viewBox%3D%220%200%2089%2089%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Ctitle%3Euserpic%3C/title%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Ccircle%20fill%3D%22%23535C69%22%20cx%3D%2244.5%22%20cy%3D%2244.5%22%20r%3D%2244.5%22/%3E%3Cpath%20d%3D%22M68.18%2071.062c0-3.217-3.61-16.826-3.61-16.826%200-1.99-2.6-4.26-7.72-5.585-1.734-.483-3.383-1.233-4.887-2.223-.33-.188-.28-1.925-.28-1.925l-1.648-.25c0-.142-.14-2.225-.14-2.225%201.972-.663%201.77-4.574%201.77-4.574%201.252.695%202.068-2.4%202.068-2.4%201.482-4.3-.738-4.04-.738-4.04.388-2.625.388-5.293%200-7.918-.987-8.708-15.847-6.344-14.085-3.5-4.343-.8-3.352%209.082-3.352%209.082l.942%202.56c-1.85%201.2-.564%202.65-.5%204.32.09%202.466%201.6%201.955%201.6%201.955.093%204.07%202.1%204.6%202.1%204.6.377%202.556.142%202.12.142%202.12l-1.786.217c.024.58-.023%201.162-.14%201.732-2.1.936-2.553%201.485-4.64%202.4-4.032%201.767-8.414%204.065-9.193%207.16-.78%203.093-3.095%2015.32-3.095%2015.32H68.18z%22%20fill%3D%22%23FFF%22/%3E%3C/g%3E%3C/svg%3E');
-	background-repeat: no-repeat;
-	background-size: cover;
 }
 
 .sender-ui-mailbox-name {
 	display: inline-block;
 	border-bottom: 1px dashed rgba(11,102,195,.5);
-	font: 14px/16px "Helvetica Neue", Arial, Helvetica, sans-serif;
+	font: 14px/16px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #0B66C3;
 	transition: border-bottom .3s;
 

@@ -57,7 +57,7 @@ if (!empty($find_id_from))
 	$arFilter['>=ID'] = $find_id_from;
 if (!empty($find_id_to))
 	$arFilter['<=ID'] = $find_id_to;
-if (strlen($find_name) > 0)
+if ($find_name <> '')
 	$arFilter['%NAME'] = $find_name;
 if (!empty($find_active))
 	$arFilter['ACTIVE'] = $find_active;
@@ -534,11 +534,9 @@ if ($arSelectFieldsMap['CREATED_BY'] || $arSelectFieldsMap['MODIFIED_BY'])
 {
 	if (!empty($arUserID))
 	{
-		$byUser = 'ID';
-		$byOrder = 'ASC';
 		$rsUsers = CUser::GetList(
-			$byUser,
-			$byOrder,
+			'ID',
+			'ASC',
 			array('ID' => implode(' | ', array_keys($arUserID))),
 			array('FIELDS' => array('ID', 'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL'))
 		);

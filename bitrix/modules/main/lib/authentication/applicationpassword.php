@@ -12,8 +12,27 @@ use Bitrix\Main\ORM;
 use Bitrix\Main\ORM\Data;
 use Bitrix\Main\ORM\Fields;
 
+/**
+ * Class ApplicationPasswordTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_ApplicationPassword_Query query()
+ * @method static EO_ApplicationPassword_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_ApplicationPassword_Result getById($id)
+ * @method static EO_ApplicationPassword_Result getList(array $parameters = [])
+ * @method static EO_ApplicationPassword_Entity getEntity()
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword_Collection createCollection()
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword wakeUpObject($row)
+ * @method static \Bitrix\Main\Authentication\EO_ApplicationPassword_Collection wakeUpCollection($rows)
+ */
 class ApplicationPasswordTable extends Data\DataManager
 {
+	protected const PASSWORD_ALPHABET = "qwertyuiopasdfghjklzxcvbnm";
+	protected const PASSWORD_LENGTH = 16;
+
 	public static function getTableName()
 	{
 		return "b_app_password";
@@ -66,12 +85,9 @@ class ApplicationPasswordTable extends Data\DataManager
 
 		if(isset($data["USER_ID"]) && isset($data['PASSWORD']))
 		{
-			$salt = md5(\CMain::GetServerUniqID().uniqid());
-			$password = $salt.md5($salt.$data['PASSWORD']);
-
-			$modified = array(
-				'PASSWORD' => $password,
-			);
+			$modified = [
+				'PASSWORD' => Main\Security\Password::hash($data['PASSWORD']),
+			];
 
 			$user = Main\UserTable::getRowById($data["USER_ID"]);
 			if($user !== null)
@@ -103,7 +119,26 @@ class ApplicationPasswordTable extends Data\DataManager
 	 */
 	public static function generatePassword()
 	{
-		return \randString(16, "qwertyuiopasdfghjklzxcvbnm");
+		return Main\Security\Random::getStringByCharsets(static::PASSWORD_LENGTH, static::PASSWORD_ALPHABET);
+	}
+
+	/**
+	 * Checks if the string is similar to a password by its structure.
+	 * @param string $password
+	 * @return bool
+	 */
+	public static function isPassword($password)
+	{
+		if (is_string($password))
+		{
+			$password = str_replace(' ', '', $password);
+
+			if(strlen($password) === static::PASSWORD_LENGTH)
+			{
+				return (!preg_match("/[^".static::PASSWORD_ALPHABET."]/", $password));
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -116,8 +151,10 @@ class ApplicationPasswordTable extends Data\DataManager
 	 */
 	public static function findPassword($userId, $password, $passwordOriginal = true)
 	{
-		$encodedPassword = substr($password, 32);
-		$noSpacePassword = str_replace(' ', '', $password);
+		if($passwordOriginal)
+		{
+			$password = str_replace(' ', '', $password);
+		}
 
 		$appPasswords = static::getList(array(
 			'select' => array('ID', 'PASSWORD', 'APPLICATION_ID'),
@@ -125,19 +162,7 @@ class ApplicationPasswordTable extends Data\DataManager
 		));
 		while(($appPassword = $appPasswords->fetch()))
 		{
-			$dbPassword = substr($appPassword["PASSWORD"], 32);
-
-			if($passwordOriginal)
-			{
-				$appSalt = substr($appPassword["PASSWORD"], 0, 32);
-				$userPassword =  md5($appSalt.$noSpacePassword);
-			}
-			else
-			{
-				$userPassword = $encodedPassword;
-			}
-
-			if($dbPassword === $userPassword)
+			if(Main\Security\Password::equals($appPassword["PASSWORD"], $password, $passwordOriginal))
 			{
 				//bingo, application password
 				return $appPassword;

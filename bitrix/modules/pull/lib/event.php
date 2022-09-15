@@ -8,6 +8,8 @@ class Event
 {
 	const SHARED_CHANNEL = 0;
 
+	private static $backgroundContext = false;
+
 	private static $messages = array();
 	private static $deferredMessages = array();
 	private static $push = array();
@@ -50,7 +52,7 @@ class Event
 	{
 		if (!is_array($recipient))
 		{
-			$recipient = Array($recipient);
+			$recipient = [$recipient];
 		}
 
 		$entities = self::getEntitiesByType($recipient);
@@ -117,7 +119,10 @@ class Event
 		}
 
 
-		if (defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG'))
+		if (
+			self::$backgroundContext
+			|| defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG')
+		)
 		{
 			self::send();
 		}
@@ -233,7 +238,10 @@ class Event
 			self::$push[$pushCode]['users'] = array_unique(array_values($users));
 		}
 
-		if (defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG'))
+		if (
+			self::$backgroundContext
+			|| defined('BX_CHECK_AGENT_START') && !defined('BX_WITH_ON_AFTER_EPILOG')
+		)
 		{
 			self::send();
 		}
@@ -267,7 +275,7 @@ class Event
 
 	private static function executePushEvent($parameters)
 	{
-		if (!defined('BX_PULL_EPILOG_AFTER') && $parameters['hasPushCallback'])
+		if (!self::$backgroundContext && $parameters['hasPushCallback'])
 		{
 			return null;
 		}
@@ -322,6 +330,7 @@ class Event
 			'USER_ID' => $users,
 			'SKIP_USERS' => is_array($data['skip_users'])? $data['skip_users']: Array(),
 			'MESSAGE' => $data['message'],
+			'EXPIRY' => $data['expiry'],
 			'PARAMS' => $data['params'],
 			'ADVANCED_PARAMS' => $data['advanced_params'],
 			'BADGE' => $data['badge'],
@@ -338,7 +347,7 @@ class Event
 
 	public static function send()
 	{
-		if (defined('BX_PULL_EPILOG_AFTER'))
+		if (self::$backgroundContext)
 		{
 			self::processDeferredMessages();
 		}
@@ -371,7 +380,7 @@ class Event
 
 		if(Config::isProtobufUsed())
 		{
-			if(ProtobufTransport::sendMessages(self::$messages))
+			if(ProtobufTransport::sendMessages(self::$messages)->isSuccess())
 			{
 				self::$messages = [];
 			}
@@ -441,19 +450,14 @@ class Event
 
 	public static function onAfterEpilog()
 	{
-		define('BX_PULL_EPILOG_AFTER', true);
-
-		if(defined("BX_FORK_AGENTS_AND_EVENTS_FUNCTION"))
-		{
-			if(\CMain::forkActions(array(__CLASS__, "send")))
-			{
-				return true;
-			}
-		}
-
-		self::send();
-
+		Main\Application::getInstance()->addBackgroundJob([__CLASS__, "sendInBackground"]);
 		return true;
+	}
+
+	public static function sendInBackground()
+	{
+		self::$backgroundContext = true;
+		self::send();
 	}
 
 	public static function getChannelIds($users, $type = \CPullChannel::TYPE_PRIVATE)
@@ -466,11 +470,6 @@ class Event
 		$result = Array();
 		foreach ($users as $userId)
 		{
-			if ($userId === 0 && $type == \CPullChannel::TYPE_PRIVATE)
-			{
-				$channelType = \CPullChannel::TYPE_SHARED;
-			}
-
 			$data = \CPullChannel::Get($userId, true, false, $type);
 			if ($data)
 			{
@@ -481,28 +480,25 @@ class Event
 		return $result;
 	}
 
-	public static function getUserIds($channels)
+	public static function getUserIds(array $channels)
 	{
-		if (!is_array($channels))
-		{
-			$channels = Array($channels);
-		}
-
-		$result = Array();
-		$orm = \Bitrix\Pull\Model\ChannelTable::getList(array(
-			'select' => Array('USER_ID', 'CHANNEL_ID', 'USER_ACTIVE' => 'USER.ACTIVE'),
-			'filter' => Array(
+		$result = array_fill_keys($channels, null);
+		$orm = \Bitrix\Pull\Model\ChannelTable::getList([
+			'select' => ['USER_ID', 'CHANNEL_ID', 'USER_ACTIVE' => 'USER.ACTIVE'],
+			'filter' => [
 				'=CHANNEL_ID' => $channels
- 			)
-		));
+			]
+		]);
 		while ($row = $orm->fetch())
 		{
-			if ($row['USER_ID'] > 0 && $row['USER_ACTIVE'] == 'N')
+			if ($row['USER_ID'] > 0 && $row['USER_ACTIVE'] !== 'N')
 			{
-				continue;
+				$result[$row['CHANNEL_ID']] = $row['USER_ID'];
 			}
-
-			$result[$row['CHANNEL_ID']] = $row['USER_ID'];
+			else
+			{
+				unset($result[$row['CHANNEL_ID']]);
+			}
 		}
 
 		return $result;
@@ -518,15 +514,8 @@ class Event
 			return false;
 		}
 
-		$parameters['module_id'] = strtolower($parameters['module_id']);
-		if (isset($parameters['expire']))
-		{
-			$parameters['expire'] = intval($parameters['expire']);
-		}
-		else
-		{
-			$parameters['expire'] = 86400;
-		}
+		$parameters['module_id'] = mb_strtolower($parameters['module_id']);
+		$parameters['expiry'] = (int)($parameters['expiry'] ?? 86400);
 
 		if (isset($parameters['paramsCallback']))
 		{
@@ -587,7 +576,7 @@ class Event
 
 	private static function preparePushParameters($parameters)
 	{
-		$parameters['module_id'] = strtolower($parameters['module_id']);
+		$parameters['module_id'] = mb_strtolower($parameters['module_id']);
 
 		if (isset($parameters['pushParamsCallback']))
 		{
@@ -661,6 +650,7 @@ class Event
 
 			unset($paramsWithoutTime['extra']['server_time']);
 			unset($paramsWithoutTime['extra']['server_time_unix']);
+			unset($paramsWithoutTime['advanced_params']['filterCallback']);
 
 			return serialize($paramsWithoutTime);
 		}
@@ -675,7 +665,12 @@ class Event
 		);
 		foreach ($recipient as $entity)
 		{
-			if (self::isChannelEntity($entity))
+			if ($entity instanceof \Bitrix\Pull\Model\Channel)
+			{
+				$result['channels'][] = $entity->getPrivateId();
+				$result['count']++;
+			}
+			else if (self::isChannelEntity($entity))
 			{
 				$result['channels'][] = $entity;
 				$result['count']++;
@@ -696,7 +691,7 @@ class Event
 
 		if (is_string($variable))
 		{
-			$bytes += strlen($variable);
+			$bytes += mb_strlen($variable);
 		}
 		else if (is_array($variable))
 		{
@@ -707,7 +702,7 @@ class Event
 		}
 		else
 		{
-			$bytes += strlen((string)$variable);
+			$bytes += mb_strlen((string)$variable);
 		}
 
 		return $bytes;
@@ -715,7 +710,7 @@ class Event
 
 	private static function isChannelEntity($entity)
 	{
-		return is_string($entity) && strlen($entity) == 32;
+		return is_string($entity) && mb_strlen($entity) == 32;
 	}
 
 	public static function getLastError()

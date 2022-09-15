@@ -22,8 +22,14 @@ use Bitrix\UI\Toolbar\Manager;
  * @see \Bitrix\UI\Toolbar\Toolbar::getId
  * @method static getFilter();
  * @see \Bitrix\UI\Toolbar\Toolbar::getFilter
- * @method static renderTitleRightButtons();
- * @see \Bitrix\UI\Toolbar\Toolbar::renderTitleRightButtons
+ * @method static getBeforeTitleHtml();
+ * @see \Bitrix\UI\Toolbar\Toolbar::getBeforeTitleHtml
+ * @method static getAfterTitleHtml();
+ * @see \Bitrix\UI\Toolbar\Toolbar::getAfterTitleHtml
+ * @method static getRightCustomHtml();
+ * @see \Bitrix\UI\Toolbar\Toolbar::getRightCustomHtml
+ * @method static renderAfterTitleButtons();
+ * @see \Bitrix\UI\Toolbar\Toolbar::renderAfterTitleButtons
  * @method static renderRightButtons();
  * @see \Bitrix\UI\Toolbar\Toolbar::renderRightButtons
  * @method static renderAfterFilterButtons();

@@ -12,9 +12,9 @@ Loc::loadMessages(__FILE__);
 Manager::setPageTitle(Loc::getMessage('LANDING_TPL_BINDING_TITLE'));
 $request = \bitrix\Main\HttpContext::getCurrent()->getRequest();
 
-if (!empty($arResult['ERROR']))
+if (!empty($arResult['ERRORS']))
 {
-	showError(implode("\n", $arResult['ERROR']));
+	showError(implode("\n", $arResult['ERRORS']));
 	return;
 }
 ?>
@@ -26,7 +26,7 @@ if (!empty($arResult['ERROR']))
 		'.default',
 		array(
 			'CODE' => $template,
-			'TYPE' => $arResult['TYPE'],
+			'TYPE' => $arParams['TYPE'],
 			'DONT_LEAVE_FRAME' => 'Y',
 			'BINDING_TYPE' => 'GROUP',
 			'BINDING_ID' => $arParams['GROUP_ID']
@@ -40,7 +40,7 @@ if (!empty($arResult['ERROR']))
 		'bitrix:landing.demo',
 		'.default',
 		array(
-			'TYPE' => $arResult['TYPE'],
+			'TYPE' => $arParams['TYPE'],
 			'PAGE_URL_LANDING_VIEW' => $arParams['PATH_AFTER_CREATE'],
 			'DONT_LEAVE_FRAME' => 'Y',
 			'BINDING_TYPE' => 'GROUP',
@@ -48,9 +48,5 @@ if (!empty($arResult['ERROR']))
 		),
 		$component
 	);?>
-
-	<script type="text/javascript">
-		top.window.history.pushState('', '', '?tab=knowledge');
-	</script>
 
 <?endif;?>

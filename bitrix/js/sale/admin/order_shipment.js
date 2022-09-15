@@ -29,6 +29,7 @@ BX.Sale.Admin.OrderShipment = function(params)
 
 	this.initFieldUpdateSum();
 	this.initFieldUpdateWeight();
+	this.initUpdateDeliveryInfo();
 
 	this.initChangeProfile();
 	this.initCustomEvent();
@@ -775,7 +776,7 @@ BX.Sale.Admin.OrderShipment.prototype.setCalculatedPriceDelivery = function(deli
 				children : [
 					BX.create('span',
 					{
-						text : BX.Sale.Admin.OrderEditPage.currencyFormat(deliveryPrice)
+						html : BX.Sale.Admin.OrderEditPage.currencyFormat(deliveryPrice)
 					}),
 					BX.create('span', {
 						text : BX.message('SALE_ORDER_SHIPMENT_APPLY'),
@@ -1091,6 +1092,15 @@ BX.Sale.Admin.OrderShipment.prototype.initFieldUpdateWeight = function()
 	}, this));
 };
 
+BX.Sale.Admin.OrderShipment.prototype.initUpdateDeliveryInfo = function()
+{
+	var updateDeliveryInfo = BX('UPDATE_DELIVERY_INFO_'+this.index);
+	BX.bind(updateDeliveryInfo, 'click', BX.proxy(function()
+	{
+		this.updateDeliveryInfo();
+	}, this));
+};
+
 BX.Sale.Admin.OrderShipment.prototype.initToggle = function()
 {
 	var fullView = BX('SHIPMENT_SECTION_'+this.index);
@@ -1168,13 +1178,13 @@ BX.Sale.Admin.OrderShipment.prototype.showCreateCheckWindow = function(shipmentI
 					'width': '516',
 					'buttons': [
 						{
-							title: top.BX.message('JS_CORE_WINDOW_SAVE'),
+							title: window.BX.message('JS_CORE_WINDOW_SAVE'),
 							id: 'saveCheckBtn',
 							name: 'savebtn',
-							className: top.BX.browser.IsIE() && top.BX.browser.IsDoctype() && !top.BX.browser.IsIE10() ? '' : 'adm-btn-save'
+							className: window.BX.browser.IsIE() && window.BX.browser.IsDoctype() && !window.BX.browser.IsIE10() ? '' : 'adm-btn-save'
 						},
 						{
-							title: top.BX.message('JS_CORE_WINDOW_CANCEL'),
+							title: window.BX.message('JS_CORE_WINDOW_CANCEL'),
 							id: 'cancelCheckBtn',
 							name: 'cancel'
 						}
@@ -1224,11 +1234,12 @@ BX.Sale.Admin.OrderShipment.prototype.showCreateCheckWindow = function(shipmentI
 					{
 						ShowWaitWindow();
 						var form = BX('check_shipment');
-						
+
 						var subRequest = {
 							formData : BX.ajax.prepareForm(form),
 							action: 'saveCheck',
-							sessid: BX.bitrix_sessid()
+							sessid: BX.bitrix_sessid(),
+							lang: BX.message('LANGUAGE_ID')
 						};
 
 						BX.ajax(
@@ -1275,7 +1286,7 @@ BX.Sale.Admin.OrderShipment.prototype.showCreateCheckWindow = function(shipmentI
 BX.Sale.Admin.OrderShipment.prototype.onCheckEntityChoose = function (currentElement)
 {
 	var checked = currentElement.checked;
-	
+
 	var paymentType = BX(currentElement.id+"_type");
 	if (paymentType)
 		paymentType.disabled = !checked;
@@ -1293,7 +1304,7 @@ BX.Sale.Admin.OrderShipment.prototype.sendQueryCheckStatus = function(checkId)
 			{
 				BX.Sale.Admin.OrderEditPage.showDialog(result.ERROR);
 			}
-			
+
 			var shipmentId = result.SHIPMENT_ID;
 			BX('SHIPMENT_CHECK_LIST_ID_' + shipmentId).innerHTML = result.CHECK_LIST_HTML;
 			if (BX('SHIPMENT_CHECK_LIST_ID_SHORT_VIEW' + shipmentId) !== undefined && BX('SHIPMENT_CHECK_LIST_ID_SHORT_VIEW' + shipmentId) !== null)
@@ -1319,10 +1330,17 @@ BX.Sale.Admin.GeneralShipment =
 		);
 	},
 
-	createNewShipment : function()
+	createNewShipment : function(event, data)
 	{
+        data = data ? data : {};
+        addParams = BX.prop.getObject(data, 'addParams', {});
+
 		var orderId = BX('ID').value;
-		window.location = '/bitrix/admin/sale_order_shipment_edit.php?lang='+BX.Sale.Admin.OrderEditPage.languageId+'&order_id='+orderId+'&backurl='+encodeURIComponent(window.location.pathname+window.location.search);
+        url = '/bitrix/admin/sale_order_shipment_edit.php?lang='+BX.Sale.Admin.OrderEditPage.languageId+'&order_id='+orderId+'&backurl='+encodeURIComponent(window.location.pathname+window.location.search);
+		if (addParams)
+            url = BX.util.add_url_param(url, addParams);
+
+		window.location = url;
 	},
 
 	findProductByBarcode : function(_this)

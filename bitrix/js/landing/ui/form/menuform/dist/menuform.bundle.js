@@ -1,7 +1,7 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
 this.BX.Landing.UI = this.BX.Landing.UI || {};
-(function (exports,main_core,landing_loc,landing_env,landing_main,landing_ui_form_baseform,landing_ui_form_menuitemform,ui_draganddrop_draggable) {
+(function (exports, main_core, landing_loc, landing_env, landing_main, landing_ui_form_baseform, landing_ui_form_menuitemform, ui_draganddrop_draggable) {
 	'use strict';
 
 	function _templateObject2() {
@@ -23,9 +23,11 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	  return data;
 	}
-	var MenuForm =
-	/*#__PURE__*/
-	function (_BaseForm) {
+	/**
+	 * @memberOf BX.Landing.UI.Form
+	 */
+
+	var MenuForm = /*#__PURE__*/function (_BaseForm) {
 	  babelHelpers.inherits(MenuForm, _BaseForm);
 
 	  function MenuForm() {
@@ -123,19 +125,28 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    key: "onAddButtonClick",
 	    value: function onAddButtonClick(event) {
 	      event.preventDefault();
+	      var pageType = landing_env.Env.getInstance().getType();
+	      var content = {
+	        text: landing_loc.Loc.getMessage('LANDING_NEW_PAGE_LABEL'),
+	        target: '_blank',
+	        href: ['KNOWLEDGE', 'GROUP'].includes(pageType) ? '#landing0' : ''
+	      };
+	      var allowedTypes = [BX.Landing.UI.Field.LinkURL.TYPE_BLOCK, BX.Landing.UI.Field.LinkURL.TYPE_PAGE, BX.Landing.UI.Field.LinkURL.TYPE_CRM_FORM, BX.Landing.UI.Field.LinkURL.TYPE_CRM_PHONE];
+
+	      if (pageType === 'STORE') {
+	        allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_CATALOG);
+	      }
+
 	      var field = new BX.Landing.UI.Field.Link({
-	        content: {
-	          text: landing_loc.Loc.getMessage('LANDING_NEW_PAGE_LABEL'),
-	          href: '#landing0',
-	          target: '_blank'
-	        },
+	        content: content,
 	        options: {
 	          siteId: landing_env.Env.getInstance().getSiteId(),
 	          landingId: landing_main.Main.getInstance().id,
 	          filter: {
-	            '=TYPE': landing_env.Env.getInstance().getType()
+	            '=TYPE': pageType
 	          }
-	        }
+	        },
+	        allowedTypes: allowedTypes
 	      });
 	      var form = new landing_ui_form_menuitemform.MenuItemForm({
 	        fields: [field]
@@ -183,5 +194,5 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	exports.MenuForm = MenuForm;
 
-}((this.BX.Landing.UI.Form = this.BX.Landing.UI.Form || {}),BX,BX.Landing,BX.Landing,BX.Landing,BX.Landing.UI.Form,BX.Landing.UI.Form,BX.UI.DragAndDrop));
+}(this.BX.Landing.UI.Form = this.BX.Landing.UI.Form || {}, BX, BX.Landing, BX.Landing, BX.Landing, BX.Landing.UI.Form, BX.Landing.UI.Form, BX.UI.DragAndDrop));
 //# sourceMappingURL=menuform.bundle.js.map

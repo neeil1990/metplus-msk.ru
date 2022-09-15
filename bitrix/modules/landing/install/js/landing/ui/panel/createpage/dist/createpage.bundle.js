@@ -1,7 +1,7 @@
 this.BX = this.BX || {};
 this.BX.Landing = this.BX.Landing || {};
 this.BX.Landing.UI = this.BX.Landing.UI || {};
-(function (exports,main_core,main_loader,landing_ui_panel_content,landing_loc,landing_backend,landing_env) {
+(function (exports,main_core,main_loader,landing_ui_panel_content,landing_loc,landing_backend,landing_env,landing_sliderhacks,landing_ui_field_textfield) {
 	'use strict';
 
 	function _templateObject2() {
@@ -15,7 +15,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	}
 
 	function _templateObject() {
-	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t\t<div class=\"landing-ui-panel-create-page-success\">\n\t\t\t\t\t<div class=\"landing-ui-panel-create-page-success-header\">\n\t\t\t\t\t\t", "\n\t\t\t\t\t</div>\n\t\t\t\t\t<div class=\"landing-ui-panel-create-page-actions\">\n\t\t\t\t\t\t<a href=\"", "\" target=\"_blank\">", "</a> &nbsp;\n\t\t\t\t\t</div>\n\t\t\t\t</div>\n\t\t\t"]);
+	  var data = babelHelpers.taggedTemplateLiteral(["\n\t\t\t<div class=\"landing-ui-panel-create-page-success\">\n\t\t\t\t<div class=\"landing-ui-panel-create-page-success-header\">\n\t\t\t\t\t", "\n\t\t\t\t</div>\n\t\t\t\t<div class=\"landing-ui-panel-create-page-actions\">\n\t\t\t\t\t<a href=\"", "\" target=\"_blank\">", "</a> &nbsp;\n\t\t\t\t</div>\n\t\t\t</div>\n\t\t"]);
 
 	  _templateObject = function _templateObject() {
 	    return data;
@@ -23,9 +23,11 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	  return data;
 	}
-	var CreatePage =
-	/*#__PURE__*/
-	function (_Content) {
+	/**
+	 * @memberOf BX.Landing.UI.Panel
+	 */
+
+	var CreatePage = /*#__PURE__*/function (_Content) {
 	  babelHelpers.inherits(CreatePage, _Content);
 	  babelHelpers.createClass(CreatePage, null, [{
 	    key: "getInstance",
@@ -70,7 +72,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    key: "getTitleField",
 	    value: function getTitleField() {
 	      return this.cache.remember('titleField', function () {
-	        return new BX.Landing.UI.Field.Text({
+	        return new landing_ui_field_textfield.TextField({
 	          title: landing_loc.Loc.getMessage('LANDING_CREATE_PAGE_PANEL_FIELD_PAGE_TITLE'),
 	          textOnly: true
 	        });
@@ -80,7 +82,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	    key: "getCodeField",
 	    value: function getCodeField() {
 	      return this.cache.remember('codeField', function () {
-	        return new BX.Landing.UI.Field.Text({
+	        return new landing_ui_field_textfield.TextField({
 	          title: landing_loc.Loc.getMessage('LANDING_CREATE_PAGE_PANEL_FIELD_PAGE_CODE'),
 	          textOnly: true
 	        });
@@ -112,7 +114,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	          return BX.Landing.Block.Node.Text.currentNode;
 	        }
 
-	        return BX.Landing.UI.Field.Text.currentField;
+	        return landing_ui_field_textfield.TextField.currentField;
 	      }();
 
 	      var capitalizedTitle = title.replace(/^\w/, function (c) {
@@ -136,9 +138,7 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	      var urlMask = envOptions.params.sef_url.landing_view;
 	      var siteId = envOptions.site_id;
 	      var editLink = urlMask.replace('#site_show#', siteId).replace('#landing_edit#', id);
-	      return this.cache.remember('successMessage', function () {
-	        return main_core.Tag.render(_templateObject(), landing_loc.Loc.getMessage('LANDING_CREATE_PAGE_PANEL_SUCCESS_MESSAGE_TITLE'), editLink, landing_loc.Loc.getMessage('LANDING_CONTENT_PANEL_TITLE'));
-	      });
+	      return main_core.Tag.render(_templateObject(), landing_loc.Loc.getMessage('LANDING_CREATE_PAGE_PANEL_SUCCESS_MESSAGE_TITLE'), editLink, landing_loc.Loc.getMessage('LANDING_CONTENT_PANEL_TITLE'));
 	    }
 	  }, {
 	    key: "getFailMessage",
@@ -159,12 +159,17 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	        replace_space: '-',
 	        replace_other: ''
 	      });
+
+	      var _Env$getInstance$getO = landing_env.Env.getInstance().getOptions(),
+	          folderId = _Env$getInstance$getO.folder_id;
+
 	      var loader = new main_loader.Loader();
 	      this.clear();
 	      loader.show(this.body);
 	      void backend.createPage({
 	        title: title,
-	        code: code
+	        code: code,
+	        folderId: folderId
 	      }).then(function (result) {
 	        return new Promise(function (resolve) {
 	          setTimeout(function () {
@@ -175,7 +180,20 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 	        loader.hide();
 
 	        if (main_core.Type.isNumber(result)) {
-	          main_core.Dom.append(_this3.getSuccessMessage(result), _this3.content);
+	          var successMessage = _this3.getSuccessMessage(result);
+
+	          if (landing_env.Env.getInstance().getType() === 'KNOWLEDGE' || landing_env.Env.getInstance().getType() === 'GROUP') {
+	            var _link = successMessage.querySelector('a');
+
+	            if (_link) {
+	              main_core.Event.bind(_link, 'click', function (event) {
+	                event.preventDefault();
+	                void landing_sliderhacks.SliderHacks.reloadSlider(_link.href, window.parent);
+	              });
+	            }
+	          }
+
+	          main_core.Dom.append(successMessage, _this3.content);
 	          var value = {
 	            href: "#landing".concat(result)
 	          };
@@ -214,5 +232,5 @@ this.BX.Landing.UI = this.BX.Landing.UI || {};
 
 	exports.CreatePage = CreatePage;
 
-}((this.BX.Landing.UI.Panel = this.BX.Landing.UI.Panel || {}),BX,BX,BX.Landing.UI.Panel,BX.Landing,BX.Landing,BX.Landing));
+}((this.BX.Landing.UI.Panel = this.BX.Landing.UI.Panel || {}),BX,BX,BX.Landing.UI.Panel,BX.Landing,BX.Landing,BX.Landing,BX.Landing,BX.Landing.UI.Field));
 //# sourceMappingURL=createpage.bundle.js.map

@@ -19,6 +19,8 @@ use \Bitrix\Main\Localization\Loc;
  * @var string $imgTitle
  * @var string $productTitle
  * @var string $buttonSizeClass
+ * @var string $discountPositionClass
+ * @var string $labelPositionClass
  * @var CatalogSectionComponent $component
  */
 
@@ -519,16 +521,14 @@ else
 									<div class="product-item-amount">
 										<div class="product-item-amount-field-container">
 											<span class="product-item-amount-field-btn-minus no-select" id="<?=$itemIds['QUANTITY_DOWN']?>"></span>
-											<input class="product-item-amount-field" id="<?=$itemIds['QUANTITY']?>" type="number"
-												name="<?=$arParams['PRODUCT_QUANTITY_VARIABLE']?>"
-												value="<?=$measureRatio?>">
-											<span class="product-item-amount-field-btn-plus no-select" id="<?=$itemIds['QUANTITY_UP']?>"></span>
-											<div class="product-item-amount-description-container">
-												<span id="<?=$itemIds['QUANTITY_MEASURE']?>">
-													<?=$actualItem['ITEM_MEASURE']['TITLE']?>
-												</span>
-												<span id="<?=$itemIds['PRICE_TOTAL']?>"></span>
+											<div class="product-item-amount-field-block">
+												<input class="product-item-amount-field" id="<?=$itemIds['QUANTITY']?>" type="number" name="<?=$arParams['PRODUCT_QUANTITY_VARIABLE']?>" value="<?=$measureRatio?>">
+												<div class="product-item-amount-description-container">
+													<span id="<?=$itemIds['QUANTITY_MEASURE']?>"><?=$actualItem['ITEM_MEASURE']['TITLE']?></span>
+													<span id="<?=$itemIds['PRICE_TOTAL']?>"></span>
+												</div>
 											</div>
+											<span class="product-item-amount-field-btn-plus no-select" id="<?=$itemIds['QUANTITY_UP']?>"></span>
 										</div>
 									</div>
 								</div>
@@ -544,14 +544,14 @@ else
 									<div class="product-item-amount">
 										<div class="product-item-amount-field-container">
 											<span class="product-item-amount-field-btn-minus no-select" id="<?=$itemIds['QUANTITY_DOWN']?>"></span>
-											<input class="product-item-amount-field" id="<?=$itemIds['QUANTITY']?>" type="number"
-												name="<?=$arParams['PRODUCT_QUANTITY_VARIABLE']?>"
-												value="<?=$measureRatio?>">
-											<span class="product-item-amount-field-btn-plus no-select" id="<?=$itemIds['QUANTITY_UP']?>"></span>
-											<div class="product-item-amount-description-container">
-												<span id="<?=$itemIds['QUANTITY_MEASURE']?>"></span>
-												<span id="<?=$itemIds['PRICE_TOTAL']?>"></span>
+											<div class="product-item-amount-field-block">
+												<input class="product-item-amount-field" id="<?=$itemIds['QUANTITY']?>" type="number" name="<?=$arParams['PRODUCT_QUANTITY_VARIABLE']?>" value="<?=$measureRatio?>">
+												<div class="product-item-amount-description-container">
+													<span id="<?=$itemIds['QUANTITY_MEASURE']?>"></span>
+													<span id="<?=$itemIds['PRICE_TOTAL']?>"></span>
+												</div>
 											</div>
+											<span class="product-item-amount-field-btn-plus no-select" id="<?=$itemIds['QUANTITY_UP']?>"></span>
 										</div>
 									</div>
 								</div>
