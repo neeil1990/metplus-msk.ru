@@ -20,6 +20,6 @@ spl_autoload_register(function($classname) use ($preparedMap) {
         // ... и подключаем этот модуль
         CModule::IncludeModule($preparedMap[$classname]);
         // ... а затем передаем управление автозагрузчику битрикса
-        CModule::RequireAutoloadClass($classname);
+        \Bitrix\Main\Loader::autoLoad($classname);
     }
 });
