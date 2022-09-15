@@ -13,7 +13,7 @@ error_reporting(E_ERROR);
 CModule::IncludeModule('main');
 CModule::IncludeModule("search");
 
-$APPLICATION = new CMain();
+//$APPLICATION = new CMain();
 
 require('autoloader.php');
 
